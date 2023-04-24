@@ -1,0 +1,16 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: test-rec-bootstrap-readiness-headless
+  namespace: redis
+spec:
+  ports:
+    - port: 8787
+      protocol: TCP
+      appProtocol: tcp
+      targetPort: 8787
+  selector:
+    app: redis-enterprise
+    redis.io/cluster: test-rec
+    redis.io/role: node
+  clusterIP: None

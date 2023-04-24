@@ -1,0 +1,21 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/exporters/node-exporter/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redpanda-operator-kube-pro-node-exporter
+  namespace: redpanda-system
+  labels:
+    app: kube-prometheus-stack-node-exporter
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+spec:
+  jobLabel: jobLabel
+  selector:
+    matchLabels:
+      app: prometheus-node-exporter
+      release: redpanda-operator
+  endpoints:
+  - port: metrics

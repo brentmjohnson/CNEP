@@ -1,0 +1,215 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: keycloak-route
+  namespace: keycloak
+spec:
+  http:
+  - backends:
+    - serviceName: keycloak-service
+      servicePort: 8080
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /keycloak/*
+    name: rule1
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: keycloak-service.keycloak.svc.cluster.local
+      enable: true
+      name: proxy-rewrite
+    - config:
+        functions:
+        - return function(conf, ctx) ngx.var.var_x_forwarded_proto = "https"; ngx.var.var_x_forwarded_port
+          = 443 end
+        phase: rewrite
+      enable: true
+      name: serverless-pre-function
+  - backends:
+    - serviceName: keycloak-service
+      servicePort: 8080
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /keycloak-internal/*
+    name: rule2
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: keycloak-service.keycloak.svc.cluster.local
+        regex_uri:
+        - ^/keycloak-internal/(.*)
+        - /$1
+      enable: true
+      name: proxy-rewrite
+    - config:
+        functions:
+        - return function(conf, ctx) ngx.var.var_x_forwarded_proto = "http"; ngx.var.var_x_forwarded_port
+          = 8080; ngx.var.var_x_forwarded_host = "keycloak-service.keycloak.svc.cluster.local"
+          end
+        phase: rewrite
+      enable: true
+      name: serverless-pre-function
+  - backends:
+    - serviceName: keycloak-service
+      servicePort: 8080
+    match:
+      hosts:
+      - example.com
+      paths:
+      - /keycloak/realms/apisix/protocol/openid-connect/auth
+      - /keycloak/realms/apisix/protocol/openid-connect/logout
+      - /keycloak/realms/apisix/login-actions/authenticate
+      - /keycloak/realms/apisix/login-actions/first-broker-login
+      - /keycloak/realms/apisix/broker/apisix-internal/login
+      - /keycloak/realms/apisix/broker/apisix-internal/endpoint
+      - /keycloak/realms/apisix/broker/apisix-internal/endpoint/logout_response
+      - /keycloak/realms/apisix/broker/after-first-broker-login
+      - /keycloak/resources/*
+      - /keycloak/robots.txt
+    name: rule3
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: keycloak-service.keycloak.svc.cluster.local
+      enable: true
+      name: proxy-rewrite
+    - config:
+        functions:
+        - return function(conf, ctx) ngx.var.var_x_forwarded_proto = "https"; ngx.var.var_x_forwarded_port
+          = 443 end
+        phase: rewrite
+      enable: true
+      name: serverless-pre-function
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  labels:
+    app: keycloak
+  name: keycloak
+  namespace: keycloak
+spec:
+  additionalOptions:
+  - name: db
+    value: postgres
+  - name: db-url-host
+    value: postgres-cluster.postgres.svc.cluster.local
+  - name: db-username
+    value: <user>
+  - name: db-password
+    value: <password>
+  - name: http-enabled
+    value: "true"
+  - name: http-relative-path
+    value: /keycloak
+  - name: health-enabled
+    value: "true"
+  - name: metrics-enabled
+    value: "true"
+  hostname:
+    httpEnabled: true
+    strict: false
+    strictBackchannel: false
+  ingress:
+    enabled: false
+  instances: 1
+  tlsSecret: INSECURE-DISABLE
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakRealmImport
+metadata:
+  labels:
+    realm: apisix
+  name: apisix
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm:
+    attributes:
+      frontendUrl: https://example.com/keycloak/
+    bruteForceProtected: true
+    clients:
+    - attributes:
+        pkce.code.challenge.method: S256
+        post.logout.redirect.uris: /
+      directAccessGrantsEnabled: true
+      id: httpbin
+      name: httpbin
+      protocol: openid-connect
+      redirectUris:
+      - /login
+      rootUrl: https://httpbin.example.com
+    displayName: APISIX
+    enabled: true
+    realm: apisix
+    users:
+    - credentials:
+      - type: password
+        value: <password>
+      email: <user>
+      enabled: true
+      firstName: <user>
+      lastName: <user>
+      username: <user>
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakRealmImport
+metadata:
+  labels:
+    realm: apisix-internal
+  name: apisix-internal
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm:
+    attributes:
+      frontendUrl: https://internal.example.com/keycloak/
+    bruteForceProtected: true
+    clients:
+    - attributes:
+        pkce.code.challenge.method: S256
+        post.logout.redirect.uris: /
+      directAccessGrantsEnabled: true
+      id: httpbin-internal
+      name: httpbin-internal
+      protocol: openid-connect
+      redirectUris:
+      - /login
+      rootUrl: https://httpbin.internal.example.com
+    displayName: APISIX-INTERNAL
+    enabled: true
+    realm: apisix-internal
+    users:
+    - credentials:
+      - type: password
+        value: <password>
+      email: <user>
+      enabled: true
+      firstName: <user>
+      lastName: <user>
+      username: <user>

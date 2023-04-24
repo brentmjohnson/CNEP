@@ -1,0 +1,15 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkSessionJob
+metadata:
+  namespace: flink
+  name: basic-session-job
+spec:
+  deploymentName: flink
+  job:
+    # jarURI: file:///opt/flink/artifacts/StateMachineExample.jar
+    # jarURI: https://repo1.maven.org/maven2/org/apache/flink/flink-examples-streaming_2.12/1.16.1/flink-examples-streaming_2.12-1.16.1-TopSpeedWindowing.jar
+    # jarURI: s3a://flink-bucket-a858f464-a466-4686-8597-fa6f20e4eed1/artifacts/StateMachineExample.jar
+    jarURI: s3p://flink-bucket-a858f464-a466-4686-8597-fa6f20e4eed1/artifacts/StateMachineExample.jar
+    parallelism: 1
+    upgradeMode: stateless
+    entryClass: org.apache.flink.streaming.examples.statemachine.StateMachineExample

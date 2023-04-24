@@ -1,0 +1,20 @@
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: postgres-cluster
+  namespace: postgres
+spec:
+  teamId: "postgres"
+  volume:
+    size: 1Gi
+  numberOfInstances: 2
+  users:
+    postgres:  # database owner
+    - superuser
+    - createdb
+  # databases:
+  #   keycloak: keycloak  # dbname: owner
+  # preparedDatabases:
+  #   keycloak: {}
+  postgresql:
+    version: "15"

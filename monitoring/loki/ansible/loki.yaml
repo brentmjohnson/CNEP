@@ -1,0 +1,253 @@
+- name: Install loki
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add loki chart repo
+      kubernetes.core.helm_repository:
+        name: grafana
+        repo_url: "https://grafana.github.io/helm-charts"
+
+    - name: Separately update the loki cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: grafana
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Apply loki-bucket manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/base/loki-bucket.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+    
+    - name: Get the loki-bucket configmap info
+      kubernetes.core.k8s_info:
+        kind: ConfigMap
+        wait: yes
+        name: loki-bucket
+        namespace: monitoring
+        # wait_timeout: 240
+      register: bucket_configmap_data
+    # - debug: var=bucket_configmap_data.resources[0].data
+    
+    - name: Get the loki-bucket secret info
+      kubernetes.core.k8s_info:
+        kind: Secret
+        wait: yes
+        name: loki-bucket
+        namespace: monitoring
+        # wait_timeout: 240
+      register: bucket_secret_data
+    # - debug: var=bucket_secret_data.resources[0].data
+  
+    - ansible.builtin.set_fact:
+        loki_bucket: "{{ {} |
+          combine(bucket_configmap_data.resources[0].data) |
+          combine(dict(secret_keys | zip(decoded_secret_values))) 
+          }}"
+      vars:
+        secret_keys: "{{ bucket_secret_data.resources[0].data.keys() | list }}"
+        secret_values: "{{ bucket_secret_data.resources[0].data.values() | list }}"
+        decoded_secret_values: "{{ secret_values | map('b64decode') | list }}"
+    # - debug: var=loki_bucket
+
+    - name: Apply bucket policy
+      ansible.builtin.shell:
+        cmd: |
+          kubectl run -it -n monitoring --rm s3cmd --image=alpine --restart=Never -- sh -c '
+          apk add s3cmd -q --no-progress
+          cat > /tmp/iam-policy.json << EOF
+          {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["arn:aws:iam:::user/obc-monitoring-loki-bucket","arn:aws:iam:::user/ceph-bucket-admin-user"]},"Action":["s3:*"],"Resource":["arn:aws:s3:::*"]}]}
+          EOF
+          cat > /tmp/lifecycle-policy.json << EOF
+          <LifecycleConfiguration>
+            <Rule>
+              <ID>Expire after 7 days</ID>
+              <Filter>
+                <Prefix>fake/</Prefix>
+              </Filter>
+              <Status>Enabled</Status>
+              <Expiration>
+                <Days>7</Days>
+              </Expiration>
+            </Rule>
+          </LifecycleConfiguration>
+          EOF
+          s3cmd setpolicy \
+          ./tmp/iam-policy.json \
+          s3://{{ loki_bucket.BUCKET_NAME }} \
+          --host={{ loki_bucket.BUCKET_HOST }}.cluster.local \
+          --host-bucket={{ loki_bucket.BUCKET_HOST }}.cluster.local \
+          --no-ssl \
+          --access_key={{ loki_bucket.AWS_ACCESS_KEY_ID }} \
+          --secret_key={{ loki_bucket.AWS_SECRET_ACCESS_KEY }}
+          s3cmd setlifecycle \
+          ./tmp/lifecycle-policy.json \
+          s3://{{ loki_bucket.BUCKET_NAME }} \
+          --host={{ loki_bucket.BUCKET_HOST }}.cluster.local \
+          --host-bucket={{ loki_bucket.BUCKET_HOST }}.cluster.local \
+          --no-ssl \
+          --access_key={{ loki_bucket.AWS_ACCESS_KEY_ID }} \
+          --secret_key={{ loki_bucket.AWS_SECRET_ACCESS_KEY }}'
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../../credentials.yaml"
+        name: credentials
+    # - debug: var=credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              loki_scylla:
+                password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.loki_scylla.password is not defined or
+        credentials.loki_scylla.password == None or
+        credentials.loki_scylla.password | length == 0"
+
+    - name: Setting helm loki templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../helm/values/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../helm/values/templates/*.j2"
+
+    - name: Helm template loki chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=0.69.9
+          --namespace=monitoring
+          --values={{ playbook_dir }}/../helm/values/loki-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/base
+          loki grafana/loki-distributed
+
+    - name: Add loki resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/loki-distributed/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/"
+
+    - name: Add loki resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/loki-distributed/templates/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/"
+
+    - name: Dynamically update configmap patch
+      ansible.builtin.shell:
+        cmd: |
+          yq '.data.["config.yaml"]' \
+          < {{ playbook_dir }}/../kustomize/base/loki-distributed/templates/configmap.yaml
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Fetch updated loki_distributed_config
+      ansible.builtin.slurp:
+        src: "{{ playbook_dir }}/../kustomize/patches/templates/loki-loki-distributed-configmap-patch-values.yaml"
+      register: updated_config
+    # - debug: var="updated_config['content'] | b64decode | from_yaml"
+
+    - ansible.builtin.set_fact:
+        loki_distributed_config: "{{ myoutput.stdout | from_yaml | combine(updated_config['content'] | b64decode | from_yaml, recursive=true) | to_nice_yaml(indent=2) | indent( width=4 ) }}"
+    # - debug: var=loki_distributed_config
+
+    - name: Setting kustomize loki patch templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/patches/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/patches/templates/*.j2"
+
+    - name: Kustomize build loki manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy loki resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Check loki credentials
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+          cqlsh localhost -u {{ credentials.loki_scylla.username }} -p {{ credentials.loki_scylla.password }} \
+          -e "DESC CLUSTER;" \
+          | awk -F\, 'NR>1'
+      register: loki_admin_role
+    # - debug: var=myoutput
+
+    - block:
+      - name: Create loki keyspace
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_cluster.username }} -p {{ credentials.scylla_cluster.password }} \
+            --no-color \
+            -e "CREATE KEYSPACE IF NOT EXISTS loki WITH REPLICATION = 
+              { 'class' : 'NetworkTopologyStrategy', 'dc' : 1 };"
+        register: myoutput
+      # - debug: var=myoutput.stdout
+
+      - name: Create loki-admin role
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_cluster.username }} -p {{ credentials.scylla_cluster.password }} \
+            -e "CREATE ROLE '{{ credentials.loki_scylla.username }}' WITH PASSWORD = '{{ credentials.loki_scylla.password }}' AND LOGIN = true AND SUPERUSER = false;"
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Create loki-admin role grants
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_cluster.username }} -p {{ credentials.scylla_cluster.password }} \
+            -e "GRANT ALL PERMISSIONS on KEYSPACE loki to '{{ credentials.loki_scylla.username }}';"
+        register: myoutput
+      # - debug: var=myoutput
+
+      when: loki_admin_role.stdout | length == 0
+
+    - name: Apply loki manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    # - name: Wait for the loki statefulset
+    #   kubernetes.core.k8s_info:
+    #     kind: StatefulSet
+    #     wait: yes
+    #     name: scylla-dc-default
+    #     namespace: scylla
+    #   register: myoutput

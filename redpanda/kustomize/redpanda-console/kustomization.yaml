@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: redpanda
+
+resources:
+- ./base/console/templates/configmap.yaml
+- ./base/console/templates/deployment.yaml
+- ./base/console/templates/secret.yaml
+- ./base/console/templates/service.yaml
+- ./base/console/templates/serviceaccount.yaml
+- ./base/redpanda-console-route.yaml

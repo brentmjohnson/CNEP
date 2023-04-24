@@ -1,0 +1,38 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: vault-route
+  namespace: vault
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+        - vault.internal.example.com
+      paths:
+      - /*
+    backends:
+       - serviceName: vault-active
+         servicePort: 8200
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: vault-active.vault.svc.cluster.local
+          # regex_uri:
+          #   - "^/vault/(.*)"
+          #   - "/$1"

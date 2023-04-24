@@ -1,0 +1,16 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: apisix
+  namespace: ingress-apisix
+spec:
+  template:
+    spec:
+      containers:
+        - name: apisix
+          image: apache/apisix:2.14.1-alpine
+          ports:
+            - name: prometheus
+              containerPort: 9091
+              protocol: TCP
+              appProtocol: http

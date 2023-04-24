@@ -1,0 +1,246 @@
+- name: Install redpanda-cluster
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Wait for the redpanda headless service
+      kubernetes.core.k8s_info:
+        kind: StatefulSet
+        name: redpanda
+        namespace: redpanda
+      register: redpanda_statefulset
+    # - debug: var=redpanda_statefulset
+
+    - block:
+      - name: Setting kustomize redpanda base templates
+        ansible.builtin.template:
+          src: "{{ item }}"
+          dest: "{{ playbook_dir }}/../kustomize/redpanda-cluster/base/{{ item | basename | regex_replace('\\.j2$', '') }}"
+          mode: "0644"
+        with_fileglob:
+          - "{{ playbook_dir }}/../kustomize/redpanda-cluster/base/templates/*.j2"
+
+      - name: Kustomize build redpanda-cluster manifests.
+        ansible.builtin.shell:
+          cmd: kustomize build
+          chdir: "{{ playbook_dir }}/../kustomize/redpanda-cluster/"
+        register: myoutput
+      # - debug: var=myoutput.stdout
+
+      - name: Kustomize copy redpanda-cluster resources.
+        ansible.builtin.copy :
+          content: "{{ myoutput.stdout }}"
+          dest: "{{ playbook_dir }}/../kustomize/redpanda-cluster/resources/resources.yaml"
+          mode: "0644"
+
+      - name: Apply redpanda-cluster manifests to the cluster
+        kubernetes.core.k8s:
+          state: present
+          src: "{{ playbook_dir }}/../kustomize/redpanda-cluster/resources/resources.yaml"
+          kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+          # apply: yes
+          # server_side_apply:
+          #   field_manager: ansible
+          # wait: true
+
+      - name: Wait for the redpanda headless service
+        kubernetes.core.k8s_info:
+          kind: Service
+          wait: yes
+          name: redpanda
+          namespace: redpanda
+        register: myoutput
+
+      # - name: Patch redpanda headless service
+      #   ansible.builtin.shell:
+      #     cmd: |
+      #       kubectl patch service/redpanda -n redpanda --type json -p='[
+      #         {
+      #           "op": "'$([ $(kubectl get service redpanda -n redpanda -o json  | jq '.spec.ports | map(.name == "rpc") | index(true)') = null ] && echo 'add' || echo 'replace')'",
+      #           "path": '/spec/ports/$([ $(kubectl get service redpanda -n redpanda -o json  | jq '.spec.ports | map(.name == "rpc") | index(true)') = null ] && echo $(kubectl get service redpanda -n redpanda -o json  | jq '.spec.ports | length') || echo $(kubectl get service redpanda -n redpanda -o json  | jq '.spec.ports | map(.name == "rpc") | index(true)'))',
+      #           "value": { "name": "rpc", "port": 33145, "targetPort": 33145 }
+      #         }
+      #       ]' \
+      #       --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      #   register: myoutput
+      # # - debug: var=myoutput
+
+      # this handles the supported merge keys of port/protocol
+      - name: Patch redpanda headless service
+        ansible.builtin.shell:
+          cmd: |
+            kubectl patch service/redpanda -n redpanda -p='{"spec": { "ports": [ { "name": "rcp", "port": 33145, "targetPort": 33145 } ] } }' \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+        register: myoutput
+      # - debug: var=myoutput
+
+      # - name: Wait for the redpanda statefulset
+      #   kubernetes.core.k8s_info:
+      #     # this is wrong but somehow fixes a timing issue
+      #     kind: statefulset
+      #     wait: yes
+      #     name: redpanda
+      #     namespace: redpanda
+      #     wait_timeout: 600
+      #   register: myoutput
+
+      - name: Wait for redpanda statefulset .status.replicas
+        ansible.builtin.shell: 
+          cmd: | 
+            while ! \
+              [ $(kubectl get -n redpanda statefulset/redpanda -o jsonpath='{.status.replicas}' \
+              --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig') -gt 0 ];
+            do sleep 1;
+            done;
+            kubectl get -n redpanda statefulset/redpanda -o jsonpath='{.status.replicas}' \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+        register: redpanda_replicas
+      # - debug: var=redpanda_replicas
+      
+      - name: Wait for redpanda statefulset readiness
+        ansible.builtin.shell: 
+          cmd: | 
+            kubectl wait -n redpanda statefulset/redpanda --timeout=300s --for jsonpath='{.status.readyReplicas}'={{ redpanda_replicas.stdout }} \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+        register: myoutput
+
+      - name: Wait for redpanda operator cluster restart
+        ansible.builtin.shell: 
+          cmd: | 
+            while ! \
+              [ $(kubectl exec -n redpanda statefulset/redpanda \
+              --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+              -- rpk cluster metadata -b \
+              | awk -F\, 'NR>1' \
+              | awk '{print $1}' \
+              | wc -l) = {{ redpanda_replicas.stdout }} ];
+            do sleep 5;
+            done
+        register: myoutput
+      # - debug: var=myoutput.stdout_lines
+      when: "redpanda_statefulset.resources[0] is not defined"
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              redpanda_cluster:
+                password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.redpanda_cluster.password is not defined or
+        credentials.redpanda_cluster.password == None or
+        credentials.redpanda_cluster.password | length == 0"
+    
+    - name: Check redpanda superadmin credentials
+      ansible.builtin.shell:
+        # kubectl exec -n redpanda statefulset/redpanda -- rpk cluster health | awk -F\, 'NR>2' | head -n -4 | awk '{print $2}'
+        cmd: |
+          kubectl exec -n redpanda statefulset/redpanda -- \
+          rpk acl user list \
+          --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }} \
+          | grep '^{{ credentials.redpanda_cluster.username }}$' || true
+      register: redpanda_superadmin
+    # - debug: var=redpanda_superadmin
+
+    - block:
+      - name: Create redpanda superadmin user
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -n redpanda redpanda-0 -- \
+            rpk acl user create {{ credentials.redpanda_cluster.username }} -p {{ credentials.redpanda_cluster.password }} \
+            --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }}
+        register: myoutput
+      # - debug: var=myoutput
+
+      when: redpanda_superadmin.stdout | length == 0
+
+    - name: Setting kustomize redpanda base templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/redpanda-cluster/base/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/redpanda-cluster/base/templates/*.j2"
+      vars: 
+        authenticationMethod: sasl
+
+    - name: Kustomize build redpanda-cluster manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/redpanda-cluster/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy redpanda-cluster resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/redpanda-cluster/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply redpanda-cluster manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/redpanda-cluster/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+    
+    # - name: Pause for 15 seconds for the operator to start restarting instances
+    #   ansible.builtin.pause:
+    #     seconds: 15
+
+    # - name: Wait for the redpanda statefulset
+    #   kubernetes.core.k8s_info:
+    #     kind: StatefulSet
+    #     wait: yes
+    #     name: redpanda
+    #     namespace: redpanda
+    #   register: myoutput
+
+    - name: Wait for redpanda statefulset .status.replicas
+      ansible.builtin.shell: 
+        cmd: | 
+          while ! \
+            kubectl get -n redpanda statefulset/redpanda -o jsonpath='{.status.replicas}' \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+          do sleep 1;
+          done
+      register: redpanda_replicas
+    # - debug: var=redpanda_replicas
+    
+    - name: Wait for redpanda operator cluster restart
+      ansible.builtin.shell: 
+        cmd: | 
+          while ! \
+            [ $(kubectl exec -n redpanda statefulset/redpanda \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+            -- rpk cluster metadata -b \
+            --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }} \
+            | awk -F\, 'NR>1' \
+            | awk '{print $1}' \
+            | wc -l) = {{ redpanda_replicas.stdout }} ];
+          do sleep 5;
+          done
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    # rpk generate grafana-dashboard --datasource prometheus --metrics-endpoint http://localhost:9644/metrics > ./redpanda/monitoring/redpanda-metrics-dashboard.json
+    # rpk generate grafana-dashboard --datasource prometheus --metrics-endpoint http://localhost:9644/public_metrics > ./redpanda/monitoring/redpanda-public-metrics-dashboard.json

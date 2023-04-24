@@ -1,0 +1,38 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: alertmanager-main-route
+  namespace: monitoring
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+        - internal.example.com
+      paths:
+      - /alertmanager/*
+    backends:
+       - serviceName: alertmanager-main
+         servicePort: 9093
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: alertmanager-main.monitoring.svc.cluster.local
+          regex_uri:
+            - "^/alertmanager/(.*)"
+            - "/$1"

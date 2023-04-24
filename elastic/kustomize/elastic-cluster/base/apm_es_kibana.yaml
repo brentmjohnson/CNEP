@@ -1,0 +1,95 @@
+# This sample sets up a an Elasticsearch cluster along with a Kibana instance
+# and an APM server, configured to be able to communicate with each other
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch
+  namespace: elastic
+spec:
+  version: 8.6.2
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  nodeSets:
+  - name: default
+    count: 3
+    config:
+      # This setting could have performance implications for production clusters.
+      # See: https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-virtual-memory.html
+      # node.store.allow_mmap: false
+      xpack.monitoring.elasticsearch.collection.enabled: false
+    podTemplate:
+      metadata:
+        labels:
+          scrape: es
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            requests:
+              memory: 256Mi
+              # cpu: 1
+            limits:
+              memory: 500Mi
+    volumeClaimTemplates:
+      - metadata:
+          name: elasticsearch-data
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+---
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: kibana
+  namespace: elastic
+spec:
+  version: 8.6.2
+  count: 1
+  elasticsearchRef:
+    name: "elasticsearch"
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  config:
+    # https://www.elastic.co/guide/en/kibana/current/monitoring-metricbeat.html
+    monitoring.kibana.collection.enabled: false
+    monitoring.ui.container.elasticsearch.enabled: true
+    server:
+      basePath: /kibana
+      publicBaseUrl: https://internal.example.com/kibana
+      rewriteBasePath: false
+    telemetry:
+      optIn: false
+    # xpack.fleet.packages:
+    # - name: apm
+    #   version: latest
+  podTemplate:
+    metadata:
+      labels:
+        scrape: kb
+    spec:
+      subdomain: kibana-kb-default
+# ---
+# apiVersion: apm.k8s.elastic.co/v1
+# kind: ApmServer
+# metadata:
+#   name: apm
+#   namespace: elastic
+# spec:
+#   version: 8.6.1
+#   count: 1
+#   elasticsearchRef:
+#     name: "elasticsearch"
+#   # this allows ECK to configure automatically the Kibana endpoint as described in https://www.elastic.co/guide/en/apm/server/current/setup-kibana-endpoint.html
+#   kibanaRef:
+#     name: "kibana"
+#   http:
+#     tls:
+#       selfSignedCertificate:
+#         disabled: true

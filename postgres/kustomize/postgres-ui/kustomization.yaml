@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/postgres-operator-ui/templates/clusterrole.yaml
+- ./base/postgres-operator-ui/templates/clusterrolebinding.yaml
+- ./base/postgres-operator-ui/templates/deployment.yaml
+- ./base/postgres-operator-ui/templates/service.yaml
+- ./base/postgres-operator-ui/templates/serviceaccount.yaml
+- ./base/postgres-route.yaml

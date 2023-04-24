@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    scylla/cluster: scylla
+  name: scylla-metrics-headless
+  namespace: scylla
+spec:
+  ports:
+  - name: prometheus
+    port: 9180
+    protocol: TCP
+    appProtocol: tcp
+    targetPort: 9180
+  - name: agent-prometheus
+    port: 5090
+    protocol: TCP
+    appProtocol: tcp
+    targetPort: 5090
+  selector:
+    app: scylla
+    app.kubernetes.io/managed-by: scylla-operator
+    app.kubernetes.io/name: scylla
+    scylla/cluster: scylla
+  clusterIP: None

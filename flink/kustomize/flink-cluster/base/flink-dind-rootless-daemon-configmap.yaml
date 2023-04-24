@@ -1,0 +1,10 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dind-rootless-daemon-config
+  namespace: flink
+data:
+  daemon.json: |
+    {
+      "insecure-registries": ["k8s-lb:5000"]
+    }

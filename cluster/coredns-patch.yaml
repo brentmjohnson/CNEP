@@ -1,0 +1,10 @@
+spec:
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  k8s-app: kube-dns
+              topologyKey: kubernetes.io/hostname

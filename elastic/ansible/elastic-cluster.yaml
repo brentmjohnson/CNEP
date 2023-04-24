@@ -1,0 +1,100 @@
+- name: Install the elastic cluster
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Kustomize build elastic-cluster manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/elastic-cluster/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy elastic-cluster resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/elastic-cluster/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply elastic-cluster manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/elastic-cluster/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    # - name: Wait for the elasticsearch-es-default statefulset
+    #   kubernetes.core.k8s_info:
+    #     # this is wrong but somehow fixes a timing issue
+    #     kind: statefulset
+    #     wait: yes
+    #     name: elasticsearch-es-default
+    #     namespace: elastic
+    #     wait_timeout: 600
+    #   register: myoutput
+
+    - name: Wait for elasticsearch-es-default statefulset .status.replicas
+      ansible.builtin.shell: 
+        cmd: | 
+          while ! \
+            [ $(kubectl get -n elastic statefulset/elasticsearch-es-default -o jsonpath='{.status.replicas}' \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig') -gt 0 ];
+          do sleep 1;
+          done;
+          kubectl get -n elastic statefulset/elasticsearch-es-default -o jsonpath='{.status.replicas}' \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig'
+      register: es_replicas
+    # - debug: var=es_replicas
+
+    - name: Wait for elasticsearch-es-default statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl wait -n elastic statefulset/elasticsearch-es-default --timeout=300s --for jsonpath='{.status.readyReplicas}'={{ es_replicas.stdout }} \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+
+    - name: Wait for elasticsearch-es-default statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl wait -n elastic statefulset/elasticsearch-es-default --timeout=300s --for jsonpath='{.status.readyReplicas}'=$(kubectl get -n elastic statefulset/elasticsearch-es-default -o jsonpath='{.status.replicas}') \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+
+    - name: Get elastic user password
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: elasticsearch-es-elastic-user
+        namespace: elastic
+      register: elastic_user_password
+    # - debug: var=elastic_user_password.resources[0].data.elastic
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              elastic_cluster:
+                password: "{{ elastic_user_password.resources[0].data.elastic | b64decode }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.elastic_cluster.password is not defined or
+        credentials.elastic_cluster.password == None or
+        credentials.elastic_cluster.password | length == 0 or
+        credentials.elastic_cluster.password != elastic_user_password.resources[0].data.elastic | b64decode"

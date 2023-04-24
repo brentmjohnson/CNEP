@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 9.3.2
+  name: grafana-datasources
+  namespace: monitoring
+stringData:
+  datasources.yaml: |-
+    {
+        "apiVersion": 1,
+        "datasources": [
+            {
+                "access": "proxy",
+                "editable": false,
+                "name": "prometheus",
+                "orgId": 1,
+                "type": "prometheus",
+                "url": "http://prometheus-k8s.monitoring.svc:9090",
+                "version": 1
+            },
+            {
+                "access": "proxy",
+                "editable": false,
+                "name": "Dashboard1",
+                "org_id": 1,
+                "type": "prometheus",
+                "uid": "Dashboard1",
+                "url": "http://prometheus-k8s.monitoring.svc:9090",
+                "version": 1
+            },
+            {
+                "access": "proxy",
+                "editable": false,
+                "jsonData": {
+                    "nodeGraph": {
+                        "enabled": true
+                    }
+                },
+                "name": "jaeger",
+                "org_id": 1,
+                "type": "jaeger",
+                "uid": "jaeger",
+                "url": "http://jaeger-query.observability.svc.cluster.local:16686/jaeger",
+                "version": 1
+            },
+            {
+                "access": "proxy",
+                "editable": false,
+                "jsonData": {
+                    "derivedFields": [
+                        {
+                            "datasourceUid": "jaeger",
+                            "matcherRegex": "\"traceparent\":\"[0-9a-f]{2}-([0-9a-f]{32})-[0-9a-f]{16}-[0-9a-f]{2}\"",
+                            "name": "traceid",
+                            "url": "$${__value.raw}"
+                        }
+                    ]
+                },
+                "name": "loki",
+                "org_id": 1,
+                "type": "loki",
+                "url": "http://loki-loki-distributed-query-frontend.monitoring.svc.cluster.local:3100",
+                "version": 1
+            },
+            {
+                "access": "proxy",
+                "editable": false,
+                "name": "Dashboard1",
+                "org_id": 1,
+                "type": "prometheus",
+                "uid": "Dashboard1",
+                "url": "http://prometheus-k8s.monitoring.svc:9090",
+                "version": 1
+            },
+            {
+                "access": "proxy",
+                "editable": false,
+                "jsonData": {
+                    "nodeGraph": {
+                        "enabled": true
+                    }
+                },
+                "name": "jaeger",
+                "org_id": 1,
+                "type": "jaeger",
+                "uid": "jaeger",
+                "url": "http://jaeger-query.observability.svc.cluster.local:16686/jaeger",
+                "version": 1
+            },
+            {
+                "access": "proxy",
+                "editable": false,
+                "jsonData": {
+                    "derivedFields": [
+                        {
+                            "datasourceUid": "jaeger",
+                            "matcherRegex": "\"traceparent\":\"[0-9a-f]{2}-([0-9a-f]{32})-[0-9a-f]{16}-[0-9a-f]{2}\"",
+                            "name": "traceid",
+                            "url": "$${__value.raw}"
+                        }
+                    ]
+                },
+                "name": "loki",
+                "org_id": 1,
+                "type": "loki",
+                "url": "http://loki-loki-distributed-query-frontend.monitoring.svc.cluster.local:3100",
+                "version": 1
+            }
+        ]
+    }
+type: Opaque

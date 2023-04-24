@@ -1,0 +1,51 @@
+---
+# Source: scylla/templates/scyllacluster.yaml
+apiVersion: scylla.scylladb.com/v1
+kind: ScyllaCluster
+metadata:
+  name: scylla
+  namespace: scylla
+spec:
+  version: 5.1.6
+  agentVersion: 3.0.2
+  repository: scylladb/scylla
+  agentRepository: scylladb/scylla-manager-agent
+  developerMode: true
+  backups:
+    - interval: 1d
+      location:
+      - s3:scylla-bucket-085935d2-1a10-41cd-a171-d973260d1088
+      name: Daily Backup
+      rateLimit:
+      - "0"
+      retention: 7
+  repairs:
+    - intensity: "0"
+      interval: 1d
+      name: Daily Repair
+  datacenter:
+    name: dc
+    racks:
+    - name: default
+      scyllaConfig: scylla-config
+      scyllaAgentConfig: scylla-agent-config
+      members: 3
+      storage:
+        capacity: 8Gi
+      resources:
+        limits:
+          cpu: 2
+          memory: 200Mi
+        requests:
+          cpu: 100m
+          memory: 200Mi
+      placement:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: scylla
+                app.kubernetes.io/managed-by: scylla-operator
+                app.kubernetes.io/name: scylla
+                scylla/cluster: scylla
+            topologyKey: kubernetes.io/hostname

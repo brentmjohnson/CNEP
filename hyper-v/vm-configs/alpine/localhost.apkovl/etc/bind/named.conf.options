@@ -1,0 +1,41 @@
+options {
+        directory "/var/cache/bind";
+
+        // Exchange port between DNS servers
+        query-source address * port *;
+
+        // Need for forwarding reverse lookups
+        empty-zones-enable no;
+
+        // Transmit requests to local dnsmasq if
+        // this server doesn't know how to resolve them
+        forward only;
+        //forwarders { 127.0.0.1 port 5353; ::1 port 5353; };
+        //forwarders { <host>; <host>; <host>; <host>; };
+        forwarders { <host>; <host>; };
+
+        dnssec-validation no;
+        auth-nxdomain no;    # conform to RFC1035
+
+        // From 9.9.5 ARM, disables interfaces scanning to prevent unwanted stop listening
+        interface-interval 0;
+        // Listen on local interfaces only(IPV4)
+        listen-on-v6 { ::1; fd11::10:0:0:2; };
+        listen-on { 127.0.0.1; 10.0.0.2; };
+
+        // Do not transfer the zone information to the secondary DNS
+        //allow-transfer { none; };
+
+        // Accept requests for internal network only
+        allow-query { internals; };
+
+        // Allow recursive queries to the local hosts
+        allow-recursion { internals; };
+
+        // Do not make public version of BIND
+        version none;
+
+	// Negative cache controls
+	//zero-no-soa-ttl-cache yes;
+	max-ncache-ttl 60;
+};

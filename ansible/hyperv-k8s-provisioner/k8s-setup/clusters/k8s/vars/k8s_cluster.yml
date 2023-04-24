@@ -1,0 +1,56 @@
+# General configuration  
+k8s:
+  cluster_name: k8s
+  cluster_os: Ubuntu
+  # cant update to 1.25 until v3.24.6 of the tigera operator
+  cluster_version: "1.26"
+  container_runtime: containerd
+  control_schedulable: true
+
+# Nodes configuration
+
+  control_plane:
+    vcpu: 2
+    mem: 2
+    vms: 3
+    disk: 40
+
+  worker_nodes:
+    vcpu: 2
+    mem: 2
+    vms: 0
+    disk: 40
+
+# Network configuration
+
+  network:
+    network_cidr: 10.0.0.0/24,fd11::10:0:0:0/118
+    domain: ""
+    additional_san: ""
+    pod_cidr: 10.244.0.0/12,fd00::10:244:0:0/108
+    service_cidr: 10.96.0.0/12,fd00::10:96:0:0/108
+
+# Choose between [calico/flannel/cilium]
+    cni_plugin: calico
+
+# Rook configuration
+rook_ceph:
+  install_rook: false
+  volume_size: 50
+  rook_cluster_size: 1
+
+# Ingress controller configuration [nginx/haproxy/contour]
+
+ingress_controller:
+  install_ingress_controller: false
+  type: haproxy
+  node_port:
+    http: 31080
+    https: 31443
+
+# Section for metalLB setup
+
+metallb:
+  install_metallb: true
+  l2: 
+    iprange: 10.0.1.0/24

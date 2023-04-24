@@ -1,0 +1,35 @@
+---
+# Source: opentelemetry-operator/templates/prometheusrule.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opentelemetry-opentelemetry-operator
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: opentelemetry-operator-0.24.3
+    app.kubernetes.io/name: opentelemetry-operator
+    app.kubernetes.io/version: "0.70.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: opentelemetry
+    app.kubernetes.io/component: controller-manager
+  annotations:
+spec:
+  groups:
+  - name: managerRules
+    rules:
+    - alert: ReconcileErrors
+      expr: rate(controller_runtime_reconcile_total{result="error"}[5m]) > 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        description: 'Reconciliation errors for {{ $labels.controller }} is increasing and has now reached {{ humanize $value }} '
+        runbook_url: 'Check manager logs for reasons why this might happen'
+    - alert: WorkqueueDepth
+      expr: workqueue_depth > 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        description: 'Queue depth for {{ $labels.name }} has reached {{ $value }} '
+        runbook_url: 'Check manager logs for reasons why this might happen'

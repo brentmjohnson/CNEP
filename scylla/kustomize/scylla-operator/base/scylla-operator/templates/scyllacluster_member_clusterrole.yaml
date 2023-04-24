@@ -1,0 +1,10 @@
+---
+# Source: scylla-operator/templates/scyllacluster_member_clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: scyllacluster-member
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.operator.scylladb.com/aggregate-to-scylla-member: "true"

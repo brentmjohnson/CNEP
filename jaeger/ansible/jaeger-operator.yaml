@@ -1,0 +1,69 @@
+- name: Install the jaeger operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add jaegertracing chart repo
+      kubernetes.core.helm_repository:
+        name: jaegertracing 
+        repo_url: "https://jaegertracing.github.io/helm-charts"
+
+    - name: Separately update the jaegertracing cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: jaegertracing
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template jaeger-operator chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=2.41.0
+          --namespace=observability
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/jaeger-operator-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/jaeger-operator/base
+          jaegertracing jaegertracing/jaeger-operator
+
+    - name: Add jaeger-operator CRDs to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/jaeger-operator/crds/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/jaeger-operator/"
+
+    - name: Add jaeger-operator resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/jaeger-operator/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/jaeger-operator/"
+
+    - name: Kustomize build jaeger-operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/jaeger-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy jaeger-operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/jaeger-operator/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply jaeger-operator manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/jaeger-operator/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the jaegertracing-jaeger-operator deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: jaegertracing-jaeger-operator
+        namespace: observability
+      register: myoutput

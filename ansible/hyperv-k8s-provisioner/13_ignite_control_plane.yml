@@ -1,0 +1,88 @@
+---
+- name: Install cluster with kubeadm
+  vars_files:
+    - vars/k8s_cluster.yml
+  hosts: controls[0]
+  tasks:
+    - name: Perform k8s setup
+      block:
+        - name: Start kubeadm install
+          ansible.builtin.shell: kubeadm init --config /tmp/kubeadm-config.yaml --upload-certs --ignore-preflight-errors=Mem,Swap
+          become: true
+
+        - name: Get information on generated certificate
+          ansible.builtin.openssl_certificate_info:
+            path: /etc/kubernetes/pki/ca.crt
+          register: cert
+          become: true
+
+        - name: Set fact for certificate hash
+          ansible.builtin.set_fact:
+            kubehash: "sha256:{{ cert.public_key_fingerprints.sha256 | replace(':', '') }}"
+
+        - name: Create kube directory
+          ansible.builtin.file:
+            path: /home/{{ ansible_user_id }}/.kube
+            state: directory
+            mode: 0755
+          become: true
+
+        - name: Copy kubeconfig
+          ansible.builtin.copy:
+            src: /etc/kubernetes/admin.conf
+            dest: /home/{{ ansible_user_id }}/.kube/config
+            remote_src: true
+            owner: "{{ ansible_user_id }}"
+            group: "{{ ansible_user_id }}"
+            mode: 0755
+          become: true
+
+        - name: Set a flag if cluster setup is successful
+          ansible.builtin.set_fact:
+            k8s_installed: true
+      when: k8s_installed is not defined
+
+    - name: Check that the admin.kubeconfig exists locally
+      local_action:
+        module: ansible.builtin.stat
+        path: "{{ hostvars[groups['vm_host'][0]].workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+      register: stat_result
+      delegate_to: vm_host
+
+    - name: Fetch kubeconfig file
+      ansible.builtin.slurp:
+        src: /etc/kubernetes/admin.conf
+      register: kube_control
+      become: true
+      when: not stat_result.stat.exists
+
+    - name: Set kubeconfig as fact
+      ansible.builtin.set_fact:
+        kubeconfig: "{{ kube_control['content'] | b64decode }}"
+      when: "'content' in kube_control"
+
+- name: Verify cluster has been initialized
+  vars_files:
+    - vars/k8s_cluster.yml
+  hosts: vm_host
+  tasks:
+
+    - name: Save kubeconfig as file
+      ansible.builtin.copy:
+        content: "{{ hostvars[groups['controls'][0]]['kubeconfig'] }}"
+        dest: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        mode: 0755
+      when: hostvars[groups['controls'][0]].k8s_installed is not defined or
+        'kubeconfig' in hostvars[groups['controls'][0]]
+
+    - name: Wait for control-plane pods to be up and running
+      kubernetes.core.k8s:
+        state: present
+        api_version: v1
+        kind: Pod
+        namespace: kube-system
+        label_selectors:
+          tier = control-plane
+        kubeconfig: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        wait: true
+      when: hostvars[groups['controls'][0]].k8s_installed is not defined

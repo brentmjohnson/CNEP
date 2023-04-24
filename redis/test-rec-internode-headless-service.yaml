@@ -1,0 +1,27 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: test-rec-internode-headless
+  namespace: redis
+spec:
+  ports:
+    - name: "3340"
+      port: 3340
+      protocol: TCP
+      appProtocol: tcp
+      targetPort: 3340
+    - name: "3342"
+      port: 3342
+      protocol: TCP
+      appProtocol: tcp
+      targetPort: 3342
+    - name: "3344"
+      port: 3344
+      protocol: TCP
+      appProtocol: tcp
+      targetPort: 3344
+  selector:
+    app: redis-enterprise
+    redis.io/cluster: test-rec
+    redis.io/role: node
+  clusterIP: None

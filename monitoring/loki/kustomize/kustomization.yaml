@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+# kustomize openapi fetch | jq '.definitions | { definitions: with_entries(select(.key | in({"com.coreos.monitoring.v1.ServiceMonitor":1}))) }' > ./openapi-schema.json
+openapi:
+  path: schemas/com.coreos.monitoring.v1.ServiceMonitor.json
+
+resources:
+- ./base/loki-bucket.yaml
+- ./base/loki-peerauthentication.yaml
+- ./base/loki-distributed/templates/configmap.yaml
+- ./base/loki-distributed/templates/prometheusrule.yaml
+- ./base/loki-distributed/templates/runtime-configmap.yaml
+- ./base/loki-distributed/templates/service-memberlist.yaml
+- ./base/loki-distributed/templates/serviceaccount.yaml
+- ./base/loki-distributed/templates/distributor/deployment-distributor.yaml
+- ./base/loki-distributed/templates/distributor/service-distributor.yaml
+- ./base/loki-distributed/templates/distributor/servicemonitor-distributor.yaml
+- ./base/loki-distributed/templates/ingester/service-ingester-headless.yaml
+- ./base/loki-distributed/templates/ingester/service-ingester.yaml
+- ./base/loki-distributed/templates/ingester/servicemonitor-ingester.yaml
+- ./base/loki-distributed/templates/ingester/statefulset-ingester.yaml
+- ./base/loki-distributed/templates/querier/service-querier-headless.yaml
+- ./base/loki-distributed/templates/querier/service-querier.yaml
+- ./base/loki-distributed/templates/querier/servicemonitor-querier.yaml
+- ./base/loki-distributed/templates/querier/statefulset-querier.yaml
+- ./base/loki-distributed/templates/query-frontend/deployment-query-frontend.yaml
+- ./base/loki-distributed/templates/query-frontend/service-query-frontend-headless.yaml
+- ./base/loki-distributed/templates/query-frontend/service-query-frontend.yaml
+- ./base/loki-distributed/templates/query-frontend/servicemonitor-query-frontend.yaml
+- ./base/loki-distributed/templates/table-manager/deployment-table-manager.yaml
+- ./base/loki-distributed/templates/table-manager/service-table-manager.yaml
+- ./base/loki-distributed/templates/table-manager/servicemonitor-table-manager.yaml
+
+# - path: ./patches/loki-loki-distributed-distributor-servicemonitor-patch.yaml
+patches:
+- path: ./patches/loki-loki-distributed-configmap-patch.yaml
+- path: ./patches/loki-loki-distributed-query-frontend-servicemonitor-patch.yaml
+- path: ./patches/loki-loki-distributed-table-manager-servicemonitor-patch.yaml
+- path: ./patches/loki-loki-distributed-ingester-servicemonitor-patch.yaml
+- path: ./patches/loki-loki-distributed-querier-servicemonitor-patch.yaml
+- path: ./patches/loki-loki-distributed-ingester-headless-service-patch.yaml
+- path: ./patches/loki-loki-distributed-querier-headless-service-patch.yaml

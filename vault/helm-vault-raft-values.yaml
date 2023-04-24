@@ -1,0 +1,10 @@
+server:
+  affinity: ""
+  dataStorage:
+    size: 1Gi
+  ha:
+    enabled: true
+    raft: 
+      enabled: true
+    replicas: 1
+  # extraArgs: -recovery

@@ -1,0 +1,10 @@
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: scylla-manager-bucket-user
+  namespace: rook-ceph
+spec:
+  store: my-store
+  displayName: scylla-manager-bucket-user
+  quotas:
+    maxBuckets: 1

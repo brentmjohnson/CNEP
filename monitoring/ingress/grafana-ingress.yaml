@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    # cert-manager.io/cluster-issuer: letsencrypt
+    # cert-manager.io/cluster-issuer: letsencrypt-staging
+    external-dns.alpha.kubernetes.io/hostname: grafana.internal.example.com
+  name: grafana-ingress
+  namespace: monitoring
+spec:
+  defaultBackend:
+    service:
+      name: grafana
+      port:
+        number: 3000
+  # tls:
+  # - hosts:
+  #   - grafana.example.com
+  #   secretName: grafana-letsencrypt-cert

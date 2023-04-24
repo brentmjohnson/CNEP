@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/redis-namespace.yaml
+- ./base/redis-operator/crds/redis-cluster.yaml
+- ./base/redis-operator/crds/redis-replication.yaml
+- ./base/redis-operator/crds/redis-sentinel.yaml
+- ./base/redis-operator/crds/redis.yaml
+- ./base/redis-operator/templates/operator-deployment.yaml
+- ./base/redis-operator/templates/role-binding.yaml
+- ./base/redis-operator/templates/role.yaml
+- ./base/redis-operator/templates/service-account.yaml

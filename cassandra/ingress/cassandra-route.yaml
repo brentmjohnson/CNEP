@@ -1,0 +1,15 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: cassandra-route
+  namespace: k8ssandra-operator
+spec:
+  stream:
+    - name: rule1
+      protocol: TCP
+      match:
+        ingressPort: 9042
+      backend:
+        serviceName: cassandra-dc1-service
+        # serviceName: cassandra-dc1-stargate-service
+        servicePort: 9042

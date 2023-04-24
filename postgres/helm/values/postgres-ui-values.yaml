@@ -1,0 +1,24 @@
+image:
+  registry: k8s-lb:5000
+  repository: zalan.do/acid/postgres-operator-ui
+  tag: v1.9.0.1
+envs:
+  operatorApiUrl: http://postgres-operator.postgres.svc.cluster.local:8080
+  targetNamespace: postgres
+  teams:
+    - postgres
+extraEnvs:
+  - name: AWS_ENDPOINT
+    value: http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+  - name: WALE_S3_ENDPOINT
+    value: http+path://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+  - name: SPILO_S3_BACKUP_PREFIX
+    value: spilo/
+  - name: AWS_ACCESS_KEY_ID
+    value: <secret>
+  - name: AWS_SECRET_ACCESS_KEY
+    value: <secret>
+  - name: SPILO_S3_BACKUP_BUCKET
+    value: postgres-bucket-bfa09a9a-56d3-450b-b3f4-b78f3caa0506
+service:
+  port: "8081"

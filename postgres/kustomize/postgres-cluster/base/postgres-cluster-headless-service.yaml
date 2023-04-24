@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: postgres-cluster-headless
+  namespace: postgres
+spec:
+  ports:
+    - name: postgresql
+      protocol: TCP
+      appProtocol: tcp
+      port: 5432
+      targetPort: 5432
+    - name: readiness
+      protocol: TCP
+      appProtocol: tcp
+      port: 8008
+      targetPort: 8008
+  selector:
+    application: spilo
+    cluster-name: postgres-cluster
+  clusterIP: None

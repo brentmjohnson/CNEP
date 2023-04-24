@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redpanda
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redpanda-cluster
+  namespace: redpanda
+spec:
+  endpoints:
+  - path: /public_metrics
+    scheme: http
+    targetPort: 9644
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  - path: /metrics
+    scheme: http
+    targetPort: 9644
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  namespaceSelector:
+    matchNames:
+    - redpanda
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: redpanda
+      app.kubernetes.io/instance: redpanda
+      app.kubernetes.io/name: redpanda
+---
+apiVersion: redpanda.vectorized.io/v1alpha1
+kind: Cluster
+metadata:
+  name: redpanda
+  namespace: redpanda
+spec:
+  additionalConfiguration:
+    redpanda.default_topic_partitions: "3"
+    redpanda.storage_min_free_bytes: "10485760"
+  configuration:
+    adminApi:
+    - port: 9644
+    developerMode: true
+    kafkaApi:
+    - authenticationMethod: sasl
+      port: 9092
+    pandaproxyApi:
+    - port: 8082
+    rpcServer:
+      port: 33145
+    schemaRegistry:
+      port: 8081
+  enableSasl: true
+  image: vectorized/redpanda
+  kafkaEnableAuthorization: true
+  podDisruptionBudget:
+    enabled: false
+    maxUnavailable: null
+    minAvailable: null
+  replicas: 3
+  resources:
+    limits:
+      cpu: 1
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 200Mi
+  storage:
+    capacity: 10Gi
+  superUsers:
+  - username: redpanda
+  version: v23.1.2

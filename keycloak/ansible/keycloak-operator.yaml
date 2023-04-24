@@ -1,0 +1,48 @@
+- name: Install keycloak operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Download keycloak operator CRD manifests.
+      ansible.builtin.get_url:
+        url: "{{ item.url }}"
+        dest: "{{ playbook_dir }}/../kustomize/keycloak-operator/base/"
+        mode: '0664'
+      loop:
+        - url: "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/{{ keycloak_version }}/kubernetes/keycloaks.k8s.keycloak.org-v1.yml"
+        - url: "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/{{ keycloak_version }}/kubernetes/keycloakrealmimports.k8s.keycloak.org-v1.yml"
+        - url: "https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/{{ keycloak_version }}/kubernetes/kubernetes.yml"
+      vars:
+        keycloak_version: "21.0.2"
+
+    - name: Kustomize build keycloak-operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/keycloak-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy keycloak-operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/keycloak-operator/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply keycloak-opeartor manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/keycloak-operator/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the keycloak-operator deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: keycloak-operator
+        namespace: keycloak
+      register: myoutput

@@ -1,0 +1,437 @@
+- name: Install scylla-manager
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Apply scylla-manager-namespace manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/scylla-manager/base/scylla-manager-namespace.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+
+    - name: Apply scylla-manager-bucket manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/scylla-manager/base/scylla-manager-bucket.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+    
+    - name: Get the scylla-manager-bucket configmap info
+      kubernetes.core.k8s_info:
+        kind: ConfigMap
+        wait: yes
+        name: scylla-manager-bucket
+        namespace: scylla-manager
+        # wait_timeout: 240
+      register: bucket_configmap_data
+    # - debug: var=bucket_configmap_data.resources[0].data
+    
+    - name: Get the scylla-manager-bucket secret info
+      kubernetes.core.k8s_info:
+        kind: Secret
+        wait: yes
+        name: scylla-manager-bucket
+        namespace: scylla-manager
+        # wait_timeout: 240
+      register: bucket_secret_data
+    # - debug: var=bucket_secret_data.resources[0].data
+  
+    - ansible.builtin.set_fact:
+        scylla_manager_bucket: "{{ {} |
+          combine(bucket_configmap_data.resources[0].data) |
+          combine(dict(secret_keys | zip(decoded_secret_values))) 
+          }}"
+      vars:
+        secret_keys: "{{ bucket_secret_data.resources[0].data.keys() | list }}"
+        secret_values: "{{ bucket_secret_data.resources[0].data.values() | list }}"
+        decoded_secret_values: "{{ secret_values | map('b64decode') | list }}"
+    # - debug: var=scylla_manager_bucket
+
+    - name: Apply bucket policy
+      ansible.builtin.shell:
+        cmd: |
+          kubectl run -it -n scylla-manager --rm s3cmd --image=alpine --restart=Never -- sh -c '
+          apk add s3cmd -q --no-progress
+          cat > /tmp/iam-policy.json << EOF
+          {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["arn:aws:iam:::user/obc-scylla-manager-scylla-manager-bucket","arn:aws:iam:::user/ceph-bucket-admin-user"]},"Action":["s3:*"],"Resource":["arn:aws:s3:::*"]}]}
+          EOF
+          s3cmd setpolicy \
+          ./tmp/iam-policy.json \
+          s3://{{ scylla_manager_bucket.BUCKET_NAME }} \
+          --host={{ scylla_manager_bucket.BUCKET_HOST }}.cluster.local \
+          --host-bucket={{ scylla_manager_bucket.BUCKET_HOST }}.cluster.local \
+          --no-ssl \
+          --access_key={{ scylla_manager_bucket.AWS_ACCESS_KEY_ID }} \
+          --secret_key={{ scylla_manager_bucket.AWS_SECRET_ACCESS_KEY }}'
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Setting kustomize helm values templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../helm/values/scylla-manager-values.yaml"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../helm/values/templates/scylla-manager-values.yaml.j2"
+
+    - name: Add scylla-manager chart repo
+      kubernetes.core.helm_repository:
+        name: scylla
+        repo_url: "https://scylla-operator-charts.storage.googleapis.com/stable"
+
+    - name: Separately update the scylla-manager cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: scylla
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template scylla-manager chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=v1.8.0
+          --namespace=scylla-manager
+          --values={{ playbook_dir }}/../helm/values/scylla-manager-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/scylla-manager/base
+          scylla-manager scylla/scylla-manager
+
+    - name: Add scylla-manager resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/scylla-manager/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/scylla-manager/"
+
+    - name: Add scylla-manager resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/scylla-manager/charts/scylla/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/scylla-manager/"
+
+    - name: Setting kustomize scylla-manager base templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/scylla-manager/base/scylla-manager-agent.yaml"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/scylla-manager/base/templates/scylla-manager-agent.yaml.j2"
+
+    - name: Fetch updated scylla_manager_agent config
+      ansible.builtin.slurp:
+        src: "{{ playbook_dir }}/../kustomize/scylla-manager/base/scylla-manager-agent.yaml"
+      register: myoutput
+    # - debug: var="myoutput['content'] | b64decode | from_yaml"
+
+    - ansible.builtin.set_fact:
+        scylla_manager_agent_yaml: "{{ myoutput['content'] }}"
+    # - debug: var=scylla_manager_agent_yaml
+
+    - name: Setting kustomize scylla-manager base templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/scylla-manager/base/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/scylla-manager/base/templates/*.j2"
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              scylla_manager:
+                password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.scylla_manager.password is not defined or
+        credentials.scylla_manager.password == None or
+        credentials.scylla_manager.password | length == 0"
+
+    - name: Check scylla credentials
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n scylla-manager statefulset/scylla-manager-dc-default -- \
+          cqlsh localhost -u {{ credentials.scylla_manager.username }} -p {{ credentials.scylla_manager.password }} \
+          -e "DESC CLUSTER;" \
+          | awk -F\, 'NR>1'
+      register: scylla_role
+    # - debug: var=myoutput
+
+    - name: Dynamically update configmap patch
+      ansible.builtin.shell:
+        # cmd: |
+        #   kubectl get configmaps -n scylla-manager scylla-manager-config -o=custom-columns=':data.*' \
+        #   | yq e '.database.user="hello",.database.password="world"'
+        cmd: |
+          yq '.data.["scylla-manager.yaml"]' \
+          < {{ playbook_dir }}/../kustomize/scylla-manager/base/scylla-manager/templates/manager_configmap.yaml \
+          | yq e '
+            .database.user="cassandra",
+            .database.password="cassandra"
+          '
+      when: scylla_role.stdout | length == 0
+      register: myoutput1
+    - debug: var=myoutput1
+
+    - name: Dynamically update configmap patch
+      ansible.builtin.shell:
+        # cmd: |
+        #   kubectl get configmaps -n scylla-manager scylla-manager-config -o=custom-columns=':data.*' \
+        #   | yq e '.database.user="hello",.database.password="world"'
+        cmd: |
+          yq '.data.["scylla-manager.yaml"]' \
+          < {{ playbook_dir }}/../kustomize/scylla-manager/base/scylla-manager/templates/manager_configmap.yaml \
+          | yq e '
+            .database.user="{{ credentials.scylla_manager.username }}",
+            .database.password="{{ credentials.scylla_manager.password }}"
+          '
+      when: scylla_role.stdout | length != 0
+      register: myoutput2
+    - debug: var=myoutput2
+
+    - ansible.builtin.set_fact:
+        # scylla_manager_config: "{{ myoutput | indent( width=4 ) }}"
+        scylla_manager_config: "{{ myoutput1.stdout | default(myoutput2.stdout) | indent( width=4 ) }}"
+    - debug: var=scylla_manager_config
+
+    - name: Setting kustomize scylla-manager patch templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/scylla-manager/patches/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/scylla-manager/patches/templates/*.j2"
+
+    - name: Kustomize build scylla-manager manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/scylla-manager/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy scylla-manager resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/scylla-manager/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply scylla-manager manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/scylla-manager/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the scylla-manager deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: scylla-manager
+        namespace: scylla-manager
+        wait_timeout: 240
+      register: myoutput
+
+    - name: Patch scylla-manager-client service
+      ansible.builtin.shell:
+        cmd: |
+          kubectl patch service/scylla-manager-client -n scylla-manager --type json -p='[
+            {"op": "replace", "path": '/spec/ports/$(kubectl get service scylla-manager-client -n scylla-manager -o json  | jq '.spec.ports | map(.name == "prometheus") | index(true)')/appProtocol', "value": "http"}
+          ]' \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig'; \
+          kubectl patch service/scylla-manager-client -n scylla-manager --type json -p='[
+            {"op": "replace", "path": '/spec/ports/$(kubectl get service scylla-manager-client -n scylla-manager -o json  | jq '.spec.ports | map(.name == "agent-prometheus") | index(true)')/appProtocol', "value": "http"}
+          ]' \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              scylla_manager:
+                password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.scylla_manager.password is not defined or
+        credentials.scylla_manager.password == None or
+        credentials.scylla_manager.password | length == 0"
+
+    - block:
+      # - name: Update scylla system_auth keyspace replication factor
+      #   ansible.builtin.shell:
+      #     cmd: |
+      #       kubectl exec -it -n scylla-manager statefulset/scylla-manager-dc-default -- \
+      #       cqlsh localhost -u cassandra -p cassandra \
+      #       --no-color \
+      #       -e "ALTER KEYSPACE system_auth WITH REPLICATION =
+      #         { 'class' : 'NetworkTopologyStrategy', 'dc' : 3 };"
+      #   register: myoutput
+      # # - debug: var=myoutput.stdout
+
+      - name: Create scylla role
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla-manager statefulset/scylla-manager-dc-default -- \
+            cqlsh localhost -u cassandra -p cassandra \
+            -e "CREATE ROLE {{ credentials.scylla_manager.username }} WITH PASSWORD = '{{ credentials.scylla_manager.password }}' AND LOGIN = true AND SUPERUSER = true;"
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Delete default cassandra role
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla-manager statefulset/scylla-manager-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_manager.username }} -p {{ credentials.scylla_manager.password }} \
+            -e "DROP ROLE cassandra;"
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Get scylla-manager-dc-default statefulset pods
+        ansible.builtin.shell:
+          cmd: |
+            kubectl get pods -n scylla-manager -o json \
+            | jq -r '.items | map(select(.metadata.ownerReferences[].name | contains("scylla-manager-dc-default")) | .metadata.name) | .[]'
+        register: myoutput
+      # - debug: var=myoutput.stdout_lines
+
+      - ansible.builtin.set_fact:
+          scylla_pods: "{{ myoutput.stdout_lines }}"
+
+      - name: Run nodetool repair system_auth on each node
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla-manager {{ item }} -- nodetool repair system_auth
+        loop: "{{ scylla_pods }}"
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Drain and restart each node
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla-manager {{ item }} -- nodetool drain && \
+            kubectl delete pod -n scylla-manager {{ item }} && \
+            kubectl rollout status --watch --timeout=600s -n scylla-manager statefulset/scylla-manager-dc-default
+        loop: "{{ scylla_pods }}"
+        register: myoutput
+      # - debug: var=myoutput
+      when: scylla_role.stdout | length == 0
+
+    - name: Dynamically update configmap patch
+      ansible.builtin.shell:
+        # cmd: |
+        #   kubectl get configmaps -n scylla-manager scylla-manager-config -o=custom-columns=':data.*' \
+        #   | yq e '.database.user="hello",.database.password="world"'
+        cmd: |
+          yq '.data.["scylla-manager.yaml"]' \
+          < {{ playbook_dir }}/../kustomize/scylla-manager/base/scylla-manager/templates/manager_configmap.yaml \
+          | yq e '
+            .database.user="{{ credentials.scylla_manager.username }}",
+            .database.password="{{ credentials.scylla_manager.password }}"
+          '
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - ansible.builtin.set_fact:
+        scylla_manager_config: "{{ myoutput.stdout | indent( width=4 ) }}"
+    # - debug: var=scylla_manager_config
+
+    - name: Setting kustomize scylla-manager patch templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/scylla-manager/patches/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/scylla-manager/patches/templates/*.j2"
+
+    - name: Kustomize build scylla-manager manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/scylla-manager/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy scylla-manager resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/scylla-manager/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply scylla-manager manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/scylla-manager/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Scylla-manager deployment rollout restart
+      ansible.builtin.shell:
+        cmd: |
+          kubectl rollout restart -n scylla-manager deployment/scylla-manager \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+    # - debug: var=myoutput 
+
+    - name: Wait for the scylla-manager deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: scylla-manager
+        namespace: scylla-manager
+      register: myoutput
+
+    # seems like we need this to register the cluster with the manager agent
+    - name: Scylla-manager-dc-default statefulset rollout restart
+      ansible.builtin.shell:
+        cmd: |
+          kubectl rollout restart -n scylla-manager statefulset/scylla-manager-dc-default \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+    # - debug: var=myoutput 
+
+    - name: Wait for scylla-manager-dc-default statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl rollout status --watch --timeout=600s -n scylla-manager statefulset/scylla-manager-dc-default \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+    # - debug: var=myoutput

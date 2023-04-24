@@ -1,0 +1,868 @@
+Release "open-telemetry" does not exist. Installing it now.
+NAME: open-telemetry
+LAST DEPLOYED: Wed Sep 14 09:09:24 2022
+NAMESPACE: opentelemetry-operator-system
+STATUS: pending-install
+REVISION: 1
+USER-SUPPLIED VALUES:
+manager:
+  prometheusRule:
+    defaultRules:
+      enabled: true
+    enabled: true
+  serviceMonitor:
+    enabled: true
+
+COMPUTED VALUES:
+admissionWebhooks:
+  certManager:
+    enabled: true
+    issuerRef: {}
+  enabled: true
+  failurePolicy: Fail
+affinity: {}
+clusterRole:
+  create: true
+hostNetwork: false
+imagePullSecrets: []
+kubeRBACProxy:
+  enabled: true
+  image:
+    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    tag: v0.11.0
+  ports:
+    proxyPort: 8443
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 5m
+      memory: 64Mi
+manager:
+  collectorImage:
+    repository: otel/opentelemetry-collector
+    tag: 0.59.0
+  env: {}
+  extraArgs: []
+  image:
+    repository: ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator
+    tag: v0.59.0
+  leaderElection:
+    enabled: true
+  ports:
+    healthzPort: 8081
+    metricsPort: 8080
+    webhookPort: 9443
+  prometheusRule:
+    defaultRules:
+      enabled: true
+    enabled: true
+    extraLabels: {}
+    groups: []
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 64Mi
+  serviceAccount:
+    create: true
+  serviceMonitor:
+    enabled: true
+    extraLabels: {}
+    metricsEndpoints:
+    - port: metrics
+nameOverride: ""
+nodeSelector: {}
+replicaCount: 1
+role:
+  create: true
+securityContext:
+  fsGroup: 65534
+  runAsGroup: 65534
+  runAsNonRoot: true
+  runAsUser: 65534
+tolerations: []
+
+HOOKS:
+---
+# Source: opentelemetry-operator/templates/tests/test-certmanager-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "opentelemetry-operator-cert-manager-test-connection"
+  namespace: opentelemetry-operator-system
+  labels:
+    control-plane: controller-manager
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      env:
+        - name: CERT_MANAGER_CLUSTERIP
+          value: "cert-manager-webhook"
+        - name: CERT_MANAGER_PORT
+          value: "443"
+      command:
+        - sh
+        - -c
+        # The following shell script tests if the cert-manager service is up. If the service is up, when we try
+        # to wget its exposed port, we will get an HTTP error 400.
+        - |
+          wget_output=$(wget -q "$CERT_MANAGER_CLUSTERIP:$CERT_MANAGER_PORT")
+          if wget_output=="wget: server returned error: HTTP/1.0 400 Bad Request"
+          then exit 0
+          else exit 1
+          fi
+  restartPolicy: Never
+---
+# Source: opentelemetry-operator/templates/tests/test-service-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "opentelemetry-operator-controller-manager-metrics-test-connection"
+  namespace: opentelemetry-operator-system
+  labels:
+    control-plane: controller-manager
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      env:
+        - name: MANAGER_METRICS_SERVICE_CLUSTERIP
+          value: "opentelemetry-operator-controller-manager-metrics-service"
+        - name: MANAGER_METRICS_SERVICE_PORT
+          value: "8443"
+      command:
+        - sh
+        - -c
+        # The following shell script tests if the controller-manager-metrics-service is up.
+        # If the service is up, when we try to wget its exposed port, we will get an HTTP error 400.
+        - |
+          wget_output=$(wget -q "$MANAGER_METRICS_SERVICE_CLUSTERIP:$MANAGER_METRICS_SERVICE_PORT")
+          if wget_output=="wget: server returned error: HTTP/1.0 400 Bad Request"
+          then exit 0
+          else exit 1
+          fi
+  restartPolicy: Never
+---
+# Source: opentelemetry-operator/templates/tests/test-service-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "opentelemetry-operator-webhook-test-connection"
+  namespace: opentelemetry-operator-system
+  labels:
+    control-plane: controller-manager
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      env:
+        - name: WEBHOOK_SERVICE_CLUSTERIP
+          value: "opentelemetry-operator-webhook-service"
+        - name: WEBHOOK_SERVICE_PORT
+          value: "443"
+      command:
+        - sh
+        - -c
+        # The following shell script tests if the webhook service is up. If the service is up, when we try
+        # to wget its exposed port, we will get an HTTP error 400.
+        - |
+          wget_output=$(wget -q "$WEBHOOK_SERVICE_CLUSTERIP:$WEBHOOK_SERVICE_PORT")
+          if wget_output=="wget: server returned error: HTTP/1.0 400 Bad Request"
+          then exit 0
+          else exit 1
+          fi
+  restartPolicy: Never
+MANIFEST:
+---
+# Source: opentelemetry-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-controller-manager
+  namespace: opentelemetry-operator-system
+---
+# Source: opentelemetry-operator/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-manager-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - list
+      - update
+  - apiGroups:
+      - opentelemetry.io
+    resources:
+      - instrumentations
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - opentelemetry.io
+    resources:
+      - opentelemetrycollectors
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - opentelemetry.io
+    resources:
+      - opentelemetrycollectors/finalizers
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - opentelemetry.io
+    resources:
+      - opentelemetrycollectors/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+# Source: opentelemetry-operator/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-metrics-reader
+rules:
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
+---
+# Source: opentelemetry-operator/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-proxy-role
+rules:
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
+---
+# Source: opentelemetry-operator/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: opentelemetry-operator-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: opentelemetry-operator-controller-manager
+    namespace: opentelemetry-operator-system
+---
+# Source: opentelemetry-operator/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: opentelemetry-operator-proxy-role
+subjects:
+  - kind: ServiceAccount
+    name: opentelemetry-operator-controller-manager
+    namespace: opentelemetry-operator-system
+---
+# Source: opentelemetry-operator/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-leader-election-role
+  namespace: opentelemetry-operator-system
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps/status
+    verbs:
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+# Source: opentelemetry-operator/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-leader-election-rolebinding
+  namespace: opentelemetry-operator-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: opentelemetry-operator-leader-election-role
+subjects:
+  - kind: ServiceAccount
+    name: opentelemetry-operator-controller-manager
+    namespace: opentelemetry-operator-system
+---
+# Source: opentelemetry-operator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: opentelemetry-operator-0.12.0
+    app.kubernetes.io/name: opentelemetry-operator
+    app.kubernetes.io/instance: open-telemetry
+    app.kubernetes.io/version: "0.59.0"
+    app.kubernetes.io/managed-by: Helm
+    control-plane: controller-manager
+  name: opentelemetry-operator-controller-manager-metrics-service
+  namespace: opentelemetry-operator-system
+spec:
+  ports:
+    
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: https
+    - name: metrics
+      port: 8080
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: opentelemetry-operator
+    control-plane: controller-manager
+---
+# Source: opentelemetry-operator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-webhook-service
+  namespace: opentelemetry-operator-system
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: webhook-server
+  selector:
+    app.kubernetes.io/name: opentelemetry-operator
+    control-plane: controller-manager
+---
+# Source: opentelemetry-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+    control-plane: controller-manager
+  name: opentelemetry-operator-controller-manager
+  namespace: opentelemetry-operator-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-operator
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        app.kubernetes.io/name: opentelemetry-operator
+        control-plane: controller-manager
+    spec:
+      hostNetwork: false
+      containers:
+        - args:
+            - --metrics-addr=0.0.0.0:8080
+            - --enable-leader-election
+            - --health-probe-addr=:8081
+            - --webhook-port=9443
+            - --collector-image=otel/opentelemetry-collector:0.59.0
+          command:
+            - /manager
+          image: "ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator:v0.59.0"
+          name: manager
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: 
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
+        
+        - args:
+            - --secure-listen-address=0.0.0.0:8443
+            - --upstream=http://127.0.0.1:8080/
+            - --logtostderr=true
+            - --v=0
+          image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0"
+          name: kube-rbac-proxy
+          ports:
+            - containerPort: 8443
+              name: https
+              protocol: TCP
+          resources: 
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 5m
+              memory: 64Mi
+      serviceAccountName: opentelemetry-operator-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: opentelemetry-operator-controller-manager-service-cert
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+---
+# Source: opentelemetry-operator/templates/certmanager.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-serving-cert
+  namespace: opentelemetry-operator-system
+spec:
+  dnsNames:
+    - opentelemetry-operator-webhook-service.opentelemetry-operator-system.svc
+    - opentelemetry-operator-webhook-service.opentelemetry-operator-system.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: opentelemetry-operator-selfsigned-issuer
+  secretName: opentelemetry-operator-controller-manager-service-cert
+  subject:
+    organizationalUnits:
+      - opentelemetry-operator
+---
+# Source: opentelemetry-operator/templates/certmanager.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-selfsigned-issuer
+  namespace: opentelemetry-operator-system
+spec:
+  selfSigned: {}
+---
+# Source: opentelemetry-operator/templates/admission-webhooks/mutatingwebhookconfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: opentelemetry-operator-system/opentelemetry-operator-serving-cert
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-mutating-webhook-configuration
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: opentelemetry-operator-webhook-service
+        namespace: opentelemetry-operator-system
+        path: /mutate-opentelemetry-io-v1alpha1-instrumentation
+    failurePolicy: Fail
+    name: minstrumentation.kb.io
+    rules:
+    - apiGroups:
+        - opentelemetry.io
+      apiVersions:
+        - v1alpha1
+      operations:
+        - CREATE
+        - UPDATE
+      resources:
+        - instrumentations
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: opentelemetry-operator-webhook-service
+        namespace: opentelemetry-operator-system
+        path: /mutate-opentelemetry-io-v1alpha1-opentelemetrycollector
+    failurePolicy: Fail
+    name: mopentelemetrycollector.kb.io
+    rules:
+      - apiGroups:
+          - opentelemetry.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - opentelemetrycollectors
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: opentelemetry-operator-webhook-service
+        namespace: opentelemetry-operator-system
+        path: /mutate-v1-pod
+    failurePolicy: Ignore
+    name: mpod.kb.io
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - pods
+    sideEffects: None
+---
+# Source: opentelemetry-operator/templates/prometheusrule.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: open-telemetry-opentelemetry-operator
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: opentelemetry-operator-0.12.0
+    app.kubernetes.io/name: opentelemetry-operator
+    app.kubernetes.io/instance: open-telemetry
+    app.kubernetes.io/version: "0.59.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  groups:
+  - name: managerRules
+    rules:
+    - alert: ReconcileErrors
+      expr: rate(controller_runtime_reconcile_total{result="error"}[5m]) > 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        description: 'Reconciliation errors for {{ $labels.controller }} is increasing and has now reached {{ humanize $value }} '
+        runbook_url: 'Check manager logs for reasons why this might happen'
+    - alert: WorkqueueDepth
+      expr: workqueue_depth > 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        description: 'Queue depth for {{ $labels.name }} has reached {{ $value }} '
+        runbook_url: 'Check manager logs for reasons why this might happen'
+---
+# Source: opentelemetry-operator/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opentelemetry-operator
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: opentelemetry-operator-0.12.0
+    app.kubernetes.io/name: opentelemetry-operator
+    app.kubernetes.io/instance: open-telemetry
+    app.kubernetes.io/version: "0.59.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-operator
+      app.kubernetes.io/instance: open-telemetry
+  endpoints:
+  - port: metrics
+  namespaceSelector:
+    matchNames:
+      - opentelemetry-operator-system
+---
+# Source: opentelemetry-operator/templates/admission-webhooks/validatingwebhookconfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: opentelemetry-operator-system/opentelemetry-operator-serving-cert
+  labels:
+    app.kubernetes.io/name: opentelemetry-operator
+  name: opentelemetry-operator-validating-webhook-configuration
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: opentelemetry-operator-webhook-service
+        namespace: opentelemetry-operator-system
+        path: /validate-opentelemetry-io-v1alpha1-instrumentation
+    failurePolicy: Fail
+    name: vinstrumentationcreateupdate.kb.io
+    rules:
+    - apiGroups:
+        - opentelemetry.io
+      apiVersions:
+        - v1alpha1
+      operations:
+        - CREATE
+        - UPDATE
+      resources:
+        - instrumentations
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: opentelemetry-operator-webhook-service
+        namespace: opentelemetry-operator-system
+        path: /validate-opentelemetry-io-v1alpha1-instrumentation
+    failurePolicy: Ignore
+    name: vinstrumentationdelete.kb.io
+    rules:
+      - apiGroups:
+          - opentelemetry.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - DELETE
+        resources:
+          - instrumentations
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: opentelemetry-operator-webhook-service
+        namespace: opentelemetry-operator-system
+        path: /validate-opentelemetry-io-v1alpha1-opentelemetrycollector
+    failurePolicy: Fail
+    name: vopentelemetrycollectorcreateupdate.kb.io
+    rules:
+      - apiGroups:
+          - opentelemetry.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - opentelemetrycollectors
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: opentelemetry-operator-webhook-service
+        namespace: opentelemetry-operator-system
+        path: /validate-opentelemetry-io-v1alpha1-opentelemetrycollector
+    failurePolicy: Ignore
+    name: vopentelemetrycollectordelete.kb.io
+    rules:
+      - apiGroups:
+          - opentelemetry.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - DELETE
+        resources:
+          - opentelemetrycollectors
+    sideEffects: None
+

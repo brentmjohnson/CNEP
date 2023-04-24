@@ -1,0 +1,22 @@
+image:
+  # for some reason newer images dont work
+  tag: v2.2.3
+console:
+  config:
+    kafka:
+      brokers:
+        - redpanda.redpanda.svc.cluster.local:9092
+      sasl:
+        enabled: true
+        mechanism: SCRAM-SHA-256
+        username: {{ credentials.redpanda_cluster.username }}
+        # password: set via Helm secret / Env variable
+    server:
+      basePath: redpanda/
+      setBasePathFromXForwardedPrefix: false
+      stripPrefix: true
+      listenPort: 8080
+secret:
+  create: true
+  kafka:
+    saslPassword: {{ credentials.redpanda_cluster.password }}

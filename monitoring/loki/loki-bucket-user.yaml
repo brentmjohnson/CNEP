@@ -1,0 +1,11 @@
+
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: loki-user
+  namespace: monitoring
+spec:
+  store: my-store
+  displayName: "loki"
+  buckets:
+    - loki-bucket-bb2dc546-4a39-49ac-8ec5-e5a93fcb4db2

@@ -1,0 +1,61 @@
+- name: Install Istio
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add istio chart repo
+      kubernetes.core.helm_repository:
+        name: istio
+        repo_url: "https://istio-release.storage.googleapis.com/charts"
+
+    - name: Separately update the istio cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: istio
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template istio base chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=1.17.1
+          --namespace=istio-system
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/istio-base-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/istio-base/base
+          istio-base istio/base
+
+    - name: Add istio base CRDs to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/base/crds/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/istio-base/"
+
+    - name: Add istio base resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/base/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/istio-base/"
+
+    - name: Kustomize build istio base manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/istio-base/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy istio base resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/istio-base/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply istio base manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/istio-base/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true

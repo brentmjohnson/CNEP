@@ -1,0 +1,137 @@
+apiVersion: v1
+data:
+  dashboards.yaml: |-
+    {
+        "apiVersion": 1,
+        "providers": [
+            {
+                "folder": "Default",
+                "folderUid": "",
+                "name": "0",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/0"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Apisix",
+                "folderUid": "",
+                "name": "Apisix",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/Apisix"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Calico",
+                "folderUid": "",
+                "name": "Calico",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/Calico"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Cassandra",
+                "folderUid": "",
+                "name": "Cassandra",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/Cassandra"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Ceph",
+                "folderUid": "",
+                "name": "Ceph",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/Ceph"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "CertManager",
+                "folderUid": "",
+                "name": "CertManager",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/CertManager"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "EtcDash",
+                "folderUid": "",
+                "name": "EtcDash",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/EtcDash"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Istio",
+                "folderUid": "",
+                "name": "Istio",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/Istio"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "JaegerDash",
+                "folderUid": "",
+                "name": "JaegerDash",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/JaegerDash"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Opensearch",
+                "folderUid": "",
+                "name": "Opensearch",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/Opensearch"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Redpanda",
+                "folderUid": "",
+                "name": "Redpanda",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/Redpanda"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Scylla",
+                "folderUid": "",
+                "name": "Scylla",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/Scylla"
+                },
+                "orgId": 1,
+                "type": "file"
+            }
+        ]
+    }
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 9.3.2
+  name: grafana-dashboards
+  namespace: monitoring

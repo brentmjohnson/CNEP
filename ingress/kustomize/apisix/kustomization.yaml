@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# kustomize openapi fetch | jq '.definitions | { definitions: with_entries(select(.key | in({"com.coreos.monitoring.v1.ServiceMonitor":1}))) }' > ./openapi-schema.json
+openapi:
+  path: schemas/com.coreos.monitoring.v1.ServiceMonitor.json
+
+resources:
+- ./base/apisix-peerauthentication.yaml
+- ./base/apisix-ingress-servicemonitor.yaml
+- ./base/apisix-ingress.yaml
+- ./base/apisix-apisixtls.yaml
+- ./base/apisix-internal-ingress.yaml
+- ./base/apisix-internal-apisixtls.yaml
+- ./base/apisix-dashboard-ingress.yaml
+- ./base/apisix-dashboard-route.yaml
+- ./base/apisix/templates/clusterrole.yaml
+- ./base/apisix/templates/clusterrolebinding.yaml
+- ./base/apisix/templates/configmap.yaml
+- ./base/apisix/templates/daemonset.yaml
+- ./base/apisix/templates/deployment.yaml
+- ./base/apisix/templates/hpa.yaml
+- ./base/apisix/templates/ingress.yaml
+- ./base/apisix/templates/pdb.yaml
+- ./base/apisix/templates/service-admin.yaml
+- ./base/apisix/templates/service-gateway.yaml
+- ./base/apisix/templates/service-monitor.yaml
+- ./base/apisix/templates/serviceaccount.yaml
+- ./base/apisix/charts/ingress-controller/templates/configmap.yaml
+- ./base/apisix/charts/ingress-controller/templates/deployment.yaml
+- ./base/apisix/charts/ingress-controller/templates/hpa.yaml
+- ./base/apisix/charts/ingress-controller/templates/rbac.yaml
+- ./base/apisix/charts/ingress-controller/templates/service-account.yaml
+- ./base/apisix/charts/ingress-controller/templates/service.yaml
+- ./base/apisix/charts/ingress-controller/templates/servicemonitor.yaml
+- ./base/apisix/charts/ingress-controller/crds/customresourcedefinitions.yaml
+- ./base/apisix/charts/dashboard/templates/configmap.yaml
+- ./base/apisix/charts/dashboard/templates/deployment.yaml
+- ./base/apisix/charts/dashboard/templates/hpa.yaml
+- ./base/apisix/charts/dashboard/templates/ingress.yaml
+- ./base/apisix/charts/dashboard/templates/service.yaml
+- ./base/apisix/charts/dashboard/templates/serviceaccount.yaml
+- ./base/apisix/templates/ingress-admin.yaml
+- ./base/apisix/templates/service-control-plane.yaml
+
+# - path: patches/apisix-gateway-service-patch.yaml
+patches:
+- path: patches/apisix-admin-service-patch.yaml
+- path: patches/apisix-configmap-patch.yaml
+- path: patches/apisix-dashboard-configmap-patch.yaml
+- path: patches/apisix-servicemonitor-patch.yaml
+- path: patches/apisix-dashboard-service-patch.yaml

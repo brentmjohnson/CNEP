@@ -1,0 +1,2 @@
+- import_playbook: jaeger-operator.yaml
+- import_playbook: jaeger-cluster.yaml

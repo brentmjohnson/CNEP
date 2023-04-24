@@ -1,0 +1,86 @@
+- name: Install redisinsight
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Download redis-insight chart
+      ansible.builtin.get_url:
+        url: https://docs.redis.com/latest/pkgs/redisinsight-chart-0.1.0.tgz
+        dest: "{{ playbook_dir }}/../helm/charts/redisinsight-chart-0.1.0.tgz"
+        mode: '0664'
+
+    - name: Helm template redis-insight chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --namespace=redis
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/redis-insight-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/redis-insight/base
+          redisinsight-chart {{ playbook_dir }}/../helm/charts/redisinsight-chart-0.1.0.tgz
+
+    - name: Add redis-insight resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/redisinsight-chart/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/redis-insight/"
+
+    - name: Kustomize build redis-insight manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/redis-insight/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy redis-insight resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/redis-insight/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply redis-insight manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/redis-insight/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the redisinsight-chart deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: redisinsight-chart
+        namespace: redis
+      register: myoutput
+
+    # - name: Wait for the redis-cluster-leader statefulset
+    #   kubernetes.core.k8s_info:
+    #     kind: StatefulSet
+    #     wait: yes
+    #     name: redis-cluster-leader
+    #     namespace: redis
+    #   register: myoutput
+
+    # - name: Wait for redis-cluster-leader statefulset readiness
+    #   ansible.builtin.shell: 
+    #     cmd: | 
+    #       kubectl rollout status --watch --timeout=300s -n redis statefulset/redis-cluster-leader \
+    #       --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+    #   register: myoutput
+
+    # - name: Wait for the redis-cluster-follower statefulset
+    #   kubernetes.core.k8s_info:
+    #     kind: StatefulSet
+    #     wait: yes
+    #     name: redis-cluster-follower
+    #     namespace: redis
+    #   register: myoutput
+
+    # - name: Wait for redis-cluster-follower statefulset readiness
+    #   ansible.builtin.shell: 
+    #     cmd: | 
+    #       kubectl rollout status --watch --timeout=300s -n redis statefulset/redis-cluster-follower \
+    #       --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+    #   register: myoutput

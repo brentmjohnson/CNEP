@@ -1,0 +1,260 @@
+Release "opensearch-exporter" does not exist. Installing it now.
+NAME: opensearch-exporter
+LAST DEPLOYED: Wed Sep 14 11:36:42 2022
+NAMESPACE: opensearch-operator-system
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+es:
+  uri: http://<user>:<password>@opensearch.opensearch-operator-system.svc.cluster.local:9200
+serviceMonitor:
+  enabled: true
+  scheme: https
+  tlsConfig:
+    caFile: /etc/prom-certs/root-cert.pem
+    certFile: /etc/prom-certs/cert-chain.pem
+    insecureSkipVerify: true
+    keyFile: /etc/prom-certs/key.pem
+
+COMPUTED VALUES:
+affinity: {}
+deployment:
+  annotations: {}
+dnsConfig: {}
+env: {}
+envFromSecret: ""
+es:
+  all: true
+  cluster_settings: false
+  indices: true
+  indices_mappings: true
+  indices_settings: true
+  shards: true
+  snapshots: true
+  ssl:
+    ca:
+      path: /ssl/ca.pem
+    client:
+      enabled: true
+      keyPath: /ssl/client.key
+      pemPath: /ssl/client.pem
+    enabled: false
+    useExistingSecrets: false
+  sslSkipVerify: false
+  timeout: 30s
+  uri: http://<user>:<password>@opensearch.opensearch-operator-system.svc.cluster.local:9200
+extraArgs: []
+extraEnvSecrets: {}
+extraVolumeMounts: []
+extraVolumes: []
+global:
+  imagePullSecrets: []
+image:
+  pullPolicy: IfNotPresent
+  pullSecret: ""
+  repository: quay.io/prometheuscommunity/elasticsearch-exporter
+  tag: v1.3.0
+log:
+  format: logfmt
+  level: info
+nodeSelector: {}
+podAnnotations: {}
+podLabels: {}
+podSecurityPolicies:
+  enabled: false
+priorityClassName: ""
+prometheusRule:
+  enabled: false
+  labels: {}
+  rules: []
+replicaCount: 1
+resources: {}
+restartPolicy: Always
+secretMounts: []
+securityContext:
+  enabled: true
+  runAsUser: 1000
+service:
+  annotations: {}
+  httpPort: 9108
+  labels: {}
+  metricsPort:
+    name: http
+  type: ClusterIP
+serviceAccount:
+  annotations: {}
+  automountServiceAccountToken: true
+  create: false
+  name: default
+serviceMonitor:
+  enabled: true
+  interval: 10s
+  jobLabel: ""
+  labels: {}
+  metricRelabelings: []
+  relabelings: []
+  sampleLimit: 0
+  scheme: https
+  scrapeTimeout: 10s
+  targetLabels: []
+  tlsConfig:
+    caFile: /etc/prom-certs/root-cert.pem
+    certFile: /etc/prom-certs/cert-chain.pem
+    insecureSkipVerify: true
+    keyFile: /etc/prom-certs/key.pem
+tolerations: []
+web:
+  path: /metrics
+
+HOOKS:
+MANIFEST:
+---
+# Source: prometheus-elasticsearch-exporter/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: opensearch-exporter-prometheus-elasticsearch-exporter
+  labels:
+    chart: prometheus-elasticsearch-exporter-4.13.0
+    app: prometheus-elasticsearch-exporter
+    release: "opensearch-exporter"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9108
+      protocol: TCP
+  selector:
+    app: prometheus-elasticsearch-exporter
+    release: "opensearch-exporter"
+---
+# Source: prometheus-elasticsearch-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch-exporter-prometheus-elasticsearch-exporter
+  labels:
+    chart: prometheus-elasticsearch-exporter-4.13.0
+    app: prometheus-elasticsearch-exporter
+    release: "opensearch-exporter"
+    heritage: "Helm"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-elasticsearch-exporter
+      release: "opensearch-exporter"
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: prometheus-elasticsearch-exporter
+        release: "opensearch-exporter"
+    spec:
+      serviceAccountName: default
+      
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: exporter
+          env:
+          image: "quay.io/prometheuscommunity/elasticsearch-exporter:v1.3.0"
+          imagePullPolicy: IfNotPresent
+          command: ["elasticsearch_exporter",
+                    "--log.format=logfmt",
+                    "--log.level=info",
+                    "--es.uri=http://<user>:<password>@opensearch.opensearch-operator-system.svc.cluster.local:9200",
+                    "--es.all",
+                    "--es.indices",
+                    "--es.indices_settings",
+                    "--es.indices_mappings",
+                    "--es.shards",
+                    "--es.snapshots",
+                    "--es.timeout=30s",
+                    "--web.listen-address=:9108",
+                    "--web.telemetry-path=/metrics"]
+          securityContext:
+            capabilities:
+              drop:
+                - SETPCAP
+                - MKNOD
+                - AUDIT_WRITE
+                - CHOWN
+                - NET_RAW
+                - DAC_OVERRIDE
+                - FOWNER
+                - FSETID
+                - KILL
+                - SETGID
+                - SETUID
+                - NET_BIND_SERVICE
+                - SYS_CHROOT
+                - SETFCAP
+            readOnlyRootFilesystem: true
+          resources:
+            {}
+          ports:
+            - containerPort: 9108
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 1
+            timeoutSeconds: 5
+            periodSeconds: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/ash", "-c", "sleep 20"]
+          volumeMounts:
+      volumes:
+---
+# Source: prometheus-elasticsearch-exporter/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opensearch-exporter-prometheus-elasticsearch-exporter
+  labels:
+    chart: prometheus-elasticsearch-exporter-4.13.0
+    app: prometheus-elasticsearch-exporter
+    release: "opensearch-exporter"
+    heritage: "Helm"
+spec:
+  endpoints:
+  - interval: 10s
+    scrapeTimeout: 10s
+    honorLabels: true
+    port: http
+    path: /metrics
+    scheme: https
+  jobLabel: opensearch-exporter
+  selector:
+    matchLabels:
+      app: prometheus-elasticsearch-exporter
+      release: "opensearch-exporter"
+  namespaceSelector:
+    matchNames:
+      - opensearch-operator-system
+  sampleLimit: 0
+
+NOTES:
+1. Get the application URL by running these commands:
+  export POD_NAME=$(kubectl get pods --namespace opensearch-operator-system -l "app=opensearch-exporter-prometheus-elasticsearch-exporter" -o jsonpath="{.items[0].metadata.name}")
+  echo "Visit http://127.0.0.1:9108/metrics to use your application"
+  kubectl port-forward $POD_NAME 9108:9108 --namespace opensearch-operator-system

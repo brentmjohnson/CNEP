@@ -1,0 +1,22 @@
+---
+# Source: apisix/charts/dashboard/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "apisix-dashboard-test-connection"
+  labels:
+    helm.sh/chart: dashboard-0.8.0
+    
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['apisix-dashboard:80']
+  restartPolicy: Never

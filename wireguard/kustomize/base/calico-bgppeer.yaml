@@ -1,0 +1,7 @@
+apiVersion: crd.projectcalico.org/v1
+kind: BGPPeer
+metadata:
+  name: unifi-usg-peer
+spec:
+  peerIP: <host>
+  asNumber: <asn>

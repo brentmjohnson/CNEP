@@ -1,0 +1,14 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: tcp-route
+  namespace: k8ssandra-operator
+spec:
+  stream:
+    - name: rule1
+      protocol: TCP
+      match:
+        ingressPort: 9042
+      backend:
+        serviceName: demo-dc1-stargate-service
+        servicePort: 9042

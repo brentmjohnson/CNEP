@@ -1,0 +1,15 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: opentelemetry-opentelemetry-operator-webhook
+  namespace: opentelemetry-operator-system
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: controller-manager
+      app.kubernetes.io/name: opentelemetry-operator
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "9443":
+      mode: PERMISSIVE

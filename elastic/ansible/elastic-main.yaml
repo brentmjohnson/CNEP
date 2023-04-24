@@ -1,0 +1,2 @@
+- import_playbook: ./elastic-operator.yaml
+- import_playbook: ./elastic-cluster.yaml

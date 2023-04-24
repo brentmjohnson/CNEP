@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster-internode-headless
+  namespace: redis
+spec:
+  clusterIP: None
+  ports:
+  - appProtocol: tcp
+    port: 16379
+    protocol: TCP
+    targetPort: 16379
+  selector:
+    app.kubernetes.io/component: middleware
+    app.kubernetes.io/instance: redis-cluster
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis-cluster
+    app.kubernetes.io/version: 0.14.0
+    helm.sh/chart: redis-cluster-0.14.1
+    redis_setup_type: cluster
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta1
+kind: RedisCluster
+metadata:
+  labels:
+    app.kubernetes.io/component: middleware
+    app.kubernetes.io/instance: redis-cluster
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis-cluster
+    app.kubernetes.io/version: 0.14.0
+    helm.sh/chart: redis-cluster-0.14.1
+  name: redis-cluster
+  namespace: redis
+spec:
+  clusterSize: 3
+  clusterVersion: v6
+  kubernetesConfig:
+    image: quay.io/opstree/redis:v6.2.5
+    imagePullPolicy: IfNotPresent
+    resources: {}
+  persistenceEnabled: true
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:v1.44.0
+    imagePullPolicy: IfNotPresent
+    resources: {}
+  redisFollower:
+    replicas: 3
+  redisLeader:
+    replicas: 3
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

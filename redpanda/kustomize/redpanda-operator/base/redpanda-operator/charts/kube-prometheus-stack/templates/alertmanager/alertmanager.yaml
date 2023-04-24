@@ -1,0 +1,33 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/alertmanager/alertmanager.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: Alertmanager
+metadata:
+  name: redpanda-operator-kube-pro-alertmanager
+  namespace: redpanda-system
+  labels:
+    app: kube-prometheus-stack-alertmanager
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+spec:
+  image: quay.io/prometheus/alertmanager:v0.21.0
+  version: v0.21.0
+  replicas: 1
+  listenLocal: false
+  serviceAccountName: redpanda-operator-kube-pro-alertmanager
+  externalUrl: http://redpanda-operator-kube-pro-alertmanager.redpanda-system:9093
+  paused: false
+  logFormat: "logfmt"
+  logLevel:  "info"
+  retention: "120h"
+  alertmanagerConfigSelector: {}
+  alertmanagerConfigNamespaceSelector: {}
+  routePrefix: "/"
+  securityContext:
+    fsGroup: 2000
+    runAsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  portName: web

@@ -1,0 +1,393 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    deprecated.daemonset.template.generation: "4"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"opentelemetry.io/v1alpha1","kind":"OpenTelemetryCollector","metadata":{"annotations":{},"labels":{"app":"opentelemetry-collector","version":"v0.70.0"},"name":"daemonset","namespace":"opentelemetry-operator-system"},"spec":{"config":"receivers:\n  jaeger:\n    protocols:\n      thrift_http:\n        endpoint: \"0.0.0.0:14278\"\n\n  # Dummy receiver that's never used, because a pipeline is required to have one.\n  otlp/spanmetrics:\n    protocols:\n      grpc:\n        endpoint: \"localhost:65535\"\n\n  otlp:\n    protocols:\n      grpc:\n        endpoint: 0.0.0.0:4317\n        # default limit is 1024 * 1024 * 4 = 4194304\n        max_recv_msg_size_mib: 1024\n      http:\n        endpoint: 0.0.0.0:4318\n\n  zipkin:\n    endpoint: \"0.0.0.0:9411\"\n\n  fluentforward:\n    endpoint: 0.0.0.0:8006\n\nexporters:\n  prometheus:\n    endpoint: \"0.0.0.0:8889\"\n\n  jaeger:\n    endpoint: \"jaeger-collector.observability.svc.cluster.local:14250\"\n    tls:\n      insecure: true\n\n  logging:\n    loglevel: debug\n\n  loki:\n    endpoint: \"http://loki-loki-distributed-distributor.monitoring.svc.cluster.local:3100/loki/api/v1/push\"\n    # tenant_id: \"\"\n    # labels:\n    #   resource:\n    #     log_name: \"log_name\"\n    #     zone_name: \"zone_name\"\n    #     cluster_name: \"cluster_name\"\n    #     node_name: \"node_name\"\n    #   attributes:\n    #     log_name: \"log_name\"\n    #     cluster_name: \"cluster_name\"\n    #     zone_name: \"zone_name\"\n    #     node_name: \"node_name\"\n    #     namespace_name: \"namespace_name\"\n    #     pod_name: \"pod_name\"\n    #     container_name: \"container_name\"\n    #     # start_time: \"start_time\"\n    #     # method: \"method\"\n    #     # path: \"path\"\n    #     # protocol: \"protocol\"\n    #     # response_code: \"response_code\"\n    #     # response_flags: \"response_flags\"\n    #     # response_code_details: \"response_code_details\"\n    #     # connection_termination_details: \"connection_termination_details\"\n    #     # upstream_transport_failure_reason: \"upstream_transport_failure_reason\"\n    #     # bytes_received: \"bytes_received\"\n    #     # bytes_sent: \"bytes_sent\"\n    #     # duration: \"duration\"\n    #     # upstream_service_time: \"upstream_service_time\"\n    #     # x_forwarded_for: \"x_forwarded_for\"\n    #     # user_agent: \"user_agent\"\n    #     # request_id: \"request_id\"\n    #     # authority: \"authority\"\n    #     # upstream_host: \"upstream_host\"\n    #     # upstream_cluster: \"upstream_cluster\"\n    #     # upstream_local_address: \"upstream_local_address\"\n    #     # downstream_local_address: \"downstream_local_address\"\n    #     # downstream_remote_address: \"downstream_remote_address\"\n    #     # requested_server_name: \"requested_server_name\"\n    #     # route_name: \"route_name\"\n    #     # traceid: \"traceid\"\n    # format: \"json\"\n    # # (default = 512 * 1024) or 4096\n    # # write_buffer_size: 4194304\n\nprocessors:\n  batch:\n  spanmetrics:\n    metrics_exporter: prometheus\n  resource:\n    attributes:\n    - action: insert\n      key: log_name\n      from_attribute: log_name\n    - action: insert\n      key: zone_name\n      from_attribute: zone_name\n    - action: insert\n      key: cluster_name\n      from_attribute: cluster_name\n    - action: insert\n      key: node_name\n      from_attribute: node_name\n    - action: insert\n      key: loki.resource.labels\n      value: log_name, zone_name, cluster_name, node_name\n  attributes:\n    actions:\n    - action: insert\n      key: log_name\n      from_attribute: log_name\n    - action: insert\n      key: cluster_name\n      from_attribute: cluster_name\n    - action: insert\n      key: zone_name\n      from_attribute: zone_name\n    - action: insert\n      key: node_name\n      from_attribute: node_name\n    - action: insert\n      key: namespace_name\n      from_attribute: namespace_name\n    - action: insert\n      key: pod_name\n      from_attribute: pod_name\n    - action: insert\n      key: container_name\n      from_attribute: container_name\n    - action: insert\n      key: loki.attribute.labels\n      value: log_name, cluster_name, zone_name, node_name, namespace_name, pod_name, container_name\n\nservice:\n  pipelines:\n    traces:\n      receivers: [jaeger, otlp, zipkin]\n      processors: [spanmetrics, batch]\n      exporters: [jaeger]\n    # The exporter name in this pipeline must match the spanmetrics.metrics_exporter name.\n    # The receiver is just a dummy and never used; added to pass validation requiring at least one receiver in a pipeline.\n    metrics/spanmetrics:\n      receivers: [otlp/spanmetrics]\n      exporters: [prometheus]\n    logs:\n      receivers: [otlp, fluentforward]\n      processors: [batch, resource, attributes]\n      exporters: [loki]","hostNetwork":true,"image":"otel/opentelemetry-collector-contrib:0.70.0","mode":"daemonset","podAnnotations":{"proxy.istio.io/config":"proxyMetadata:\n  OUTPUT_CERTS: /etc/istio-output-certs\n","sidecar.istio.io/userVolumeMount":"[{\"name\": \"istio-certs\", \"mountPath\": \"/etc/istio-output-certs\"}]","traffic.sidecar.istio.io/includeInboundPorts":"","traffic.sidecar.istio.io/includeOutboundIPRanges":""}}}
+    opentelemetry-operator-config/sha256: 749f4c86a271519992f7838ac755ea74ac9a669625f8e2a59aba3516b2b062ed
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8888"
+    prometheus.io/scrape: "true"
+  creationTimestamp: "2023-01-29T19:52:20Z"
+  generation: 4
+  labels:
+    app: opentelemetry-collector
+    app.kubernetes.io/component: opentelemetry-collector
+    app.kubernetes.io/instance: opentelemetry-operator-system.daemonset
+    app.kubernetes.io/managed-by: opentelemetry-operator
+    app.kubernetes.io/name: daemonset-collector
+    app.kubernetes.io/part-of: opentelemetry
+    app.kubernetes.io/version: 0.70.0
+    version: v0.70.0
+  name: daemonset-collector
+  namespace: opentelemetry-operator-system
+  ownerReferences:
+  - apiVersion: opentelemetry.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: OpenTelemetryCollector
+    name: daemonset
+    uid: f7f4f125-a5a8-4610-9972-393eb9317321
+  resourceVersion: "1179778"
+  uid: c0d83589-399a-4422-b55e-0fc349c35387
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: opentelemetry-collector
+      app.kubernetes.io/instance: opentelemetry-operator-system.daemonset
+      app.kubernetes.io/managed-by: opentelemetry-operator
+      app.kubernetes.io/part-of: opentelemetry
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: otc-container
+        kubectl.kubernetes.io/default-logs-container: otc-container
+        opentelemetry-operator-config/sha256: 749f4c86a271519992f7838ac755ea74ac9a669625f8e2a59aba3516b2b062ed
+        prometheus.io/path: /stats/prometheus
+        prometheus.io/port: "15020"
+        prometheus.io/scrape: "true"
+        proxy.istio.io/config: |
+          proxyMetadata:
+            OUTPUT_CERTS: /etc/istio-output-certs
+        sidecar.istio.io/status: '{"initContainers":["istio-init"],"containers":["istio-proxy","dikastes"],"volumes":["workload-socket","credential-socket","workload-certs","istio-envoy","istio-data","istio-podinfo","istio-token","istiod-ca-cert","istio-certs","dikastes-sock","felix-sync"],"imagePullSecrets":null,"revision":"default"}'
+        sidecar.istio.io/userVolume: '[{"name": "istio-certs", "emptyDir": {"medium":
+          "Memory"}}]'
+        sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+        traffic.sidecar.istio.io/includeInboundPorts: ""
+        traffic.sidecar.istio.io/includeOutboundIPRanges: ""
+      creationTimestamp: null
+      labels:
+        app: opentelemetry-collector
+        app.kubernetes.io/component: opentelemetry-collector
+        app.kubernetes.io/instance: opentelemetry-operator-system.daemonset
+        app.kubernetes.io/managed-by: opentelemetry-operator
+        app.kubernetes.io/name: daemonset-collector
+        app.kubernetes.io/part-of: opentelemetry
+        app.kubernetes.io/version: 0.70.0
+        security.istio.io/tlsMode: istio
+        service.istio.io/canonical-name: daemonset-collector
+        service.istio.io/canonical-revision: 0.70.0
+        version: v0.70.0
+    spec:
+      containers:
+      - args:
+        - proxy
+        - sidecar
+        - --domain
+        - $(POD_NAMESPACE).svc.cluster.local
+        - --proxyLogLevel=warning
+        - --proxyComponentLogLevel=misc:error
+        - --log_output_level=default:info
+        - --concurrency
+        - "2"
+        env:
+        - name: JWT_POLICY
+          value: third-party-jwt
+        - name: PILOT_CERT_PROVIDER
+          value: istiod
+        - name: CA_ADDR
+          value: istiod.istio-system.svc:15012
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: INSTANCE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: PROXY_CONFIG
+          value: |
+            {"proxyMetadata":{"EXIT_ON_ZERO_ACTIVE_CONNECTIONS":"true","ISTIO_AGENT_DUAL_STACK":"true","MINIMUM_DRAIN_DURATION":"5s","OUTPUT_CERTS":"/etc/istio-output-certs"},"terminationDrainDuration":"300s","holdApplicationUntilProxyStarts":true}
+        - name: ISTIO_META_POD_PORTS
+          value: |-
+            [
+                {"name":"fluentforward","hostPort":8006,"containerPort":8006,"protocol":"TCP"}
+                ,{"name":"jaeger-thrift-h","hostPort":14278,"containerPort":14278,"protocol":"TCP"}
+                ,{"name":"metrics","hostPort":8888,"containerPort":8888,"protocol":"TCP"}
+                ,{"name":"otlp-grpc","hostPort":4317,"containerPort":4317,"protocol":"TCP"}
+                ,{"name":"otlp-http","hostPort":4318,"containerPort":4318,"protocol":"TCP"}
+                ,{"name":"otlp-spanmetric","hostPort":65535,"containerPort":65535,"protocol":"TCP"}
+                ,{"name":"zipkin","hostPort":9411,"containerPort":9411,"protocol":"TCP"}
+            ]
+        - name: ISTIO_META_APP_CONTAINERS
+          value: otc-container
+        - name: ISTIO_META_CLUSTER_ID
+          value: Kubernetes
+        - name: ISTIO_META_INTERCEPTION_MODE
+          value: REDIRECT
+        - name: ISTIO_META_MESH_ID
+          value: cluster.local
+        - name: TRUST_DOMAIN
+          value: cluster.local
+        - name: EXIT_ON_ZERO_ACTIVE_CONNECTIONS
+          value: "true"
+        - name: ISTIO_AGENT_DUAL_STACK
+          value: "true"
+        - name: MINIMUM_DRAIN_DURATION
+          value: 5s
+        - name: OUTPUT_CERTS
+          value: /etc/istio-output-certs
+        image: docker.io/istio/proxyv2:1.16.1
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - pilot-agent
+              - wait
+        name: istio-proxy
+        ports:
+        - containerPort: 15090
+          name: http-envoy-prom
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /healthz/ready
+            port: 15021
+          initialDelaySeconds: 1
+          periodSeconds: 2
+          timeoutSeconds: 3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 1337
+          runAsNonRoot: true
+          runAsUser: 1337
+        volumeMounts:
+        - mountPath: /var/run/secrets/workload-spiffe-uds
+          name: workload-socket
+        - mountPath: /var/run/secrets/credential-uds
+          name: credential-socket
+        - mountPath: /var/run/secrets/workload-spiffe-credentials
+          name: workload-certs
+        - mountPath: /var/run/secrets/istio
+          name: istiod-ca-cert
+        - mountPath: /var/lib/istio/data
+          name: istio-data
+        - mountPath: /etc/istio/proxy
+          name: istio-envoy
+        - mountPath: /var/run/secrets/tokens
+          name: istio-token
+        - mountPath: /etc/istio/pod
+          name: istio-podinfo
+        - mountPath: /etc/istio-output-certs
+          name: istio-certs
+        - mountPath: /var/run/dikastes
+          name: dikastes-sock
+      - args:
+        - server
+        - -l
+        - /var/run/dikastes/dikastes.sock
+        - -d
+        - /var/run/felix/nodeagent/socket
+        env:
+        - name: DIKASTES_HTTP_BIND_ADDR
+          value: 127.0.0.1
+        - name: DIKASTES_HTTP_BIND_PORT
+          value: "7777"
+        image: calico/dikastes:release-v3.24
+        livenessProbe:
+          exec:
+            command:
+            - /healthz
+            - liveness
+          initialDelaySeconds: 3
+          periodSeconds: 3
+        name: dikastes
+        readinessProbe:
+          exec:
+            command:
+            - /healthz
+            - readiness
+          initialDelaySeconds: 3
+          periodSeconds: 3
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /var/run/dikastes
+          name: dikastes-sock
+        - mountPath: /var/run/felix
+          name: felix-sync
+      - args:
+        - --config=/conf/collector.yaml
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        image: otel/opentelemetry-collector-contrib:0.70.0
+        imagePullPolicy: IfNotPresent
+        name: otc-container
+        ports:
+        - containerPort: 8006
+          hostPort: 8006
+          name: fluentforward
+          protocol: TCP
+        - containerPort: 14278
+          hostPort: 14278
+          name: jaeger-thrift-h
+          protocol: TCP
+        - containerPort: 8888
+          hostPort: 8888
+          name: metrics
+          protocol: TCP
+        - containerPort: 4317
+          hostPort: 4317
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 4318
+          hostPort: 4318
+          name: otlp-http
+          protocol: TCP
+        - containerPort: 65535
+          hostPort: 65535
+          name: otlp-spanmetric
+          protocol: TCP
+        - containerPort: 9411
+          hostPort: 9411
+          name: zipkin
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /conf
+          name: otc-internal
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      initContainers:
+      - args:
+        - istio-iptables
+        - -p
+        - "15001"
+        - -z
+        - "15006"
+        - -u
+        - "1337"
+        - -m
+        - REDIRECT
+        - -i
+        - ""
+        - -x
+        - ""
+        - -b
+        - ""
+        - -d
+        - 15090,15021,15020
+        - --log_output_level=default:info
+        env:
+        - name: EXIT_ON_ZERO_ACTIVE_CONNECTIONS
+          value: "true"
+        - name: ISTIO_AGENT_DUAL_STACK
+          value: "true"
+        - name: MINIMUM_DRAIN_DURATION
+          value: 5s
+        - name: OUTPUT_CERTS
+          value: /etc/istio-output-certs
+        image: docker.io/istio/proxyv2:1.16.1
+        name: istio-init
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsGroup: 0
+          runAsNonRoot: false
+          runAsUser: 0
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: daemonset-collector
+      serviceAccountName: daemonset-collector
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: workload-socket
+      - name: credential-socket
+      - name: workload-certs
+      - emptyDir:
+          medium: Memory
+        name: istio-envoy
+      - emptyDir: {}
+        name: istio-data
+      - downwardAPI:
+          items:
+          - fieldRef:
+              fieldPath: metadata.labels
+            path: labels
+          - fieldRef:
+              fieldPath: metadata.annotations
+            path: annotations
+        name: istio-podinfo
+      - name: istio-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              audience: istio-ca
+              expirationSeconds: 43200
+              path: istio-token
+      - configMap:
+          name: istio-ca-root-cert
+        name: istiod-ca-cert
+      - emptyDir:
+          medium: Memory
+        name: istio-certs
+      - emptyDir:
+          medium: Memory
+        name: dikastes-sock
+      - csi:
+          driver: csi.tigera.io
+        name: felix-sync
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: collector.yaml
+            path: collector.yaml
+          name: daemonset-collector
+        name: otc-internal
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+status:
+  currentNumberScheduled: 3
+  desiredNumberScheduled: 3
+  numberAvailable: 3
+  numberMisscheduled: 0
+  numberReady: 3
+  observedGeneration: 4
+  updatedNumberScheduled: 3
+---

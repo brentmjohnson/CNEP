@@ -1,0 +1,32 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/prometheus-operator/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redpanda-operator-kube-pro-operator
+  namespace: redpanda-system
+  labels:
+    app: kube-prometheus-stack-operator
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+spec:
+  endpoints:
+  - port: https
+    scheme: https
+    tlsConfig:
+      serverName: redpanda-operator-kube-pro-operator
+      ca:
+        secret:
+          name: redpanda-operator-kube-pro-admission
+          key: ca
+          optional: false
+    honorLabels: true
+  selector:
+    matchLabels:
+      app: kube-prometheus-stack-operator
+      release: "redpanda-operator"
+  namespaceSelector:
+    matchNames:
+      - "redpanda-system"

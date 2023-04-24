@@ -1,0 +1,41 @@
+---
+- name: Create cloudflared tunnels
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Create cloudflared secret.
+      ansible.builtin.shell:
+        cmd: |
+          kubectl create secret generic tunnel-credentials -n cloudflared \
+          --from-file=credentials.json={{ playbook_dir }}/../tunnels/example.json \
+          -o yaml --dry-run
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Copy cloudflared secret to kustomize base.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/base/cloudflared-tunnel-credentials.yaml"
+        mode: "0644"
+
+    - name: Kustomize build cloudflared manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy cloudflared resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply cloudflared manifests to the cluster.
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        wait: true

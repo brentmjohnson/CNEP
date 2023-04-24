@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fluent
+
+resources:
+- ./base/fluent-namespace.yaml
+- ./base/fluent-operator/crds/fluentbit.fluent.io_clusterfilters.yaml
+- ./base/fluent-operator/crds/fluentbit.fluent.io_clusterfluentbitconfigs.yaml
+- ./base/fluent-operator/crds/fluentbit.fluent.io_clusterinputs.yaml
+- ./base/fluent-operator/crds/fluentbit.fluent.io_clusteroutputs.yaml
+- ./base/fluent-operator/crds/fluentbit.fluent.io_clusterparsers.yaml
+- ./base/fluent-operator/crds/fluentbit.fluent.io_fluentbits.yaml
+- ./base/fluent-operator/crds/fluentd.fluent.io_clusterfilters.yaml
+- ./base/fluent-operator/crds/fluentd.fluent.io_clusterfluentdconfigs.yaml
+- ./base/fluent-operator/crds/fluentd.fluent.io_clusteroutputs.yaml
+- ./base/fluent-operator/crds/fluentd.fluent.io_filters.yaml
+- ./base/fluent-operator/crds/fluentd.fluent.io_fluentdconfigs.yaml
+- ./base/fluent-operator/crds/fluentd.fluent.io_fluentds.yaml
+- ./base/fluent-operator/crds/fluentd.fluent.io_outputs.yaml
+- ./base/fluent-operator/templates/fluent-operator-clusterRole.yaml
+- ./base/fluent-operator/templates/fluent-operator-clusterRoleBinding.yaml
+- ./base/fluent-operator/templates/fluent-operator-deployment.yaml
+- ./base/fluent-operator/templates/serviceaccount.yaml
+- ./base/fluent-operator/templates/fluentbit-clusterfilter-containerd.yaml
+- ./base/fluent-operator/templates/fluentbit-clusterfilter-kubernetes.yaml
+- ./base/fluent-operator/templates/fluentbit-clusterfilter-systemd.yaml
+- ./base/fluent-operator/templates/fluentbit-clusterinput-systemd.yaml
+- ./base/fluent-operator/templates/fluentbit-clusterinput-tail.yaml
+- ./base/fluent-operator/templates/fluentbit-containerd-config.yaml
+- ./base/fluent-operator/templates/fluentbit-fluentBit.yaml
+- ./base/fluent-operator/templates/fluentbit-lua-config.yaml
+- ./base/fluent-operator/templates/fluentbitconfig-fluentBitConfig.yaml
+- ./base/fluent-operator/crds/fluentbit.fluent.io_collectors.yaml
+- ./base/fluent-operator/templates/fluentbit-output-stdout.yaml

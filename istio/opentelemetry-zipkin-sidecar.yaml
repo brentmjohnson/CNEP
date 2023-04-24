@@ -1,0 +1,22 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: opentelemetry-zipkin-sidecar
+  namespace: default
+spec:
+  ingress:
+  - port:
+      number: 9411
+      protocol: HTTP
+      name: zipkin
+    bind: 0.0.0.0
+    defaultEndpoint: 0.0.0.0:9411
+  # egress:
+  # - port:
+  #     number: 9411
+  #     protocol: HTTP
+  #     name: zipkin
+  #   bind: 0.0.0.0
+  #   hosts:
+  #   - "*/*"
+    # - opentelemetry-operator-system/daemonset-collector.svc.cluster.local

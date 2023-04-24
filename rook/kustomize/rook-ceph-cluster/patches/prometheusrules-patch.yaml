@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: rook-prometheus
+    role: alert-rules
+  name: prometheus-ceph-rules
+  namespace: rook-ceph
+spec:
+  groups:
+    - name: nodes
+      rules:
+        - alert: CephNodeInconsistentMTU
+          $patch: delete

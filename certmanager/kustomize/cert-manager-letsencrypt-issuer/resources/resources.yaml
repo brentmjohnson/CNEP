@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-apisix
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+  namespace: cert-manager
+spec:
+  acme:
+    email: admin@example.com
+    privateKeySecretRef:
+      name: letsencrypt-example-account-key
+    server: https://acme-v02.api.letsencrypt.org/directory
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            key: api-token
+            name: cloudflare-api-token-secret
+          email: admin@example.com
+      selector:
+        dnsNames:
+        - example.com
+        - '*.example.com'
+        - internal.example.com
+        - '*.internal.example.com'
+    - http01:
+        ingress:
+          class: apisix
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  namespace: cert-manager
+spec:
+  acme:
+    email: admin@example.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-example-account-key
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            key: api-token
+            name: cloudflare-api-token-secret
+          email: admin@example.com
+      selector:
+        dnsNames:
+        - example.com
+        - '*.example.com'
+        - internal.example.com
+        - '*.internal.example.com'
+    - http01:
+        ingress:
+          class: apisix

@@ -1,0 +1,3 @@
+- import_playbook: ./redpanda-operator.yaml
+- import_playbook: ./redpanda-cluster.yaml
+- import_playbook: ./redpanda-console.yaml

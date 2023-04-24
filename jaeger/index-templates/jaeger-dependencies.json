@@ -1,0 +1,25 @@
+PUT _template/jaeger-dependencies
+{
+  "order": 0,
+  "index_patterns": [
+    "*jaeger-dependencies-*"
+  ],
+  "settings": {
+    "index": {
+      "mapping": {
+        "nested_fields": {
+          "limit": "50"
+        }
+      },
+      "requests": {
+        "cache": {
+          "enable": "true"
+        }
+      },
+      "number_of_shards": "1",
+      "number_of_replicas": "1"
+    }
+  },
+  "mappings": {},
+  "aliases": {}
+}

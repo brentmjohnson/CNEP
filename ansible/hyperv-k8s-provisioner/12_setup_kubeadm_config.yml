@@ -1,0 +1,55 @@
+---
+- name: Prepare kubeadm-config for cluster setup
+  hosts: controls[0]
+  become: true
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Process installation if cluster is not set
+      block:
+      - name: Generate cluster token
+        ansible.builtin.command: kubeadm token generate
+        register: kubetoken_generated
+
+      - name: Set generated token as fact
+        ansible.builtin.set_fact:
+          kubetoken: "{{ kubetoken_generated.stdout }}"
+
+      - name: Generate certificate key
+        ansible.builtin.command: kubeadm certs certificate-key
+        register: kubecert_generated
+
+      - name: Set generated token as fact
+        ansible.builtin.set_fact:
+          kubecertkey: "{{ kubecert_generated.stdout }}"
+
+      - name: Add kubelet config for node
+        ansible.builtin.template:
+          src: templates/kubeadm-config.yaml.j2
+          dest: /tmp/kubeadm-config.yaml
+          mode: 0755
+
+      - name: Create a directory if it does not exist
+        ansible.builtin.file:
+          path: /etc/kubernetes/tracing
+          state: directory
+
+      - name: Add tracing config for node
+        ansible.builtin.template:
+          src: templates/tracing-config.yaml.j2
+          dest: /etc/kubernetes/tracing/tracing-config.yaml
+      when: k8s_installed is not defined
+    # - name: Store file into /tmp/fetched/host.example.com/tmp/somefile
+    #   ansible.builtin.fetch:
+    #     src: /tmp/kubeadm-config.yaml
+    #     dest: "{{ playbook_dir }}/kubeadm-config.yaml"
+    #     flat: yes
+
+# - name: Debug hostvars
+#   hosts: localhost
+#   gather_facts: false
+#   tasks:
+#     - local_action: 
+#         module: copy 
+#         content: "{{ hostvars }}"
+#         dest: "{{ playbook_dir }}/hostvars.json"

@@ -1,0 +1,77 @@
+---
+# Source: apisix/charts/dashboard/templates/deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix-dashboard
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: dashboard-0.8.0
+    
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: dashboard
+      app.kubernetes.io/instance: apisix
+  template:
+    metadata:
+      annotations:
+        checksum/config: 018275a6ceb052a5ff7e1f67b3d133a92321364000b604861dcfe7d1c2ba2803
+      labels:
+        
+        app.kubernetes.io/name: dashboard
+        app.kubernetes.io/instance: apisix
+    spec:
+      serviceAccountName: apisix-dashboard
+      securityContext:
+        {}
+      containers:
+        - name: dashboard
+          securityContext:
+            {}
+          image: "apache/apisix-dashboard:3.0.0-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /usr/local/apisix-dashboard/conf/conf.yaml
+              name: apisix-dashboard-config
+              subPath: conf.yaml
+      volumes:
+        - configMap:
+            name: apisix-dashboard
+          name: apisix-dashboard-config

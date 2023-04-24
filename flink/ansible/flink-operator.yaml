@@ -1,0 +1,183 @@
+- name: Install flink operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Apply flink-namespace manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/flink-operator/base/flink-namespace.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+
+    - name: Apply flink-bucket manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/flink-operator/base/flink-bucket.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+    
+    - name: Get the flink-bucket configmap info
+      kubernetes.core.k8s_info:
+        kind: ConfigMap
+        wait: yes
+        name: flink-bucket
+        namespace: flink
+        # wait_timeout: 240
+      register: bucket_configmap_data
+    # - debug: var=bucket_configmap_data.resources[0].data
+    
+    - name: Get the flink-bucket secret info
+      kubernetes.core.k8s_info:
+        kind: Secret
+        wait: yes
+        name: flink-bucket
+        namespace: flink
+        # wait_timeout: 240
+      register: bucket_secret_data
+    # - debug: var=bucket_secret_data.resources[0].data
+  
+    - ansible.builtin.set_fact:
+        flink_bucket: "{{ {} |
+          combine(bucket_configmap_data.resources[0].data) |
+          combine(dict(secret_keys | zip(decoded_secret_values))) 
+          }}"
+      vars:
+        secret_keys: "{{ bucket_secret_data.resources[0].data.keys() | list }}"
+        secret_values: "{{ bucket_secret_data.resources[0].data.values() | list }}"
+        decoded_secret_values: "{{ secret_values | map('b64decode') | list }}"
+    # - debug: var=flink_bucket
+
+    - name: Apply bucket policy
+      ansible.builtin.shell:
+        cmd: |
+          kubectl run -it -n flink --rm s3cmd --image=alpine --restart=Never -- sh -c '
+          apk add s3cmd -q --no-progress
+          cat > /tmp/iam-policy.json << EOF
+          {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["arn:aws:iam:::user/obc-flink-flink-bucket","arn:aws:iam:::user/ceph-bucket-admin-user"]},"Action":["s3:*"],"Resource":["arn:aws:s3:::*"]}]}
+          EOF
+          s3cmd setpolicy \
+          ./tmp/iam-policy.json \
+          s3://{{ flink_bucket.BUCKET_NAME }} \
+          --host={{ flink_bucket.BUCKET_HOST }}.cluster.local \
+          --host-bucket={{ flink_bucket.BUCKET_HOST }}.cluster.local \
+          --no-ssl \
+          --access_key={{ flink_bucket.AWS_ACCESS_KEY_ID }} \
+          --secret_key={{ flink_bucket.AWS_SECRET_ACCESS_KEY }}'
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Add flink-operator chart repo
+      kubernetes.core.helm_repository:
+        name: flink-operator
+        repo_url: "https://downloads.apache.org/flink/flink-kubernetes-operator-1.3.1/"
+
+    - name: Separately update the flink-operator cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: flink-operator
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Setting helm flink templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../helm/values/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../helm/values/templates/*.j2"
+
+    - name: Helm template flink-operator chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=1.3.1
+          --namespace=flink
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/flink-operator-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/flink-operator/base
+          flink-kubernetes-operator flink-operator/flink-kubernetes-operator
+
+    - name: Add flink-operator resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/flink-kubernetes-operator/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/flink-operator/"
+
+    - name: Add flink-operator resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/flink-kubernetes-operator/**/*.yml
+        chdir: "{{ playbook_dir }}/../kustomize/flink-operator/"
+
+    - name: Kustomize build flink-operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/flink-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy flink-operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/flink-operator/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply flink-operator manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/flink-operator/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    # - name: Get admin-user token
+    #   kubernetes.core.k8s_info:
+    #     kind: Secret
+    #     name: kubernetes-admin
+    #     namespace: kubernetes-dashboard
+    #   register: admin_user_token
+    # # - debug: var=admin_user_token.resources[0].data.token
+
+    # - name: Include vars of credentials.yaml into the 'credentials' variable
+    #   ansible.builtin.include_vars:
+    #     file: "{{ playbook_dir }}/../../credentials.yaml"
+    #     name: credentials
+
+    # - block:
+    #     - name: Generate password and save credentials
+    #       ansible.builtin.copy :
+    #         content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+    #         dest: "{{ playbook_dir }}/../../credentials.yaml"
+    #         mode: "0644"
+    #       vars:
+    #         updated_credentials:
+    #           kubernetes_dashboard:
+    #             password: "{{ admin_user_token.resources[0].data.token | b64decode }}"
+
+    #     - name: Reload credentials
+    #       ansible.builtin.include_vars:
+    #         file: "{{ playbook_dir }}/../../credentials.yaml"
+    #         name: credentials
+    #         # hash_behaviour: merge
+
+    #   when: "credentials.kubernetes_dashboard.password is not defined or
+    #     credentials.kubernetes_dashboard.password == None or
+    #     credentials.kubernetes_dashboard.password | length == 0 or
+    #     credentials.kubernetes_dashboard.password != admin_user_token.resources[0].data.token | b64decode"
+
+    - name: Wait for the flink-kubernetes-operator deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: flink-kubernetes-operator
+        namespace: flink
+      register: myoutput
+

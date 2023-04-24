@@ -1,0 +1,20 @@
+---
+# Source: scylla-manager/templates/manager_servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: scylla-manager
+  namespace: scylla-manager
+spec:
+  jobLabel: "app"
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: scylla-manager
+      app.kubernetes.io/instance: scylla-manager
+  endpoints:
+  - port: metrics
+    metricRelabelings:
+    - sourceLabels: [ host ]
+      targetLabel: instance
+      regex: (.*)
+      replacement: ${1}

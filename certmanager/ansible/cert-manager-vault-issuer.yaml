@@ -1,0 +1,70 @@
+---
+- name: Install Hashicorp Vault
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Load vault role creds from file
+      shell: cat {{ playbook_dir }}/../../vault/cert_manager_role_creds.json
+      register: myoutput
+
+    - ansible.builtin.set_fact:
+        cert_manager_role_id: "{{myoutput.stdout|from_json|json_query('cert_manager_role_id')}}"
+    # - debug: var=cert_manager_role_id
+    
+    - ansible.builtin.set_fact:
+        cert_manager_secret_id: "{{myoutput.stdout|from_json|json_query('cert_manager_secret_id')}}"
+    # - debug: var=cert_manager_secret_id
+
+    - name: Setting kustomize custom-resources patch templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/cert-manager-vault-issuer/base/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/cert-manager-vault-issuer/base/templates/*.j2"
+
+    - name: Kustomize build cert-manager manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/cert-manager-vault-issuer/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy cert-manager resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/cert-manager-vault-issuer/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply cert-manager manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/cert-manager-vault-issuer/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Load vault intermediate cert from file
+      shell: cat {{ playbook_dir }}/../../vault/intermediate.cert.pem
+      register: myoutput
+
+    - ansible.builtin.set_fact:
+        vault_intermediate_cert: "{{ myoutput.stdout }}"
+    # - debug: var=vault_intermediate_cert
+
+    - name: Create istio-root-ca secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          type: Opaque
+          metadata:
+            name: "istio-root-ca"
+            namespace: "cert-manager"
+          data:
+            ca.cert.pem: "{{ vault_intermediate_cert | b64encode }}"

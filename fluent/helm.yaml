@@ -1,0 +1,490 @@
+Release "fluent-operator" has been upgraded. Happy Helming!
+NAME: fluent-operator
+LAST DEPLOYED: Thu Sep 22 13:59:03 2022
+NAMESPACE: fluent
+STATUS: pending-upgrade
+REVISION: 2
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+Kubernetes: true
+containerRuntime: containerd
+
+COMPUTED VALUES:
+Kubernetes: true
+containerRuntime: containerd
+fluentbit:
+  annotations: {}
+  image:
+    repository: kubesphere/fluent-bit
+    tag: v1.9.4
+  imagePullSecrets: []
+  input:
+    tail:
+      memBufLimit: 5MB
+  output:
+    es:
+      enable: false
+      host: <Elasticsearch url like elasticsearch-logging-data.kubesphere-logging-system.svc>
+      logstashPrefix: ks-logstash-log
+      port: 9200
+    kafka:
+      brokers: <kafka broker list like xxx.xxx.xxx.xxx:9092,yyy.yyy.yyy.yyy:9092>
+      enable: false
+      topics: ks-log
+  resources:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 10m
+      memory: 25Mi
+  secrets: []
+fluentd:
+  enable: false
+  forward:
+    port: 24224
+  image:
+    repository: kubesphere/fluentd
+    tag: v1.14.6
+  name: fluentd
+  output:
+    es:
+      buffer:
+        enable: false
+        path: /buffers/es
+        type: file
+      enable: false
+      host: elasticsearch-logging-data.kubesphere-logging-system.svc
+      logstashPrefix: ks-logstash-log
+      port: 9200
+    kafka:
+      brokers: my-cluster-kafka-bootstrap.default.svc:9091,my-cluster-kafka-bootstrap.default.svc:9092,my-cluster-kafka-bootstrap.default.svc:9093
+      buffer:
+        enable: false
+        path: /buffers/kafka
+        type: file
+      enable: false
+      topicKey: kubernetes_ns
+  port: 24224
+  replicas: 1
+  resources: {}
+  watchedNamespaces:
+  - kube-system
+  - default
+fullnameOverride: ""
+nameOverride: ""
+namespaceOverride: ""
+operator:
+  container:
+    repository: kubesphere/fluent-operator
+    tag: v1.1.0
+  imagePullSecrets: []
+  initcontainer:
+    repository: docker
+    tag: "19.03"
+  logPath:
+    containerd: /var/log
+    crio: /var/log
+  resources:
+    limits:
+      cpu: 100m
+      memory: 30Mi
+    requests:
+      cpu: 100m
+      memory: 20Mi
+
+HOOKS:
+MANIFEST:
+---
+# Source: fluent-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluent-operator
+  labels:
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/name: fluent-operator
+---
+# Source: fluent-operator/templates/fluentbit-containerd-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-containerd-config
+data:
+  containerd.lua: |
+    function containerd( tag, timestamp, record)
+           if(record["logtag"]~=nil)
+           then
+           timeStr = os.date("!*t",  timestamp["sec"])
+            t = string.format("%4d-%02d-%02dT%02d:%02d:%02d.%sZ",
+            timeStr["year"], timeStr["month"], timeStr["day"],
+            timeStr["hour"], timeStr["min"], timeStr["sec"],
+            timestamp["nsec"]);
+            record["time"] = t;
+            record["log"] = record["message"];
+            record["message"] =  nil;
+            return 1, timestamp, record
+            else
+            return 0,timestamp,record
+           end
+    end
+---
+# Source: fluent-operator/templates/fluentbit-lua-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-lua
+data:
+  systemd.lua: |
+    function add_time(tag, timestamp, record)
+      new_record = {}
+
+      timeStr = os.date("!*t", timestamp["sec"])
+      t = string.format("%4d-%02d-%02dT%02d:%02d:%02d.%sZ",
+      timeStr["year"], timeStr["month"], timeStr["day"],
+      timeStr["hour"], timeStr["min"], timeStr["sec"],
+      timestamp["nsec"])
+
+      kubernetes = {}
+      kubernetes["pod_name"] = record["_HOSTNAME"]
+      kubernetes["container_name"] = record["SYSLOG_IDENTIFIER"]
+      kubernetes["namespace_name"] = "kube-system"
+
+      new_record["time"] = t
+      new_record["log"] = record["MESSAGE"]
+      new_record["kubernetes"] = kubernetes
+
+      return 1, timestamp, new_record
+    end
+---
+# Source: fluent-operator/templates/fluent-operator-clusterRole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: fluent-operator
+  name: fluent-operator
+rules:
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - statefulsets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+      - serviceaccounts
+      - configmaps
+      - services
+      - namespaces
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - fluentbit.fluent.io
+    resources:
+      - fluentbits
+      - clusterfluentbitconfigs
+      - clusterfilters
+      - clusterinputs
+      - clusteroutputs
+      - clusterparsers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - fluentd.fluent.io
+    resources:
+      - fluentds
+      - fluentds/status
+      - clusterfluentdconfigs
+      - clusterfluentdconfigs/status
+      - fluentdconfigs
+      - fluentdconfigs/status
+      - clusterfilters
+      - filters
+      - clusteroutputs
+      - outputs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterrolebindings
+    verbs:
+      - create
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterroles
+    verbs:
+      - create
+---
+# Source: fluent-operator/templates/fluent-operator-clusterRoleBinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: fluent-operator
+  name: fluent-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluent-operator
+subjects:
+- kind: ServiceAccount
+  name: fluent-operator
+  namespace: fluent
+---
+# Source: fluent-operator/templates/fluent-operator-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fluent-operator
+  labels:
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/name: fluent-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: operator
+      app.kubernetes.io/name: fluent-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: operator
+        app.kubernetes.io/name: fluent-operator
+    spec:
+      volumes:
+      - name: env
+        emptyDir: {}
+      initContainers:
+      - name: setenv
+        image: docker:19.03
+        command:
+        - /bin/sh
+        - '-c'
+        - set -ex;
+          echo CONTAINER_ROOT_DIR=/var/log > /fluent-operator/fluent-bit.env
+        volumeMounts:
+        - name: env
+          mountPath: /fluent-operator
+      containers:
+      - name: fluent-operator
+        image: kubesphere/fluent-operator:v1.1.0
+        resources:
+          limits:
+            cpu: 100m
+            memory: 30Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        env:
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+        volumeMounts:
+        - name: env
+          mountPath: /fluent-operator
+      serviceAccountName: fluent-operator
+---
+# Source: fluent-operator/templates/fluentbit-clusterfilter-containerd.yaml
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterFilter
+metadata:
+  name: containerd
+  labels:
+    fluentbit.fluent.io/enabled: "true"
+    fluentbit.fluent.io/component: logging
+spec:
+  match: kube.*
+  filters:
+  - lua:
+      script:
+        key: containerd.lua
+        name: fluent-bit-containerd-config
+      call: containerd
+      timeAsTable: true
+---
+# Source: fluent-operator/templates/fluentbit-clusterfilter-kubernetes.yaml
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterFilter
+metadata:
+  name: kubernetes
+  labels:
+    fluentbit.fluent.io/enabled: "true"
+    fluentbit.fluent.io/component: logging
+spec:
+  match: kube.*
+  filters:
+  - kubernetes:
+      kubeURL: https://kubernetes.default.svc:443
+      kubeCAFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      kubeTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      labels: false
+      annotations: false
+  - nest:
+      operation: lift
+      nestedUnder: kubernetes
+      addPrefix: kubernetes_
+  - modify:
+      rules:
+      - remove: stream
+      - remove: kubernetes_pod_id
+      - remove: kubernetes_host
+      - remove: kubernetes_container_hash
+  - nest:
+      operation: nest
+      wildcard:
+      - kubernetes_*
+      nestUnder: kubernetes
+      removePrefix: kubernetes_
+---
+# Source: fluent-operator/templates/fluentbit-clusterfilter-systemd.yaml
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterFilter
+metadata:
+  name: systemd
+  labels:
+    fluentbit.fluent.io/enabled: "true"
+    fluentbit.fluent.io/component: logging
+spec:
+  match: service.*
+  filters:
+  - lua:
+      script:
+        key: systemd.lua
+        name: fluent-bit-lua
+      call: add_time
+      timeAsTable: true
+---
+# Source: fluent-operator/templates/fluentbitconfig-fluentBitConfig.yaml
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterFluentBitConfig
+metadata:
+  name: fluent-bit-config
+  labels:
+    app.kubernetes.io/name: fluent-bit
+spec:
+  service:
+    parsersFile: parsers.conf
+  inputSelector:
+    matchLabels:
+      fluentbit.fluent.io/enabled: "true"
+  filterSelector:
+    matchLabels:
+      fluentbit.fluent.io/enabled: "true"
+  outputSelector:
+    matchLabels:
+      fluentbit.fluent.io/enabled: "true"
+---
+# Source: fluent-operator/templates/fluentbit-clusterinput-systemd.yaml
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterInput
+metadata:
+  name: containerd
+  labels:
+    fluentbit.fluent.io/enabled: "true"
+    fluentbit.fluent.io/component: logging
+spec:
+  systemd:
+    tag: service.*
+    path: /var/log/journal
+    db: /fluent-bit/tail/systemd.db
+    dbSync: Normal
+    systemdFilter:
+      - _SYSTEMD_UNIT=containerd.service
+      - _SYSTEMD_UNIT=kubelet.service
+---
+# Source: fluent-operator/templates/fluentbit-clusterinput-tail.yaml
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterInput
+metadata:
+  name: tail
+  labels:
+    fluentbit.fluent.io/enabled: "true"
+    fluentbit.fluent.io/component: logging
+spec:
+  tail:
+    tag: kube.*
+    path: /var/log/containers/*.log
+    parser: cri
+    refreshIntervalSeconds: 10
+    memBufLimit: 5MB
+    skipLongLines: true
+    db: /fluent-bit/tail/pos.db
+    dbSync: Normal
+---
+# Source: fluent-operator/templates/fluentbit-fluentBit.yaml
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: FluentBit
+metadata:
+  name: fluent-bit
+  labels:
+    app.kubernetes.io/name: fluent-bit
+spec:
+  image: kubesphere/fluent-bit:v1.9.4
+  positionDB:
+    hostPath:
+      path: /var/lib/fluent-bit/
+  resources:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 10m
+      memory: 25Mi
+  fluentBitConfigName: fluent-bit-config
+  tolerations:
+    - operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/edge
+                operator: DoesNotExist
+
+NOTES:
+Thank you for installing  fluent-operator
+Your release is named    fluent-operator
+
+To learn more about the release ,try:
+   $ helm status  fluent-operator  -n  fluent
+   $ helm get  fluent-operator  -n fluent

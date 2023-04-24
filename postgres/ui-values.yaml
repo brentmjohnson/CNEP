@@ -1,0 +1,18 @@
+envs:
+  operatorApiUrl: http://postgres-operator.postgres.svc.cluster.local:8080
+  targetNamespace: postgres
+  teams:
+    - postgres
+extraEnvs:
+  - name: AWS_ENDPOINT
+    value: http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:80
+  - name: WALE_S3_ENDPOINT
+    value: http+path://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:80
+  - name: SPILO_S3_BACKUP_PREFIX
+    value: spilo/
+  - name: AWS_ACCESS_KEY_ID
+    value: <secret>
+  - name: AWS_SECRET_ACCESS_KEY
+    value: <secret>
+  - name: SPILO_S3_BACKUP_BUCKET
+    value: postgres-bucket-80d58bf3-2699-435d-9d2e-4621ec3c21a6

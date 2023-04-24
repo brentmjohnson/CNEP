@@ -1,0 +1,51 @@
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: opentelemetry-collector-10-0-0-3
+  namespace: opentelemetry-operator-system
+spec:
+  hosts:
+    - 10.0.0.3.svc.cluster.local
+  location: MESH_INTERNAL
+  ports:
+    - number: 4317
+      name: otlp
+      protocol: GRPC
+  resolution: STATIC
+  endpoints:
+    - address: "10.0.0.3"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: opentelemetry-collector-10-0-0-4
+  namespace: opentelemetry-operator-system
+spec:
+  hosts:
+    - 10.0.0.4.svc.cluster.local
+  location: MESH_INTERNAL
+  ports:
+    - number: 4317
+      name: otlp
+      protocol: GRPC
+  resolution: STATIC
+  endpoints:
+    - address: "10.0.0.4"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: opentelemetry-collector-10-0-0-5
+  namespace: opentelemetry-operator-system
+spec:
+  hosts:
+    - 10.0.0.5.svc.cluster.local
+  location: MESH_INTERNAL
+  ports:
+    - number: 4317
+      name: otlp
+      protocol: GRPC
+  resolution: STATIC
+  endpoints:
+    - address: "10.0.0.5"
+---

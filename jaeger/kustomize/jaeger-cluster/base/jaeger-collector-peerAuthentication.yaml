@@ -1,0 +1,19 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: jaeger-collector
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: jaeger
+      app.kubernetes.io/component: collector
+      app.kubernetes.io/instance: jaeger
+      app.kubernetes.io/managed-by: jaeger-operator
+      app.kubernetes.io/name: jaeger-collector
+      app.kubernetes.io/part-of: jaeger
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "14250":
+      mode: PERMISSIVE

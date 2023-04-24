@@ -1,0 +1,82 @@
+- hosts: vm_host
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Compress /usr/lib/wsl/lib directory
+      community.general.archive:
+        path: /usr/lib/wsl/lib
+        dest: /tmp/wsl-lib.tar
+        format: tar
+        force_archive: true
+    - name: Compress /usr/lib/wsl/drivers directory
+      community.general.archive:
+        path: /usr/lib/wsl/drivers
+        dest: /tmp/wsl-drivers.tar
+        format: tar
+        force_archive: true
+
+- name: Configure GPU Paravirtualization
+  hosts: # k8s_nodes
+    - k8s-control-0
+    - k8s-control-1
+    - k8s-control-2
+  become: true
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Ensure /usr/lib/wsl/drivers exists
+      ansible.builtin.file:
+        path: /usr/lib/wsl
+        state: directory
+        mode: '0755'
+    - name: Extract wsl-lib.tar from remote
+      ansible.builtin.unarchive:
+        src: /tmp/wsl-lib.tar
+        dest: /usr/lib/wsl
+    - name: Create libD3D12Core.so symlink
+      ansible.builtin.file:
+        src: /usr/lib/wsl/lib/libd3d12core.so
+        dest: /usr/lib/wsl/lib/libD3D12Core.so
+        state: link
+
+    - name: Configure ld.wsl.conf for gpu drivers
+      ansible.builtin.lineinfile:
+        line: '/usr/lib/wsl/lib'
+        path: /etc/ld.so.conf.d/ld.wsl.conf
+        state: present
+        create: true
+
+    - name: Extract wsl-drivers.tar from remote
+      ansible.builtin.unarchive:
+        src: /tmp/wsl-drivers.tar
+        dest: /usr/lib/wsl
+    - name: Copy /tmp/wsl-drivers
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../hyper-v/gpu-p/oneclick-gpu-pv/dxgkrnl-dkms/dxgkrnl.ko"
+        dest: "/lib/modules/{{ ansible_kernel }}/kernel/drivers/hv/"
+    - name: Update kernel modules
+      ansible.builtin.command: depmod -A
+    - name: Add modules to autostart
+      ansible.builtin.blockinfile:
+        path: /etc/modules-load.d/gpu-pv.conf
+        block: |
+          dxgkrnl
+        create: true
+        mode: 0755
+    - name: Enable dxgkrnl
+      community.general.modprobe:
+        name: dxgkrnl
+        state: present
+
+- hosts: vm_host
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Remove wsl-lib.tar tempfile
+      ansible.builtin.file:
+        path: /tmp/wsl-lib.tar
+        state: absent
+    - name: Remove wsl-drivers.tar tempfile
+      ansible.builtin.file:
+        path: /tmp/wsl-drivers.tar
+        state: absent

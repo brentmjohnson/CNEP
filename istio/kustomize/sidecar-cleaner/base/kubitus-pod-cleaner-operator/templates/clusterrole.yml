@@ -1,0 +1,22 @@
+---
+# Source: kubitus-pod-cleaner-operator/templates/clusterrole.yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubitus-pod-cleaner-operator
+  labels:
+    helm.sh/chart: kubitus-pod-cleaner-operator-v1.1.0
+    app.kubernetes.io/name: kubitus-pod-cleaner-operator
+    app.kubernetes.io/instance: kubitus-pod-cleaner-operator
+    app.kubernetes.io/version: "v1.1.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["watch", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create]

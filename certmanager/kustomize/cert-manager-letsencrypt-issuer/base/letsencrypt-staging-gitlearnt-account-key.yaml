@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  tls.key: <secret>
+kind: Secret
+metadata:
+  name: letsencrypt-staging-example-account-key
+  namespace: cert-manager
+type: Opaque

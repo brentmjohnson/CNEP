@@ -1,0 +1,44 @@
+---
+- name: Install Hashicorp Vault
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Load cluster-keys from file
+      shell: cat {{ playbook_dir }}/../cluster-keys.json
+      register: myoutput
+
+    - ansible.builtin.set_fact:
+        vault_root_token: "{{myoutput.stdout|from_json|json_query('root_token')}}"
+    # - debug: var=vault_root_token
+
+    - name: Get cert-manager role-id
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n vault exec vault-0 \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- sh -c " \
+              vault login {{ vault_root_token }} &> /dev/null && \
+              vault read auth/approle/role/cert-manager/role-id -format=json"
+      register: myoutput
+    # - debug: var=myoutput
+
+    - ansible.builtin.set_fact:
+        vault_cert_manager_role_id: "{{myoutput.stdout|from_json|json_query('data.role_id')}}"
+    - debug: var=vault_cert_manager_role_id
+
+    - name: Get cert-manager secret-id
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n vault exec vault-0 \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- sh -c " \
+              vault login {{ vault_root_token }} &> /dev/null && \
+              vault write -force auth/approle/role/cert-manager/secret-id -format=json"
+      register: myoutput
+    # - debug: var=myoutput
+
+    - ansible.builtin.set_fact:
+        vault_cert_manager_secret_id: "{{myoutput.stdout|from_json|json_query('data.secret_id')}}"
+    - debug: var=vault_cert_manager_secret_id

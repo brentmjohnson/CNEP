@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/elastic-system-namespace.yaml
+- ./base/eck-operator/charts/eck-operator-crds/templates/all-crds.yaml
+- ./base/eck-operator/templates/cluster-roles.yaml
+- ./base/eck-operator/templates/configmap.yaml
+- ./base/eck-operator/templates/role-bindings.yaml
+- ./base/eck-operator/templates/service-account.yaml
+- ./base/eck-operator/templates/statefulset.yaml
+- ./base/eck-operator/templates/webhook.yaml

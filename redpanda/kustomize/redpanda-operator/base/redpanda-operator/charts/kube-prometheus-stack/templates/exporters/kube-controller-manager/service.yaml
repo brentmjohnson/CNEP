@@ -1,0 +1,24 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/exporters/kube-controller-manager/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-operator-kube-pro-kube-controller-manager
+  labels:
+    app: kube-prometheus-stack-kube-controller-manager
+    jobLabel: kube-controller-manager
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+  namespace: kube-system
+spec:
+  clusterIP: None
+  ports:
+    - name: http-metrics
+      port: 10252
+      protocol: TCP
+      targetPort: 10252
+  selector:
+    component: kube-controller-manager
+  type: ClusterIP

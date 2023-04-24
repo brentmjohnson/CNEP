@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-pod-config
+  namespace: postgres
+data:
+  ALLOW_NOSSL: "true"
+  WAL_S3_BUCKET: postgres-bucket-bfa09a9a-56d3-450b-b3f4-b78f3caa0506
+  WAL_BUCKET_SCOPE_PREFIX: ""
+  WAL_BUCKET_SCOPE_SUFFIX: ""
+  USE_WALG_BACKUP: "true"
+  USE_WALG_RESTORE: "true"
+  BACKUP_SCHEDULE: '00 01 * * *'
+  AWS_ACCESS_KEY_ID: <secret>
+  AWS_SECRET_ACCESS_KEY: <secret>
+  AWS_S3_FORCE_PATH_STYLE: "true" # needed for MinIO
+  AWS_ENDPOINT: http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local # Endpoint URL to your S3 Endpoint; MinIO in this example
+  AWS_REGION: ""
+  WALG_DISABLE_S3_SSE: "true"
+  BACKUP_NUM_TO_RETAIN: "5"
+  CLONE_USE_WALG_RESTORE: "true"
+  CLONE_AWS_ACCESS_KEY_ID: <secret>
+  CLONE_AWS_SECRET_ACCESS_KEY: <secret>
+  CLONE_AWS_ENDPOINT: http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local # Endpoint URL to your S3 Endpoint; MinIO in this example
+  CLONE_AWS_REGION: ""
+  CLONE_METHOD: CLONE_WITH_WALE
+  CLONE_WAL_BUCKET_SCOPE_PREFIX: ""
+  CLONE_WAL_S3_BUCKET: postgres-bucket-bfa09a9a-56d3-450b-b3f4-b78f3caa0506
+  CLONE_AWS_S3_FORCE_PATH_STYLE: "true"

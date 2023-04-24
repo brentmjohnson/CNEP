@@ -1,0 +1,38 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: postgres-route
+  namespace: postgres
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+        - internal.example.com
+      paths:
+      - /postgres/*
+    backends:
+       - serviceName: postgres-operator-ui
+         servicePort: 8081
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: postgres-operator-ui.postgres.svc.cluster.local
+          regex_uri:
+            - "^/postgres/(.*)"
+            - "/$1"

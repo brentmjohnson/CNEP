@@ -1,0 +1,14 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: dse-dc1-sts-0-se
+  namespace: cass-operator
+spec:
+  hosts:
+  - dse-dc1-default-sts-0.dse-dc1-service.cass-operator.svc.cluster.local
+  location: MESH_INTERNAL
+  ports:
+  - name: cassanda
+    number: 9042
+    protocol: TLS
+  resolution: DNS

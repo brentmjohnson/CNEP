@@ -1,0 +1,4 @@
+/dev/cdrom	/media/cdrom	iso9660	noauto,ro 0 0
+/dev/usbdisk	/media/usb	vfat	noauto,ro 0 0
+/dev/sr1	/media/sr1	iso9660	ro 0 0
+/root/apkcache.img    /etc/apk/cache/ ext2    rw 0 0

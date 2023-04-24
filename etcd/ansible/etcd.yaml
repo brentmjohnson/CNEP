@@ -1,0 +1,96 @@
+- name: Install ETCD Cluster Operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    # kustomize build config/crd | kubectl apply -f -
+    - name: Kustomize build crd manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../etcd-cluster-operator/config/crd"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy crd resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/crd/resources/resources.yaml"
+        mode: "0644"
+
+    # cd config/manager && kustomize edit set image controller=${IMG}
+    # kustomize build config/default | kubectl apply -f -
+    - name: Kustomize build default manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        # chdir: "{{ playbook_dir }}/../etcd-cluster-operator/config/default"
+        chdir: "{{ playbook_dir }}/../kustomize/default"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy default resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/default/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply crd manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/crd/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Apply default manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/default/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for eco-controller-manager deployment readiness
+      kubernetes.core.k8s:
+        state: present
+        api_version: apps/v1
+        kind: Deployment
+        namespace: eco-system
+        name: eco-controller-manager
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+
+    - name: Apply EtcdCluster manifest to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../etcdCluster.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+
+    - name: Wait for the etcd-cluster service
+      kubernetes.core.k8s_info:
+        kind: Service
+        wait: yes
+        name: etcd-cluster
+        namespace: ingress-apisix
+      register: myoutput
+    # - debug: var=myoutput
+
+    # this handles the supported merge keys of port/protocol
+    - name: Patch etcd-cluster service
+      ansible.builtin.shell:
+        cmd: |
+          kubectl patch service/etcd-cluster -n ingress-apisix -p='{"spec": { "ports": [ { "name": "etcd-client", "port": 2379, "appProtocol": "tcp" } ] } }' \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+    # - debug: var=myoutput

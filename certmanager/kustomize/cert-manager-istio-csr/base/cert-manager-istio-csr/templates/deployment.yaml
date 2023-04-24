@@ -1,0 +1,74 @@
+---
+# Source: cert-manager-istio-csr/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-manager-istio-csr
+  labels:
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.6.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.6.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cert-manager-istio-csr
+  template:
+    metadata:
+      labels:
+        app: cert-manager-istio-csr
+    spec:
+      serviceAccountName: cert-manager-istio-csr
+      containers:
+      - name: cert-manager-istio-csr
+        image: "quay.io/jetstack/cert-manager-istio-csr:v0.6.0"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6443
+        - containerPort: 9402
+        readinessProbe:
+          httpGet:
+            port: 6060
+            path: /readyz
+          initialDelaySeconds: 3
+          periodSeconds: 7
+        command: ["cert-manager-istio-csr"]
+        args:
+          - "--log-level=1"
+          - "--metrics-port=9402"
+          - "--readiness-probe-port=6060"
+          - "--readiness-probe-path=/readyz"
+
+            # cert-manager
+          - "--certificate-namespace=istio-system"
+          - "--issuer-name=vault-issuer"
+          - "--issuer-kind=Issuer"
+          - "--issuer-group=cert-manager.io"
+          - "--preserve-certificate-requests=false"
+
+            # tls
+          - "--root-ca-file=/var/run/secrets/istio-csr/ca.cert.pem"
+          - "--serving-certificate-dns-names=cert-manager-istio-csr.cert-manager.svc"
+          - "--serving-certificate-duration=1h"
+          - "--trust-domain=cluster.local"
+
+          # server
+          - "--cluster-id=Kubernetes"
+          - "--max-client-certificate-duration=1h"
+          - "--serving-address=0.0.0.0:6443"
+          - "--serving-certificate-key-size=2048"
+
+          # controller
+          - "--leader-election-namespace=istio-system"
+        volumeMounts:
+          - mountPath: /var/run/secrets/istio-csr
+            name: root-ca
+
+        resources:
+            {}
+      volumes:
+      - name: root-ca
+        secret:
+          secretName: istio-root-ca

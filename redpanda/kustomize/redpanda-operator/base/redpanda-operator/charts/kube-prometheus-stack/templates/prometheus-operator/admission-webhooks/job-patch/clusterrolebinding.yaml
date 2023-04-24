@@ -1,0 +1,22 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/prometheus-operator/admission-webhooks/job-patch/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name:  redpanda-operator-kube-pro-admission
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: kube-prometheus-stack-admission    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: redpanda-operator-kube-pro-admission
+subjects:
+  - kind: ServiceAccount
+    name: redpanda-operator-kube-pro-admission
+    namespace: redpanda-system

@@ -1,0 +1,75 @@
+- name: Cache letsencrypt certs
+  hosts: vm_host
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Get letsencrypt account key
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl get Secret -n cert-manager letsencrypt-example-account-key -o yaml | ~/.krew/bin/kubectl-neat
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Save letsencrypt-example-account-key
+      ansible.builtin.copy:
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../../certmanager/kustomize/cert-manager-letsencrypt-issuer/base/letsencrypt-example-account-key.yaml"
+        mode: "0644"
+
+    - name: Get letsencrypt-staging account key
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl get Secret -n cert-manager letsencrypt-staging-example-account-key -o yaml | ~/.krew/bin/kubectl-neat
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Save letsencrypt-staging-example-account-key
+      ansible.builtin.copy:
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../../certmanager/kustomize/cert-manager-letsencrypt-issuer/base/letsencrypt-staging-example-account-key.yaml"
+        mode: "0644"
+
+    - name: Get cacheable letsencrypt secrets
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl get certificates -A -o yaml | yq '
+            .items | 
+            map(select(
+              .spec.issuerRef.group == "cert-manager.io" and 
+              .spec.issuerRef.name == "letsencrypt") | 
+              [.metadata.namespace,.spec.secretName]
+            )' -o=tsv |
+          while read -r fname
+          do 
+            echo ---
+            kubectl get secret -n $fname -o yaml | ~/.krew/bin/kubectl-neat;
+          done
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Save cacheable secrets
+      ansible.builtin.copy:
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../../certmanager/kustomize/cert-manager-letsencrypt-issuer/cache/secrets.yaml"
+        mode: "0644"
+
+    - name: Get cacheable letsencrypt certs
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl get certificates -A -o yaml | yq '
+            .items | 
+            map(select(
+              .spec.issuerRef.group == "cert-manager.io" and 
+              .spec.issuerRef.name == "letsencrypt" and 
+              .metadata.ownerReferences[].kind != "Ingress")) | 
+            .[] | 
+            split_doc' \
+            | ~/.krew/bin/kubectl-neat
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Save cacheable certs
+      ansible.builtin.copy:
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../../certmanager/kustomize/cert-manager-letsencrypt-issuer/cache/certificates.yaml"
+        mode: "0644"

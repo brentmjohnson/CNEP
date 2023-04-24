@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kube-controller-manager
+  namespace: monitoring
+spec:
+  endpoints:
+  - port: https-metrics
+    metricRelabelings:
+    - action: drop
+      regex: workqueue_depth;kube-system;kube-controller-manager-prometheus-discovery;(node|service)
+      sourceLabels:
+      - __name__
+      - namespace
+      - service
+      - name

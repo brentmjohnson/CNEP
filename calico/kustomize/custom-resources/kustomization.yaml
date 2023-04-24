@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- base/calico-namespaces.yaml
+- base/custom-resources.yaml
+- base/felix-metrics-service.yaml
+- base/typha-metrics-service.yaml
+
+# kustomize openapi fetch | jq '.definitions | { definitions: with_entries(select(.key | in({"io.tigera.operator.v1.Installation":1}))) }' > ../openapi-schema.json
+openapi:
+  path: schemas/io.tigera.operator.v1.Installation.json
+
+patches:
+- path: patches/custom-resources-patch-1.yaml
+  target:
+    group: operator.tigera.io
+    version: v1
+    kind: Installation
+    name: default
+- path: patches/custom-resources-patch-2.yaml
+  # target:
+  #   group: apps
+  #   version: v1
+  #   kind: Deployment
+  #   name: deploy.*
+  #   namespace: 
+  #   labelSelector: "env=dev"
+  #   annotationSelector: "zone=west"

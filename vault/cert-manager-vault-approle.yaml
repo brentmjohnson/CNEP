@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: cert-manager-vault-approle
+  namespace: istio-system
+data:
+  # <APP_ROLE_SECRET_ID> # insert secretId base64 encoded
+  secretId: <secret>

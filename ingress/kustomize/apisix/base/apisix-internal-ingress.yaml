@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    # cert-manager.io/cluster-issuer: letsencrypt-staging
+    # if the wildcard address gets into dns it fucks up the whole network
+    external-dns.alpha.kubernetes.io/hostname: "internal.example.com"
+    external-dns.alpha.kubernetes.io/ingress-hostname-source: annotation-only
+  name: apisix-internal-ingress
+  namespace: ingress-apisix
+spec:
+  ingressClassName: apisix
+  defaultBackend:
+    service:
+      name: apisix-gateway
+      port:
+        number: 443
+  tls:
+  - hosts:
+    - internal.example.com
+    - "*.internal.example.com"
+    secretName: apisix-internal-letsencrypt-cert

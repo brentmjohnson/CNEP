@@ -1,0 +1,18 @@
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    ipPools:
+    - blockSize: 122
+      cidr: "{{ k8s.network.pod_cidr | regex_replace('^(.*),(.*)', '\\g<2>') }}"
+      disableBGPExport: true
+      encapsulation: VXLANCrossSubnet
+      natOutgoing: Enabled
+      nodeSelector: all()
+    nodeAddressAutodetectionV4:
+      kubernetes: NodeInternalIP
+    nodeAddressAutodetectionV6:
+      kubernetes: NodeInternalIP
+  typhaMetricsPort: 9093

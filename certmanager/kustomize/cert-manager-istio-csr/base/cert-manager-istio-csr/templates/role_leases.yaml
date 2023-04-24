@@ -1,0 +1,24 @@
+---
+# Source: cert-manager-istio-csr/templates/role_leases.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.6.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.6.0"
+    app.kubernetes.io/managed-by: Helm
+  name: cert-manager-istio-csr-leases
+  namespace: istio-system
+rules:
+- apiGroups:
+  - "coordination.k8s.io"
+  resources:
+  - "leases"
+  verbs:
+  - "get"
+  - "create"
+  - "update"
+  - "watch"
+  - "list"

@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Parse the command and arguments
+command=$1
+shift
+args=$*
+
+# Check if the command is "run"
+if [ "$command" = "run" ]; then
+  # Set the additional arguments to inject
+  additional_args="--device /dev/dxg --mount type=bind,src=/usr/lib/wsl,dst=/usr/lib/wsl"
+  # nsenter -U --preserve-credentials -n -m -t $(cat /run/user/9999/docker.pid)
+  # socat UNIX-LISTEN:/run/user/9999/beam-worker-pool.sock,fork TCP:localhost:50000 &
+  # nsenter -U --preserve-credentials -n -t $(cat /run/user/9999/docker.pid) -- socat TCP6-LISTEN:50000,reuseaddr,fork /run/user/9999/beam-worker-pool.sock &
+
+  # Invoke the executable with the injected arguments
+  /usr/bin/docker $command $additional_args $args
+else
+  # Invoke the executable without injected arguments
+  /usr/bin/docker $command $args
+fi

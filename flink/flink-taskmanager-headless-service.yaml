@@ -1,0 +1,27 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: flink-taskmanager-service-headless
+  namespace: flink
+spec:
+  ports:
+    - name: internal-metrics
+      protocol: TCP
+      appProtocol: tcp
+      port: 50100
+      targetPort: 50100
+    - name: metrics
+      protocol: TCP
+      appProtocol: tcp
+      port: 9999
+      targetPort: 9999
+    - name: taskmanager-rpc
+      protocol: TCP
+      appProtocol: tcp
+      port: 6122
+      targetPort: 6122
+  selector:
+    app: flink
+    component: taskmanager
+    type: flink-native-kubernetes
+  clusterIP: None

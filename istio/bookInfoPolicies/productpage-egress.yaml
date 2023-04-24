@@ -1,0 +1,14 @@
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: productpage
+spec:
+  selector: app == 'productpage'
+  ingress:
+   - action: Allow
+     http:
+       methods: ["GET"]
+       paths:
+        - exact: /productpage
+  egress:
+    - action: Allow

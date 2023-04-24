@@ -1,0 +1,233 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: postgres-operator-ui
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres-operator-ui
+    helm.sh/chart: postgres-operator-ui-1.9.0
+  name: postgres-operator-ui
+  namespace: postgres
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: postgres-operator-ui
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres-operator-ui
+    helm.sh/chart: postgres-operator-ui-1.9.0
+  name: postgres-operator-ui
+rules:
+- apiGroups:
+  - acid.zalan.do
+  resources:
+  - postgresqls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - statefulsets
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: postgres-operator-ui
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres-operator-ui
+    helm.sh/chart: postgres-operator-ui-1.9.0
+  name: postgres-operator-ui
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: postgres-operator-ui
+subjects:
+- kind: ServiceAccount
+  name: postgres-operator-ui
+  namespace: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: postgres-operator-ui
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres-operator-ui
+    helm.sh/chart: postgres-operator-ui-1.9.0
+  name: postgres-operator-ui
+  namespace: postgres
+spec:
+  ports:
+  - port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app.kubernetes.io/instance: postgres-operator-ui
+    app.kubernetes.io/name: postgres-operator-ui
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: postgres-operator-ui
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres-operator-ui
+    helm.sh/chart: postgres-operator-ui-1.9.0
+  name: postgres-operator-ui
+  namespace: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: postgres-operator-ui
+      app.kubernetes.io/name: postgres-operator-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: postgres-operator-ui
+        app.kubernetes.io/name: postgres-operator-ui
+    spec:
+      containers:
+      - env:
+        - name: APP_URL
+          value: http://localhost:8081
+        - name: OPERATOR_API_URL
+          value: http://postgres-operator.postgres.svc.cluster.local:8080
+        - name: OPERATOR_CLUSTER_NAME_LABEL
+          value: cluster-name
+        - name: RESOURCES_VISIBLE
+          value: "False"
+        - name: TARGET_NAMESPACE
+          value: postgres
+        - name: TEAMS
+          value: |-
+            [
+              "postgres"
+            ]
+        - name: OPERATOR_UI_CONFIG
+          value: |-
+            {
+              "docs_link":"https://postgres-operator.readthedocs.io/en/latest/",
+              "dns_format_string": "{1}-{0}.{2}",
+              "databases_visible": true,
+              "master_load_balancer_visible": true,
+              "nat_gateways_visible": false,
+              "replica_load_balancer_visible": true,
+              "resources_visible": true,
+              "users_visible": true,
+              "cost_ebs": 0.0952,
+              "cost_iops": 0.006,
+              "cost_throughput": 0.0476,
+              "cost_core": 0.0575,
+              "cost_memory": 0.014375,
+              "free_iops": 3000,
+              "free_throughput": 125,
+              "limit_iops": 16000,
+              "limit_throughput": 1000,
+              "postgresql_versions": [
+                "15",
+                "14",
+                "13",
+                "12",
+                "11"
+              ]
+            }
+        - name: AWS_ENDPOINT
+          value: http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+        - name: WALE_S3_ENDPOINT
+          value: http+path://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+        - name: SPILO_S3_BACKUP_PREFIX
+          value: spilo/
+        - name: AWS_ACCESS_KEY_ID
+          value: 51NIIWS2UQEN5HE4MLE8
+        - name: AWS_SECRET_ACCESS_KEY
+          value: dWglS0FF5S9WT4Hsgc6VkGAsZ3KDsiqgCOhRMx97
+        - name: SPILO_S3_BACKUP_BUCKET
+          value: postgres-bucket-bfa09a9a-56d3-450b-b3f4-b78f3caa0506
+        image: k8s-lb:5000/zalan.do/acid/postgres-operator-ui:v1.9.0.1
+        imagePullPolicy: IfNotPresent
+        name: service
+        ports:
+        - containerPort: 8081
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 200m
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+      serviceAccountName: postgres-operator-ui
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: postgres-route
+  namespace: postgres
+spec:
+  http:
+  - backends:
+    - serviceName: postgres-operator-ui
+      servicePort: 8081
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /postgres/*
+    name: rule1
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: postgres-operator-ui.postgres.svc.cluster.local
+        regex_uri:
+        - ^/postgres/(.*)
+        - /$1
+      enable: true
+      name: proxy-rewrite

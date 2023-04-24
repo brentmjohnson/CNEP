@@ -1,0 +1,125 @@
+- name: This play provisions k8s VMs based on intial config
+  hosts: vm_host
+  gather_facts: false
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Add controls to given group
+      ansible.builtin.add_host:
+        hostname: '{{ k8s.cluster_name }}-control-{{ item }}'
+        # ansible_ssh_private_key_file: "{{ playbook_dir }}//id_rsa_{{ k8s.cluster_name }}"
+        # ansible_user: kube
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        groups:
+          - "controls"
+        group_children: "k8s_nodes"
+      loop: "{{ range(0, k8s.control_plane.vms) | list }}"
+      delegate_to: localhost
+
+    - name: Add workers to given group
+      ansible.builtin.add_host:
+        hostname: '{{ k8s.cluster_name }}-worker-{{ item }}'
+        # ansible_ssh_private_key_file: "{{ playbook_dir }}//id_rsa_{{ k8s.cluster_name }}"
+        # ansible_user: kube
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        groups:
+          - "workers"
+        group_children: "k8s_nodes"
+      loop: "{{ range(0, k8s.worker_nodes.vms) | list }}"
+      delegate_to: localhost
+
+    - name: Add loadbalancer to inventory
+      ansible.builtin.add_host:
+        hostname: '{{ k8s.cluster_name }}-lb'
+        # ansible_ssh_private_key_file: "{{ playbook_dir }}//id_rsa_{{ k8s.cluster_name }}"
+        # ansible_user: kube
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        groups:
+          - "loadbalancer"
+        group_children: "loadbalancer"
+      delegate_to: localhost
+
+    # - name: Ensure to clean known_hosts
+    #   ansible.builtin.known_hosts:
+    #     host: "{{ item }}"
+    #     path: ~/.ssh/known_hosts
+    #     state: absent
+    #   loop: "{{ query('inventory_hostnames', 'all:!vm_host') }}"
+    #   delegate_to: localhost
+
+# - name: Debug hostvars
+#   hosts: localhost
+#   gather_facts: false
+#   tasks:
+#     - local_action: 
+#         module: copy 
+#         content: "{{ hostvars }}"
+#         dest: "{{ playbook_dir }}/hostvars.json"
+
+- name: Check connection and set facts
+  hosts: controls,workers,loadbalancer
+  gather_facts: false
+  tasks:
+    # - name: Wait 10 seconds for target connection to become reachable/usable
+    #   ansible.builtin.wait_for_connection:
+    #     timeout: 10
+    #     delay: 0
+    #   ignore_errors: yes
+
+    - name: Ping host to check status
+      ansible.builtin.ping:
+      register: ping
+      ignore_errors: yes
+      ignore_unreachable: yes
+    # - set_fact: available={{ping.unreachable == false}}
+    #   when: "'unreachable' in ping"
+    # - debug: var=available
+
+- name: Update readiness facts
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Set loadbalancer_ready fact for vm_host
+      ansible.builtin.set_fact:
+         unreachable_loadbalancer: "{{ unreachable_loadbalancer|default([]) + [ item ] }}"
+      when: "'unreachable' in hostvars[item]['ping'] and hostvars[item]['ping']['unreachable'] == true"
+      loop: "[
+          {% for host in groups['loadbalancer'] %}
+            '{{host}}'
+            {% if not loop.last %},{% endif %}
+          {% endfor %}
+      ]"
+    - ansible.builtin.set_fact:
+        loadbalancer_ready: "{{unreachable_loadbalancer|default([])|length == 0}}"
+    # - debug: var=loadbalancer_ready
+
+    # - debug: var={{{test:{ groups | subelements('key')}}}}
+    # - debug: var={{groups | flatten}}
+    - name: Set nodes_ready fact for vm_host
+      ansible.builtin.set_fact:
+        # nodes_ready: true
+        # hosts_dict : "{{ hosts_dict|default([]) + [ {'hostname': item, 'ping': hostvars[item]['ping'] } ] }}"
+         unreachable_nodes: "{{ unreachable_nodes|default([]) + [ item ] }}"
+        # hosts_dict : "{{ hosts_dict|default([]) + [ { item: item }]}}"
+      when: "'unreachable' in hostvars[item]['ping'] and hostvars[item]['ping']['unreachable'] == true"
+      # with_items: " {{ groups['loadbalancer,controls'] }}"
+      # loop: "{{groups[['controls','workers','loadbalancer'] | intersect(groups)]}}"
+      loop: "[
+        {% for group in ['controls','workers'] | intersect(groups) %}
+          {% for host in groups[group] %}
+            '{{host}}'
+            {% if not loop.last %},{% endif %}
+          {% endfor %}
+          {% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]"
+    # - debug: var=unreachable_nodes
+    # - debug: var={{unreachable_nodes|default([])|length == 0}}
+    - ansible.builtin.set_fact:
+        nodes_ready: "{{unreachable_nodes|default([])|length == 0}}"
+    # - debug: var=nodes_ready
+    # - local_action: 
+    #     module: copy 
+    #     content: "{{ hostvars }}"
+    #     dest: "{{ playbook_dir }}/hostvars.json"
+    #     with_items: available

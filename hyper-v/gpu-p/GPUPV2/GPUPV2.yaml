@@ -1,0 +1,47 @@
+- hosts: vm_host
+  tasks:
+    - name: Deploy Hyper-V Resources
+      community.general.terraform:
+        project_path: "{{ playbook_dir }}"
+        force_init: true
+        state: present
+        variables:
+          state: "Off"
+      when: hostvars.localhost.nodes_ready|default(false) != true
+    #   register: out
+    # - debug: var=out
+
+- hosts: hyperv_host
+  tasks:
+    - name: Reorder VM Boot Devices
+      ansible.windows.win_powershell:
+        script: |
+          $bootOrder = (Get-VMFirmware GPUPV2).BootOrder
+          $bootOrder = @() + ($bootOrder | where {$_.BootType -eq "File"}) + ($bootOrder | where {$_.Device.ControllerLocation -ne $null} | Sort-Object -Property {$_.Device.ControllerLocation }) + ($bootOrder | where {$_.BootType -eq "Network"})
+          Set-VMFirmware GPUPV2 -BootOrder $bootOrder
+
+    - community.windows.win_lineinfile:
+        path: C:\Users\<user>\.ssh\known_hosts
+        regex: "^{{ item }} "
+        state: absent
+      loop: "{{ query('inventory_hostnames', 'all:!hyperv_host') }}"
+
+- hosts: vm_host
+  tasks:
+    - name: Start Hyper-V VMs
+      community.general.terraform:
+        project_path: "{{ playbook_dir }}"
+        force_init: true
+        state: present
+    #   register: out
+    # - debug: var=out
+
+    - name: Ensure to clean known_hosts
+      ansible.builtin.known_hosts:
+        hash_host: yes
+        host: "{{ item }}"
+        path: ~/.ssh/known_hosts
+        state: absent
+      loop: "GPUPV2"
+      delegate_to: localhost
+

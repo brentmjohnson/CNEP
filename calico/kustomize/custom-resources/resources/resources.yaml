@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    istio-injection: disabled
+  name: calico-apiserver
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    istio-injection: disabled
+  name: calico-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: calico-felix
+  name: felix-metrics-svc
+  namespace: calico-system
+spec:
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 9091
+    targetPort: 9091
+  selector:
+    k8s-app: calico-node
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: calico-typha
+  name: typha-metrics-svc
+  namespace: calico-system
+spec:
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 9093
+    targetPort: 9093
+  selector:
+    k8s-app: calico-typha
+---
+apiVersion: operator.tigera.io/v1
+kind: APIServer
+metadata:
+  name: default
+spec: {}
+---
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    ipPools:
+    - blockSize: 122
+      cidr: fd00::10:244:0:0/108
+      disableBGPExport: true
+      encapsulation: VXLANCrossSubnet
+      natOutgoing: Enabled
+      nodeSelector: all()
+    - blockSize: 26
+      cidr: 10.244.0.0/12
+      encapsulation: VXLANCrossSubnet
+      natOutgoing: Enabled
+      nodeSelector: all()
+    nodeAddressAutodetectionV4:
+      kubernetes: NodeInternalIP
+    nodeAddressAutodetectionV6:
+      kubernetes: NodeInternalIP
+  typhaMetricsPort: 9093

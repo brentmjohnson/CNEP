@@ -1,0 +1,23 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/prometheus/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-operator-kube-pro-prometheus
+  namespace: redpanda-system
+  labels:
+    app: kube-prometheus-stack-prometheus
+    self-monitor: "true"
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+spec:
+  ports:
+  - name: web
+    port: 9090
+    targetPort: 9090
+  selector:
+    app: prometheus
+    prometheus: redpanda-operator-kube-pro-prometheus
+  type: "ClusterIP"

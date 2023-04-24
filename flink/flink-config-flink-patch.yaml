@@ -1,0 +1,67 @@
+data:
+  flink-conf.yaml: >
+    blob.server.port: 6124
+
+    kubernetes.jobmanager.replicas: 1
+
+    rest.flamegraph.enabled: true
+
+    high-availability.cluster-id: flink
+
+    state.savepoints.dir: file:///flink-data/savepoints
+
+    kubernetes.taskmanager.cpu: 1.0
+
+    kubernetes.service-account: flink
+
+    kubernetes.cluster-id: flink
+
+    high-availability.storageDir: file:///flink-data/ha
+
+    taskmanager.memory.flink.size: 512mb
+
+    kubernetes.container.image: flink:1.14
+
+    parallelism.default: 1
+
+    kubernetes.namespace: flink
+
+    taskmanager.numberOfTaskSlots: 2
+
+    kubernetes.rest-service.exposed.type: ClusterIP
+
+    high-availability.jobmanager.port: 6123
+
+    jobmanager.memory.flink.size: 512mb
+
+    taskmanager.memory.process.size: 1024m
+
+    kubernetes.internal.jobmanager.entrypoint.class:
+    org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint
+
+    kubernetes.pod-template-file: /tmp/podTemplate_13147398185525763549.yaml
+
+    kubernetes.pod-template-file.taskmanager:
+    /tmp/podTemplate_14959083782793622752.yaml
+
+    execution.target: kubernetes-session
+
+    jobmanager.memory.process.size: 1024m
+
+    jobmanager.rpc.port: 6123
+
+    taskmanager.rpc.port: 6122
+
+    internal.cluster.execution-mode: NORMAL
+
+    queryable-state.proxy.ports: 6125
+
+    high-availability:
+    org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+
+    taskmanager.memory.managed.size: 192mb
+
+    kubernetes.jobmanager.cpu: 1.0
+
+    kubernetes.pod-template-file.jobmanager:
+    /tmp/podTemplate_2071538535780496120.yaml

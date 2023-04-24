@@ -1,0 +1,115 @@
+- name: Install keycloak
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - name: Get keycloak admin rest api token
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n keycloak StatefulSet/keycloak -c istio-proxy -- \
+          curl \
+          -d "client_id=admin-cli" \
+          -d "username=admin" \
+          -d "password={{ credentials.keycloak.password }}" \
+          -d "grant_type=password" \
+          "http://localhost:8080/keycloak/realms/master/protocol/openid-connect/token"
+      register: myoutput
+    # - debug: var="myoutput.stdout | from_json | json_query('access_token')"
+
+    - name: Get httpbin-internal client secret
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n keycloak StatefulSet/keycloak -c istio-proxy -- \
+          curl \
+          -H "Authorization: bearer {{ myoutput.stdout | from_json | json_query('access_token') }}" \
+          "http://localhost:8080/keycloak/admin/realms/apisix-internal/clients/httpbin-internal/client-secret"
+      register: myoutput
+    - debug: var=myoutput
+    # - debug: var="myoutput.stdout | from_json | json_query('value')"
+
+    - ansible.builtin.set_fact:
+        httpbin_internal_client_secret: "{{ myoutput.stdout | from_json | json_query('value') }}"
+    # - debug: var=httpbin_internal_client_secret
+
+    - name: Get keycloak admin rest api token
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n keycloak StatefulSet/keycloak -c istio-proxy -- \
+          curl \
+          -d "client_id=admin-cli" \
+          -d "username=admin" \
+          -d "password={{ credentials.keycloak.password }}" \
+          -d "grant_type=password" \
+          "http://localhost:8080/keycloak/realms/master/protocol/openid-connect/token"
+      register: myoutput
+    # - debug: var="myoutput.stdout | from_json | json_query('access_token')"
+
+    - name: Get httpbin client secret
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n keycloak StatefulSet/keycloak -c istio-proxy -- \
+          curl \
+          -H "Authorization: bearer {{ myoutput.stdout | from_json | json_query('access_token') }}" \
+          "http://localhost:8080/keycloak/admin/realms/apisix/clients/httpbin/client-secret"
+      register: myoutput
+    - debug: var=myoutput
+    # - debug: var="myoutput.stdout | from_json | json_query('value')"
+
+    - ansible.builtin.set_fact:
+        httpbin_client_secret: "{{ myoutput.stdout | from_json | json_query('value') }}"
+    # - debug: var=httpbin_client_secret
+
+    - name: Setting keycloak-httpbin base templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/keycloak-httpbin/base/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/keycloak-httpbin/base/templates/*.j2"
+
+    - name: Apply httpbin manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/keycloak-httpbin/base/httpbin.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+
+    - name: Apply httpbin-ingress manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/keycloak-httpbin/base/httpbin-ingress.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+
+    # this is needed as a patch due to the timing of the apsix ingress-controller
+    - name: Patch httpbin-ingress manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/keycloak-httpbin/base/httpbin-tls-ingress.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true
+
+    - name: Apply httpbin-route manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/keycloak-httpbin/base/httpbin-route.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        wait: true

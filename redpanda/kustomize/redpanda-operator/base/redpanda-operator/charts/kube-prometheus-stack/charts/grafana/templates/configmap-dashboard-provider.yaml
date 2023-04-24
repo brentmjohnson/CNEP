@@ -1,0 +1,27 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/charts/grafana/templates/configmap-dashboard-provider.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.4.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: redpanda-operator
+    app.kubernetes.io/version: "7.4.2"
+    app.kubernetes.io/managed-by: Helm
+  name: redpanda-operator-grafana-config-dashboards
+  namespace: redpanda-system
+data:
+  provider.yaml: |-
+    apiVersion: 1
+    providers:
+    - name: 'sidecarProvider'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      allowUiUpdates: false
+      updateIntervalSeconds: 30
+      options:
+        foldersFromFilesStructure: false
+        path: /tmp/dashboards

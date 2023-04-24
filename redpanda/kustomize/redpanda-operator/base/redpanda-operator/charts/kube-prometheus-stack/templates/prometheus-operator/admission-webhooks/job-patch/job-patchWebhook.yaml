@@ -1,0 +1,43 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/prometheus-operator/admission-webhooks/job-patch/job-patchWebhook.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name:  redpanda-operator-kube-pro-admission-patch
+  namespace: redpanda-system
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: kube-prometheus-stack-admission-patch    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+spec:
+  template:
+    metadata:
+      name:  redpanda-operator-kube-pro-admission-patch
+      labels:
+        app: kube-prometheus-stack-admission-patch        
+        chart: kube-prometheus-stack-13.13.1
+        release: "redpanda-operator"
+        heritage: "Helm"
+    spec:
+      containers:
+        - name: patch
+          image: jettech/kube-webhook-certgen:v1.5.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - patch
+            - --webhook-name=redpanda-operator-kube-pro-admission
+            - --namespace=redpanda-system
+            - --secret-name=redpanda-operator-kube-pro-admission
+            - --patch-failure-policy=Fail
+          resources:
+            {}
+      restartPolicy: OnFailure
+      serviceAccountName: redpanda-operator-kube-pro-admission
+      securityContext:
+        runAsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 2000

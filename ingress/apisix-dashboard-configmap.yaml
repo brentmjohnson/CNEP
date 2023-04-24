@@ -1,0 +1,38 @@
+apiVersion: v1
+data:
+  conf.yaml: |-
+    conf:
+      listen:
+        host: 0.0.0.0
+        port: 9000
+      etcd:
+        prefix: "/apisix"
+        endpoints:
+          - https://k8s-control-0:2379
+          - https://k8s-control-1:2379
+          - https://k8s-control-2:2379
+      log:
+        error_log:
+          level: warn
+          file_path: /dev/stderr
+        access_log:
+          file_path: /dev/stdout
+    authentication:
+      secret: secret
+      expire_time: 3600
+      users:
+        - username: <user>
+          password: <password>
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2023-01-05T21:17:10Z"
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/version: 2.13.0
+    helm.sh/chart: dashboard-0.6.1
+  name: apisix-dashboard
+  namespace: ingress-apisix
+  resourceVersion: "45471"
+  uid: 915677e8-cb0d-44d6-8fef-6e07008d5707

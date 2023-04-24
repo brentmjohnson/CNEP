@@ -1,0 +1,51 @@
+# Source: fluent-operator/templates/fluentbit-clusterfilter-kubernetes.yaml
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterFilter
+metadata:
+  name: kubernetes
+  labels:
+    fluentbit.fluent.io/enabled: "true"
+    fluentbit.fluent.io/component: logging
+spec:
+  match: kube.*
+  filters:
+  - kubernetes:
+      kubeURL: https://kubernetes.default.svc:443
+      kubeCAFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      kubeTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      labels: false
+      annotations: false
+      bufferSize: 64KB
+  - nest:
+      operation: lift
+      nestedUnder: kubernetes
+      addPrefix: kubernetes_
+  - modify:
+      rules:
+      - remove: stream
+      - remove: kubernetes_pod_id
+      - remove: kubernetes_host
+      - remove: kubernetes_container_hash
+#   - recordModifier:
+#       records:
+#         - kubernetes_node_name ${NODE_NAME}
+  - modify:
+      rules:
+        - add: 
+            node_name: ${NODE_NAME}
+        - rename:
+            # kubernetes_cluster_name: cluster_name
+            # kubernetes_zone_name: zone_name
+            kubernetes_namespace_name: namespace_name
+            kubernetes_pod_name: pod_name
+            kubernetes_container_name: container_name
+  - nest:
+      operation: nest
+      wildcard:
+      - kubernetes_*
+      nestUnder: kubernetes
+      removePrefix: kubernetes_
+  - modify:
+      rules:
+        - set: 
+            log_name: fluentbit

@@ -1,0 +1,77 @@
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: opensearch-securityconfig-update
+  namespace: opensearch-operator-system
+  uid: 852ad675-400d-4cbb-aabe-a617e667e3bd
+  resourceVersion: '449583'
+  generation: 1
+  creationTimestamp: '2022-06-17T19:34:27Z'
+  labels:
+    controller-uid: 852ad675-400d-4cbb-aabe-a617e667e3bd
+    job-name: opensearch-securityconfig-update
+spec:
+  parallelism: 1
+  completions: 1
+  backoffLimit: 0
+  selector:
+    matchLabels:
+      controller-uid: 852ad675-400d-4cbb-aabe-a617e667e3bd
+  template:
+    metadata:
+      name: opensearch-securityconfig-update
+      creationTimestamp: null
+      labels:
+        controller-uid: 852ad675-400d-4cbb-aabe-a617e667e3bd
+        job-name: opensearch-securityconfig-update
+    spec:
+      volumes:
+        - name: transport-cert
+          secret:
+            secretName: opensearch-transport-cert
+            defaultMode: 420
+        - name: http-cert
+          secret:
+            secretName: opensearch-http-cert
+            defaultMode: 420
+        - name: securityconfig
+          secret:
+            secretName: opensearch-default-securityconfig
+            defaultMode: 420
+        - name: admin-cert
+          secret:
+            secretName: opensearch-admin-cert
+            defaultMode: 420
+      containers:
+        - name: updater
+          image: docker.io/opensearchproject/opensearch:1.3.2
+          command:
+            - /bin/bash
+            - '-c'
+          args:
+            - >-
+              ADMIN=/usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh;chmod
+              +x $ADMIN;count=0;until $ADMIN -cacert /certs/ca.crt -cert
+              /certs/tls.crt -key /certs/tls.key -cd /securityconfig/ -icl -nhnv
+              -h opensearch.opensearch-operator-system.svc.cluster.local -p 9300
+              || (( count++ >= 100 )); do  sleep 20; done
+          resources: {}
+          volumeMounts:
+            - name: transport-cert
+              mountPath: /usr/share/opensearch/config/tls-transport
+            - name: http-cert
+              mountPath: /usr/share/opensearch/config/tls-http
+            - name: securityconfig
+              mountPath: /securityconfig
+            - name: admin-cert
+              mountPath: /certs
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 5
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler
+  completionMode: NonIndexed
+  suspend: false

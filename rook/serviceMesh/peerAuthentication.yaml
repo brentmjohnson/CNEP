@@ -1,0 +1,14 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: rook-ceph-admission-controller
+  namespace: rook-ceph
+spec:
+  selector:
+    matchLabels:
+      app: rook-ceph-operator
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    9443:
+      mode: PERMISSIVE

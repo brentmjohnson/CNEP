@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: rook-ceph
+commonAnnotations:
+  meta.helm.sh/release-name: rook-ceph
+  meta.helm.sh/release-namespace: rook-ceph
+commonLabels:
+  app.kubernetes.io/managed-by: Helm
+
+resources:
+- ./base/rook-ceph-namespace.yaml
+- ./base/rook-config-override.yaml
+- ./base/rook-ceph/templates/cluster-rbac.yaml
+- ./base/rook-ceph/templates/clusterrole.yaml
+- ./base/rook-ceph/templates/clusterrolebinding.yaml
+- ./base/rook-ceph/templates/configmap.yaml
+- ./base/rook-ceph/templates/deployment.yaml
+- ./base/rook-ceph/templates/resources.yaml
+- ./base/rook-ceph/templates/role.yaml
+- ./base/rook-ceph/templates/rolebinding.yaml
+- ./base/rook-ceph/templates/serviceaccount.yaml

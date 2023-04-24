@@ -1,0 +1,18 @@
+  app:
+    certmanager:
+      issuer:
+        name: vault-issuer
+    tls:
+      # certificateDNSNames: 
+      #   - cert-manager-istio-csr.cert-manager.svc.cluster.local
+      rootCAFile: /var/run/secrets/istio-csr/ca.cert.pem
+      # certificateDuration: 505h
+      istiodCertificateDuration: 505h
+      istiodCertificateRenewBefore: 504h
+  volumeMounts:
+    - name: root-ca
+      mountPath: /var/run/secrets/istio-csr
+  volumes:
+    - name: root-ca
+      secret:
+        secretName: istio-root-ca

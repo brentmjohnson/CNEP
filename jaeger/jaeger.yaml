@@ -1,0 +1,129 @@
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  namespace: observability
+  name: jaeger
+spec:
+  strategy: streaming
+  sampling:
+    options:
+      default_strategy:
+        type: probabilistic
+        param: 1
+  collector:
+    annotations:
+      sidecar.istio.io/inject: "true"
+    #   traffic.sidecar.istio.io/excludeInboundPorts: "14250"
+      prometheus.io/port: "15020"
+    # labels:
+    #   version: "1.35.2"
+    options:
+      kafka:
+        producer:
+          topic: jaeger-spans
+          brokers: kafka-kafka-bootstrap.kafka:9092
+          batch-size: 128000
+          batch-linger: 1s
+          batch-max-messages: 100
+          # tls:
+          #   enabled: true
+          #   ca:
+          #   cert:
+          #   key:
+          #   skip-host-verify: true
+      # log-level: debug
+      log-level: info
+    maxReplicas: 1
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  ingester:
+    annotations:
+      sidecar.istio.io/inject: "true"
+      prometheus.io/port: "15020"
+    # labels:
+    #   version: "1.35.2"
+    # image: jaegertracing/jaeger-ingester:1.37.0
+    options:
+      kafka:
+        consumer:
+          topic: jaeger-spans
+          brokers: kafka-kafka-bootstrap.kafka:9092
+      ingester:
+        deadlockInterval: 0
+      log-level: debug
+    maxReplicas: 1
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  query:
+    annotations:
+      sidecar.istio.io/inject: "true"
+      prometheus.io/port: "15020"
+    # labels:
+    #   version: "1.35.2"
+    metricsStorage:
+      type: prometheus
+    options:
+      query:
+        base-path: /jaeger
+      prometheus:
+        server-url: "http://prometheus-operated.monitoring:9090"
+      es:
+        use-aliases: true
+      log-level: debug
+    tracingEnabled: false
+  ui:
+    options: 
+      log-level: debug
+      dependencies:
+        menuEnabled: true
+  storage:
+    type: elasticsearch
+    esRollover:
+      conditions: "{\"max_age\": \"24h\"}"
+      readTTL: 24h
+      schedule: "55 23 * * *"
+      annotations:
+        sidecar.istio.io/inject: "true"
+    dependencies:
+      enabled: true
+      # javaOpts: "-Xms128m -Xmx128m"
+      # image: localhost:5000/jaegertracing/spark-dependencies:latest
+      # imagePullPolicy: Always
+      # elasticsearchNodesWanOnly: true
+      schedule: "55 23 * * *"
+      # schedule: "*/5 * * * *"
+      sparkMaster:
+      resources:
+        requests:
+          memory: 4096Mi
+        limits:
+          memory: 4096Mi
+      annotations:
+        sidecar.istio.io/inject: "true"
+    esIndexCleaner:
+      enabled: true
+      numberOfDays: 1
+      schedule: "55 23 * * *"
+      annotations:
+        sidecar.istio.io/inject: "true"
+    options:
+      es:
+        create-index-templates: false
+        server-urls: http://opensearch-discovery.opensearch-operator-system:9200
+        use-aliases: true
+        # tls:
+        #   ca: /es/certificates/ca.crt
+      log-level: debug
+    secretName: jaeger-secrets
+  ingress:
+    enabled: false
+  # agent:
+  #   annotations:
+  #     sidecar.istio.io/inject: "true"
+  #   labels:
+  #     version: "1.35.2"
+  #   strategy: DaemonSet

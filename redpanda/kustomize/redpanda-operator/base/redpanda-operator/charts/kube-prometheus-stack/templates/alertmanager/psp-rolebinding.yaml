@@ -1,0 +1,21 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/alertmanager/psp-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: redpanda-operator-kube-pro-alertmanager
+  namespace: redpanda-system
+  labels:
+    app: kube-prometheus-stack-alertmanager
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: redpanda-operator-kube-pro-alertmanager
+subjects:
+  - kind: ServiceAccount
+    name: redpanda-operator-kube-pro-alertmanager
+    namespace: redpanda-system

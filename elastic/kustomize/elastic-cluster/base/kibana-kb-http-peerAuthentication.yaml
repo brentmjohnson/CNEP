@@ -1,0 +1,15 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: kibana-kb-http
+  namespace: elastic
+spec:
+  selector:
+    matchLabels:
+      common.k8s.elastic.co/type: kibana
+      kibana.k8s.elastic.co/name: kibana
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "5601":
+      mode: STRICT

@@ -1,0 +1,83 @@
+FROM apache/flink:1.15.4
+
+RUN apt-get update && \
+  apt-get install \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release -y
+
+RUN mkdir -m 0755 -p /etc/apt/keyrings && \
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+RUN echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+RUN apt-get update && \
+  apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+COPY docker ./bin/docker
+RUN chmod 755 ./bin/docker && \
+  chown flink:flink ./bin/docker
+
+RUN sh -eux <<EOF
+  # Install newuidmap & newgidmap binaries
+  apt-get install -y uidmap libcap2-bin iproute2 lxc-utils
+  # Add subuid entry for flink
+  echo "flink:100000:65536" >> /etc/subuid
+  # Add subgid entry for flink
+  echo "flink:100000:65536" >> /etc/subgid
+EOF
+
+echo "# USERNAME TYPE BRIDGE COUNT" > /etc/lxc/lxc-usernet
+echo "flink veth lxcbr0 100" >> /etc/lxc/lxc-usernet
+
+mkdir -p /opt/flink/.config/lxc/
+cat <<EOF > /opt/flink/.config/lxc/default.conf
+lxc.idmap = u 0 100000 65536
+lxc.idmap = g 0 100000 65536
+lxc.net.0.type = veth
+lxc.net.0.link = lxcbr0
+EOF
+
+mkdir -p /etc/sysconfig
+echo 'USE_LXC_BRIDGE="true"' > /etc/sysconfig/lxc-net 
+
+getcap $(which newuidmap)
+getcap $(which newgidmap)
+
+setcap cap_setuid=ep $(which newuidmap)
+setcap cap_setgid=ep $(which newgidmap)
+
+chmod u-s $(which newuidmap)
+chmod u-s $(which newgidmap)
+chmod u-s /usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic
+chown flink:flink /run/lxc/nics
+
+# ADD --chown=9999:9999 --chmod=0644 https://repo1.maven.org/maven2/org/apache/flink/flink-s3-fs-hadoop/1.15.4/flink-s3-fs-hadoop-1.15.4.jar $FLINK_PLUGINS_DIR/flink-s3-fs-hadoop/
+curl -o slirp4netns --fail -L https://github.com/rootless-containers/slirp4netns/releases/download/v1.2.0/slirp4netns-$(uname -m)
+chmod +x slirp4netns
+
+RUN su flink -c 'dockerd-rootless-setuptool.sh install --skip-iptables'
+
+# USER flink
+
+# docker pull apache/flink:1.15.4
+# docker build . --no-cache --progress=plain --tag=k8s-lb:5000/apache/flink:1.15.4.1
+# docker push k8s-lb:5000/apache/flink:1.15.4.1
+# sudo crictl rmi --prune
+
+#13 0.693 # WARNING: systemd not found. You have to remove XDG_RUNTIME_DIR manually on every logout.
+#13 0.693 export XDG_RUNTIME_DIR=/opt/flink/.docker/run
+#13 0.693 export PATH=/usr/bin:$PATH
+#13 0.693 Some applications may require the following environment variable too:
+#13 0.693 export DOCKER_HOST=unix:///opt/flink/.docker/run/docker.sock
+
+
+export DOCKERD_ROOTLESS_ROOTLESSKIT_NET=lxc-user-nic
+
+su flink -c 'export XDG_RUNTIME_DIR=$HOME/.docker/run
+rm -rf $XDG_RUNTIME_DIR
+mkdir -p $XDG_RUNTIME_DIR
+PATH=/usr/bin:/sbin:/usr/sbin:$PATH dockerd-rootless.sh'

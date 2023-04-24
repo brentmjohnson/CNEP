@@ -1,0 +1,33 @@
+---
+# Source: vault/templates/server-config-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-name-vault-config
+  namespace: vault
+  labels:
+    helm.sh/chart: vault-0.23.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+data:
+  extraconfig-from-values.hcl: |-
+    disable_mlock = true
+    ui = true
+    listener "tcp" {
+      tls_disable = 1
+      address = "[::]:8200"
+      cluster_address = "[::]:8201"
+      # Enable unauthenticated metrics access (necessary for Prometheus Operator)
+      telemetry {
+       unauthenticated_metrics_access = "true"
+      }
+    }
+    storage "raft" {
+      path = "/vault/data"
+    }
+    service_registration "kubernetes" {}
+    telemetry {
+      prometheus_retention_time = "30s"
+      disable_hostname = true
+    }

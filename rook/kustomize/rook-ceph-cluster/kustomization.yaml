@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: rook-ceph
+commonAnnotations:
+  meta.helm.sh/release-name: rook-ceph-cluster
+  meta.helm.sh/release-namespace: rook-ceph
+commonLabels:
+  app.kubernetes.io/managed-by: Helm
+
+resources:
+- ./base/local-storage-class.yaml
+- ./base/rook-ceph-mgr-serviceMonitor.yaml
+- ./base/ceph-dashboard-route.yaml
+- ./base/ceph-bucket-admin-user.yaml
+- ./base/rook-ceph-cluster/templates/cephblockpool.yaml
+- ./base/rook-ceph-cluster/templates/cephcluster.yaml
+- ./base/rook-ceph-cluster/templates/cephfilesystem.yaml
+- ./base/rook-ceph-cluster/templates/cephobjectstore.yaml
+- ./base/rook-ceph-cluster/templates/deployment.yaml
+- ./base/rook-ceph-cluster/templates/prometheusrules.yaml
+- ./base/rook-ceph-cluster/templates/volumesnapshotclass.yaml
+
+openapi:
+  path: schemas/prometheusrules.monitoring.coreos.com.json
+
+patches:
+- path: patches/prometheusrules-patch.yaml

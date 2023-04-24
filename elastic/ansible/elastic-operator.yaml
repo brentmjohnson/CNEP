@@ -1,0 +1,76 @@
+- name: Install the elastic operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add elastic chart repo
+      kubernetes.core.helm_repository:
+        name: elastic 
+        repo_url: "https://helm.elastic.co"
+
+    - name: Separately update the elastic cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: elastic
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template elastic-operator chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=2.6.1
+          --namespace=elastic-system
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/elastic-operator-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/elastic-operator/base
+          elastic-operator elastic/eck-operator
+
+    - name: Add elastic-operator CRDs to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/eck-operator/charts/eck-operator-crds/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/elastic-operator/"
+
+    - name: Add elastic-operator resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/eck-operator/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/elastic-operator/"
+
+    - name: Kustomize build elastic-operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/elastic-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy elastic-operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/elastic-operator/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply elastic-operator manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/elastic-operator/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the elastic-operator statefulset
+      kubernetes.core.k8s_info:
+        kind: StatefulSet
+        wait: yes
+        name: elastic-operator
+        namespace: elastic-system
+      register: myoutput
+
+    - name: Wait for elastic-operator statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl rollout status --watch --timeout=600s -n elastic-system statefulset/elastic-operator \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput

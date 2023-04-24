@@ -1,0 +1,53 @@
+apiVersion: redpanda.vectorized.io/v1alpha1
+kind: Cluster
+metadata:
+  name: redpanda
+  namespace: redpanda
+spec:
+  image: "vectorized/redpanda"
+  version: "v23.1.2"
+  replicas: 3
+  kafkaEnableAuthorization: true
+  enableSasl: true
+  superUsers:
+    - username: redpanda
+  resources:
+    limits:
+      cpu: 1
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 200Mi
+  storage:
+    capacity: 10Gi
+  podDisruptionBudget:
+    enabled: false
+    maxUnavailable:
+    minAvailable:
+  configuration:
+    rpcServer:
+      port: 33145
+    kafkaApi:
+      - port: 9092
+        authenticationMethod: sasl
+        # tls:
+        #   enabled: true
+      # - external:
+      #     enabled: true
+      #     subdomain:
+    pandaproxyApi:
+      - port: 8082
+        # tls:
+        #   enabled: true
+    schemaRegistry:
+       port: 8081
+      #  tls:
+      #    enabled: true
+    adminApi:
+      - port: 9644
+        # tls:
+        #   enabled: true
+    developerMode: true
+  additionalConfiguration: 
+    redpanda.default_topic_partitions: "3"
+    redpanda.storage_min_free_bytes: "10485760"

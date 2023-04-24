@@ -1,0 +1,36 @@
+- name: Deploy fluent-bit
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Kustomize build fluent-bit manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/fluent-bit/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy fluent-bit resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/fluent-bit/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply fluent-bit manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/fluent-bit/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the fluent-bit daemonset
+      kubernetes.core.k8s_info:
+        kind: Daemonset
+        wait: yes
+        name: fluent-bit
+        namespace: fluent
+      register: myoutput

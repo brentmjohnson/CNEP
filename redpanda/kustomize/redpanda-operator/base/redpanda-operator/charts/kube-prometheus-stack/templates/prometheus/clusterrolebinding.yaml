@@ -1,0 +1,20 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/prometheus/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: redpanda-operator-kube-pro-prometheus
+  labels:
+    app: kube-prometheus-stack-prometheus
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: redpanda-operator-kube-pro-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: redpanda-operator-kube-pro-prometheus
+    namespace: redpanda-system

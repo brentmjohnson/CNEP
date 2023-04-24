@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    # cert-manager.io/cluster-issuer: letsencrypt
+    # cert-manager.io/cluster-issuer: letsencrypt-staging
+    external-dns.alpha.kubernetes.io/hostname: apisix.internal.example.com
+  name: apisix-dashboard-ingress
+  namespace: ingress-apisix
+spec:
+  ingressClassName: apisix
+  defaultBackend:
+    service:
+      name: apisix-dashboard
+      port:
+        number: 80
+  # tls:
+  # - hosts:
+  #   - vault.example.com
+  #   secretName: vault-letsencrypt-cert

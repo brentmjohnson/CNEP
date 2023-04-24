@@ -1,0 +1,236 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: redpanda-console
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: console
+    app.kubernetes.io/version: v2.2.0
+    helm.sh/chart: console-0.5.6
+  name: redpanda-console
+  namespace: redpanda
+---
+apiVersion: v1
+data:
+  config.yaml: |
+    # from .Values.console.config
+    kafka:
+      brokers:
+      - redpanda.redpanda.svc.cluster.local:9092
+      sasl:
+        enabled: true
+        mechanism: SCRAM-SHA-256
+        username: redpanda
+    server:
+      basePath: redpanda/
+      listenPort: 8080
+      setBasePathFromXForwardedPrefix: false
+      stripPrefix: true
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: redpanda-console
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: console
+    app.kubernetes.io/version: v2.2.0
+    helm.sh/chart: console-0.5.6
+  name: redpanda-console
+  namespace: redpanda
+---
+apiVersion: v1
+data:
+  enterprise-license: ""
+  kafka-protobuf-git-basicauth-password: ""
+  kafka-sasl-aws-msk-iam-secret-key: ""
+  kafka-sasl-password: <password>
+  kafka-schema-registry-password: ""
+  kafka-schemaregistry-tls-ca: ""
+  kafka-schemaregistry-tls-cert: ""
+  kafka-schemaregistry-tls-key: ""
+  kafka-tls-ca: ""
+  kafka-tls-cert: ""
+  kafka-tls-key: ""
+  login-github-oauth-client-secret: ""
+  login-github-personal-access-token: ""
+  login-google-groups-service-account.json: ""
+  login-google-oauth-client-secret: ""
+  login-jwt-secret: <secret>
+  login-oidc-client-secret: ""
+  login-okta-client-secret: ""
+  login-okta-directory-api-token: ""
+  redpanda-admin-api-password: ""
+  redpanda-admin-api-tls-ca: ""
+  redpanda-admin-api-tls-cert: ""
+  redpanda-admin-api-tls-key: ""
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/instance: redpanda-console
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: console
+    app.kubernetes.io/version: v2.2.0
+    helm.sh/chart: console-0.5.6
+  name: redpanda-console
+  namespace: redpanda
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: redpanda-console
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: console
+    app.kubernetes.io/version: v2.2.0
+    helm.sh/chart: console-0.5.6
+  name: redpanda-console
+  namespace: redpanda
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/instance: redpanda-console
+    app.kubernetes.io/name: console
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: redpanda-console
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: console
+    app.kubernetes.io/version: v2.2.0
+    helm.sh/chart: console-0.5.6
+  name: redpanda-console
+  namespace: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: redpanda-console
+      app.kubernetes.io/name: console
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: redpanda-console
+        app.kubernetes.io/name: console
+    spec:
+      containers:
+      - args:
+        - --config.filepath=/etc/console/configs/config.yaml
+        env:
+        - name: KAFKA_SASL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: kafka-sasl-password
+              name: redpanda-console
+        - name: LOGIN_JWTSECRET
+          valueFrom:
+            secretKeyRef:
+              key: login-jwt-secret
+              name: redpanda-console
+        image: docker.redpanda.com/vectorized/console:v2.2.3
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /admin/health
+            port: http
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: console
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /admin/health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources: {}
+        securityContext:
+          runAsNonRoot: true
+        volumeMounts:
+        - mountPath: /etc/console/configs
+          name: configs
+          readOnly: true
+        - mountPath: /etc/console/secrets
+          name: secrets
+          readOnly: true
+      securityContext:
+        fsGroup: 99
+        runAsUser: 99
+      serviceAccountName: redpanda-console
+      volumes:
+      - configMap:
+          name: redpanda-console
+        name: configs
+      - name: secrets
+        secret:
+          secretName: redpanda-console
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: redpanda-console-route
+  namespace: redpanda
+spec:
+  http:
+  - backends:
+    - serviceName: redpanda-console
+      servicePort: 8080
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /redpanda*
+    name: rule1
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: redpanda-console.redpanda.svc.cluster.local
+      enable: true
+      name: proxy-rewrite
+  - backends:
+    - serviceName: redpanda-console
+      servicePort: 8080
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /redpanda/api/*
+    name: rule2
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        headers:
+          Origin: ""
+        host: redpanda-console.redpanda.svc.cluster.local
+      enable: true
+      name: proxy-rewrite
+    websocket: true

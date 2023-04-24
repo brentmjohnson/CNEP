@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  labels:
+    k8s-app: daemonset-collector-monitoring
+  name: daemonset-collector-monitoring
+  namespace: opentelemetry-operator-system
+spec:
+  podMetricsEndpoints:
+    - relabelings:
+        - action: replace
+          targetLabel: __address__
+          sourceLabels:
+            - __meta_kubernetes_pod_ip
+          replacement: $1:8889
+  jobLabel: k8s-app
+  namespaceSelector:
+    matchNames:
+      - opentelemetry-operator-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: daemonset-collector

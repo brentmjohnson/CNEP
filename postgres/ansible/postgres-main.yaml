@@ -1,0 +1,3 @@
+- import_playbook: ./postgres-operator.yaml
+- import_playbook: ./postgres-ui.yaml
+- import_playbook: ./postgres-cluster.yaml

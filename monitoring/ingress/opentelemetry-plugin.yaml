@@ -1,0 +1,12 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixPluginConfig
+metadata:
+  name: opentelemetry-plugin
+  namespace: monitoring
+spec:
+  plugins:
+  - name: opentelemetry
+    enable: true
+    config: 
+      sampler:
+        name: always_on

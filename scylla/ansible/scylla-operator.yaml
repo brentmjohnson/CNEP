@@ -1,0 +1,77 @@
+- name: Install scylla-operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add scylla-operator chart repo
+      kubernetes.core.helm_repository:
+        name: scylla
+        repo_url: "https://scylla-operator-charts.storage.googleapis.com/stable"
+
+    - name: Separately update the scylla-operator cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: scylla
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template scylla-operator chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=v1.8.0
+          --namespace=scylla-operator
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/scylla-operator-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/scylla-operator/base
+          scylla-operator scylla/scylla-operator
+
+    - name: Add scylla-operator resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/scylla-operator/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/scylla-operator/"
+
+    - name: Kustomize build scylla-operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/scylla-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy scylla-operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/scylla-operator/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply scylla-operator manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/scylla-operator/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the webhook-server deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: webhook-server
+        namespace: scylla-operator
+      register: myoutput
+
+    # # kubectl get apiservices -n scylla-operator
+    # - name: Wait for the webhook-server deployment
+    #   kubernetes.core.k8s_info:
+    #     kind: apiservices
+    #     wait: yes
+    #     name: v1alpha1.scylla.scylladb.com
+    #     namespace: scylla-operator
+    #   register: myoutput
+
+    - name: Pause for 30 seconds for the webhook-server to ACTUALLY become availble
+      ansible.builtin.pause:
+        seconds: 30

@@ -1,0 +1,193 @@
+---
+# Source: rook-ceph-cluster/templates/cephcluster.yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+spec:
+  monitoring:
+    enabled: true
+
+  cephVersion:
+    allowUnsupported: false
+    image: quay.io/ceph/ceph:v17.2.5
+  cleanupPolicy:
+    allowUninstallWithVolumes: false
+    confirmation: ""
+    sanitizeDisks:
+      dataSource: zero
+      iteration: 1
+      method: quick
+  continueUpgradeAfterChecksEvenIfNotHealthy: false
+  crashCollector:
+    disable: false
+  dashboard:
+    enabled: true
+    ssl: false
+    urlPrefix: /ceph
+  dataDirHostPath: /var/lib/rook
+  disruptionManagement:
+    machineDisruptionBudgetNamespace: openshift-machine-api
+    manageMachineDisruptionBudgets: false
+    managePodBudgets: true
+    osdMaintenanceTimeout: 30
+    pgHealthCheckTimeout: 0
+  healthCheck:
+    daemonHealth:
+      mon:
+        disabled: false
+        interval: 45s
+      osd:
+        disabled: false
+        interval: 60s
+      status:
+        disabled: false
+        interval: 60s
+    livenessProbe:
+      mgr:
+        disabled: false
+      mon:
+        disabled: false
+      osd:
+        disabled: false
+  logCollector:
+    enabled: true
+    maxLogSize: 500M
+    periodicity: daily
+  mgr:
+    allowMultiplePerNode: false
+    count: 1
+    modules:
+    - enabled: true
+      name: pg_autoscaler
+  mon:
+    allowMultiplePerNode: false
+    count: 3
+    volumeClaimTemplate:
+      spec:
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: local-storage
+  network:
+    connections:
+      compression:
+        enabled: false
+      encryption:
+        enabled: false
+      requireMsgr2: false
+  priorityClassNames:
+    mgr: system-cluster-critical
+    mon: system-node-critical
+    osd: system-node-critical
+  removeOSDsIfOutAndSafeToRemove: false
+  resources:
+    cleanup:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 100Mi
+    crashcollector:
+      limits:
+        cpu: 500m
+        memory: 60Mi
+      requests:
+        cpu: 10m
+        memory: 60Mi
+    logcollector:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    mgr:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    mgr-sidecar:
+      limits:
+        cpu: 500m
+        memory: 100Mi
+      requests:
+        cpu: 100m
+        memory: 40Mi
+    mon:
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    osd:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 100m
+        memory: 1Gi
+    prepareosd:
+      requests:
+        cpu: 500m
+        memory: 50Mi
+  skipUpgradeChecks: false
+  storage:
+    onlyApplyOSDPlacement: false
+    storageClassDeviceSets:
+    - count: 3
+      encrypted: false
+      name: set1
+      placement:
+        topologySpreadConstraints:
+        - labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - rook-ceph-osd
+              - rook-ceph-osd-prepare
+          maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+      portable: false
+      preparePlacement:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - rook-ceph-osd
+                - key: app
+                  operator: In
+                  values:
+                  - rook-ceph-osd-prepare
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      resources:
+        limits: {}
+        requests:
+          memory: 512Mi
+      tuneDeviceClass: false
+      tuneFastDeviceClass: true
+      volumeClaimTemplates:
+      - metadata:
+          name: data
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+          storageClassName: local-storage
+          volumeMode: Block
+    useAllDevices: true
+    useAllNodes: true
+  waitTimeoutForHealthyOSDInMinutes: 10

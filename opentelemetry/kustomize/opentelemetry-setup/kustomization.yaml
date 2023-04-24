@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# kustomize openapi fetch | jq '.definitions | { definitions: with_entries(select(.key | in({"com.coreos.monitoring.v1.ServiceMonitor":1}))) }' > ./openapi-schema.json
+openapi:
+  path: schemas/com.coreos.monitoring.v1.ServiceMonitor.json
+
+resources:
+- ./base/opentelemetry-namespace.yaml
+- ./base/opentelemetry-operator-peerAuthentication.yaml
+- ./base/opentelemetry-operator/crds/crd-opentelemetrycollector.yaml
+- ./base/opentelemetry-operator/crds/crd-opentelemetryinstrumentation.yaml
+- ./base/opentelemetry-operator/templates/certmanager.yaml
+- ./base/opentelemetry-operator/templates/clusterrole.yaml
+- ./base/opentelemetry-operator/templates/clusterrolebinding.yaml
+- ./base/opentelemetry-operator/templates/deployment.yaml
+- ./base/opentelemetry-operator/templates/prometheusrule.yaml
+- ./base/opentelemetry-operator/templates/role.yaml
+- ./base/opentelemetry-operator/templates/rolebinding.yaml
+- ./base/opentelemetry-operator/templates/service.yaml
+- ./base/opentelemetry-operator/templates/serviceaccount.yaml
+- ./base/opentelemetry-operator/templates/servicemonitor.yaml
+- ./base/opentelemetry-operator/templates/admission-webhooks/operator-webhook-with-cert-manager.yaml
+
+patches:
+- path: patches/opentelemetry-operator-controller-manager-metrics-service-patch.yaml
+- path: patches/opentelemetry-operator-servicemonitor-patch.yaml

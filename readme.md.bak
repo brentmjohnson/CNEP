@@ -1,0 +1,1516 @@
+# Pre-req
+1. important! kernel/readme.md
+  a. wsl: 5.15.57.1-microsoft-standard-WSL2
+    https://github.com/microsoft/WSL2-Linux-Kernel
+2. tool versions
+  a. kubernetes: v1.26.3
+  b. kind: 0.14.0
+    https://github.com/kubernetes-sigs/kind
+  c. kustomize: v4.5.7
+    https://github.com/kubernetes-sigs/kustomize
+  d. jq: jq-1.6
+    https://github.com/stedolan/jq
+  e. yq: 4.27.3
+    https://github.com/mikefarah/yq
+  f. calicoctl: v3.25.0
+    https://docs.tigera.io/calico/3.25/operations/calicoctl/install#install-calicoctl-as-a-binary-on-a-single-host
+  g. helm: v3.10.2
+    https://github.com/helm/helm
+  h. vault: v1.12.1
+    https://www.vaultproject.io/downloads
+  <!-- i. extra kernel headers:
+    wget http://archive.ubuntu.com/ubuntu/pool/main/l/linux-hwe-5.13/linux-headers-5.13.0-52-generic_5.13.0-52.59~20.04.1_amd64.deb
+    echo "deb http://old-releases.ubuntu.com/ubuntu impish-security main" | sudo tee /etc/apt/sources.list.d/impish-security.list
+    sudo apt-get update
+    sudo apt-get install linux-headers-5.13.0-52-generic
+    sudo rm /etc/apt/sources.list.d/impish-security.list -->
+  i. cmctrl v1.10.1
+    https://cert-manager.io/docs/reference/cmctl/#installation
+  i. istioctl v1.16.1
+    https://github.com/istio/istio
+  j. redis-cli v7.0.5
+    http://download.redis.io/redis-stable.tar.gz
+  k. s3cmd 2.2.0
+    apt-get install s3cmd
+  l. rpk v22.3.11
+    https://docs.redpanda.com/docs/get-started/quick-start/quick-start-docker/
+  m. krew v0.4.3
+    https://krew.sigs.k8s.io/docs/user-guide/setup/install/#bash
+  
+
+# Cluster (kubernetes:v1.26.3 containerd:1.6.18):
+<!-- 1. ./cluster/setup-kind-multicluster.sh --kind-worker-nodes 3 -->
+<!-- --- only needed for kindest/node:v1.23.6 ---
+2. docker cp ./cluster/distroUpgrade/sources.list k8s-0-worker:/etc/apt/sources.list
+docker cp ./cluster/distroUpgrade/sources.list k8s-0-worker2:/etc/apt/sources.list
+docker cp ./cluster/distroUpgrade/sources.list k8s-0-worker3:/etc/apt/sources.list
+3. [each worker node]
+apt update && dpkg --configure -a -->
+<!-- 2. kubectl patch deployment/coredns \
+  -n kube-system \
+  --type merge \
+  --patch-file ./cluster/coredns-patch.yaml -->
+<!-- 2. kubectl scale deployments.apps -n kube-system coredns --replicas=3 -->
+<!-- 2. kubectl patch configmap/coredns \
+  -n kube-system \
+  --type merge \
+  --patch-file ./cluster/coredns-configmap-patch.yaml
+  kubectl rollout restart -n kube-system deployment coredns -->
+<!-- 3. ssh k8s-control-0 "sudo -S cat /etc/kubernetes/pki/etcd/ca.crt" > ./cluster/etcd/ca.crt
+ssh k8s-control-0 "sudo -S cat /etc/kubernetes/pki/etcd/ca.key" > ./cluster/etcd/ca.key
+ssh k8s-control-0 "sudo -S cat /etc/kubernetes/pki/apiserver-etcd-client.crt" > ./cluster/etcd/apiserver-etcd-client.crt
+ssh k8s-control-0 "sudo -S cat /etc/kubernetes/pki/apiserver-etcd-client.key" > ./cluster/etcd/apiserver-etcd-client.key -->
+<!-- scp root@10.0.0.3:/etc/kubernetes/pki/etcd/ca.crt ./cluster/etcd
+scp 10.0.0.3:/etc/kubernetes/pki/etcd/ca.key ./cluster/etcd
+scp 10.0.0.3:/etc/kubernetes/pki/apiserver-etcd-client.crt ./cluster/etcd
+scp 10.0.0.3:/etc/kubernetes/pki/apiserver-etcd-client.key ./cluster/etcd -->
+<!-- docker cp k8s-0-control-plane:/etc/kubernetes/pki/etcd/ca.crt ./cluster/etcd
+docker cp k8s-0-control-plane:/etc/kubernetes/pki/etcd/ca.key ./cluster/etcd
+docker cp k8s-0-control-plane:/etc/kubernetes/pki/apiserver-etcd-client.crt ./cluster/etcd
+docker cp k8s-0-control-plane:/etc/kubernetes/pki/apiserver-etcd-client.key ./cluster/etcd -->
+<!-- openssl x509 -in ./cluster/etcd/apiserver-etcd-client.crt -out ./cluster/etcd/apiserver-etcd-client.pem -outform PEM -->
+<!-- 4. docker cp k8s-0-control-plane:/etc/kubernetes/manifests/etcd.yaml ./cluster/etcd/
+docker cp ./cluster/etcd/etcd-patch.yaml k8s-0-control-plane:/etc/kubernetes/manifests/etcd.yaml -->
+<!-- docker cp k8s-0-control-plane:/etc/kubernetes/manifests/etcd.yaml ./cluster/etcd/
+docker cp ./cluster/etcd/etcd-patch.yaml k8s-0-control-plane:/etc/kubernetes/manifests/etcd.yaml -->
+<!-- 5. [bash into k8s-0-control-plane] mkdir /etc/kubernetes/tracing
+  docker cp ./cluster/featureGates/tracing-config.yaml k8s-0-control-plane:/etc/kubernetes/tracing/ -->
+<!-- 6. ssh k8s-control-0 "sudo -S cat /etc/kubernetes/manifests/kube-apiserver.yaml" > ./cluster/featureGates/kube-apiserver.yaml
+ssh k8s-control-0 "sudo -S cat /etc/kubernetes/manifests/kube-controller-manager.yaml" > ./cluster/featureGates/kube-controller-manager.yaml
+ssh k8s-control-0 "sudo -S cat /etc/kubernetes/manifests/kube-scheduler.yaml" > ./cluster/featureGates/kube-scheduler.yaml -->
+<!-- scp root@10.0.0.3:/etc/kubernetes/manifests/kube-apiserver.yaml ./cluster/featureGates/
+scp root@10.0.0.3:/etc/kubernetes/manifests/kube-controller-manager.yaml ./cluster/featureGates/
+scp root@10.0.0.3:/etc/kubernetes/manifests/kube-scheduler.yaml ./cluster/featureGates/ -->
+<!-- docker cp k8s-0-control-plane:/etc/kubernetes/manifests/kube-apiserver.yaml ./cluster/featureGates/
+docker cp k8s-0-control-plane:/etc/kubernetes/manifests/kube-controller-manager.yaml ./cluster/featureGates/
+docker cp k8s-0-control-plane:/etc/kubernetes/manifests/kube-scheduler.yaml ./cluster/featureGates/ -->
+<!-- 7. docker cp ./cluster/featureGates/kube-apiserver-patch.yaml k8s-0-control-plane:/etc/kubernetes/manifests/kube-apiserver.yaml -->
+<!-- docker cp ./cluster/featureGates/kube-controller-manager-patch.yaml k8s-0-control-plane:/etc/kubernetes/manifests/kube-controller-manager.yaml
+docker cp ./cluster/featureGates/kube-scheduler-patch.yaml k8s-0-control-plane:/etc/kubernetes/manifests/kube-scheduler.yaml -->
+<!-- https://github.com/apache/apisix/blob/master/docs/en/latest/FAQ.md#why-are-there-errors-saying-failed-to-fetch-data-from-etcd-failed-to-read-etcd-dir-etcd-key-xxxxxx-in-the-errorlog -->
+<!-- 8. docker container update --cpus 4 --memory 16Gi --memory-swap 32Gi  k8s-0-worker && \
+docker container update --cpus 4 --memory 16Gi --memory-swap 32Gi  k8s-0-control-plane -->
+
+# Calico CNI (v3.25.0):
+<!-- 1. kubectl create namespace calico-apiserver
+kubectl create namespace calico-system
+2. kubectl label namespace calico-apiserver istio-injection=disabled --overwrite
+kubectl label namespace calico-system istio-injection=disabled --overwrite
+1. kubectl apply --server-side -f ./cluster/release-v3.24.5/manifests/tigera-operator.yaml
+kubectl wait deployment -n tigera-operator tigera-operator --for condition=Available=True --timeout=600s
+kubectl get pods -n tigera-operator
+2. kubectl apply -f ./cluster/calico-custom-resources.yaml
+kubectl wait deployment -n kube-system coredns --for condition=Available=True --timeout=600s
+kubectl get pods -n calico-system -->
+<!-- 3. [EACH NODE]
+curl -L -o /opt/cni/bin/calico https://github.com/projectcalico/cni-plugin/releases/download/v3.20.6/calico-amd64
+chmod 755 /opt/cni/bin/calico
+cp /opt/cni/bin/calico /usr/libexec/cni
+curl -L -o /opt/cni/bin/calico-ipam https://github.com/projectcalico/cni-plugin/releases/download/v3.20.6/calico-ipam-amd64
+chmod 755 /opt/cni/bin/calico-ipam
+cp /opt/cni/bin/calico-ipam /usr/libexec/cni -->
+<!-- 3. kubectl apply -f ./cluster/calico-ipv6-disable-pool.yaml -->
+<!-- 4. Monitoring:
+  a. kubectl patch felixconfiguration default --type merge --patch '{"spec":{"prometheusMetricsEnabled": true}}'
+  kubectl patch felixconfiguration default --type merge --patch '{"spec":{"iptablesBackend": "NFT"}}'
+  b. kubectl apply -f ./cluster/monitoring/felix-metrics-service.yaml
+  c. kubectl patch installation default --type=merge -p '{"spec": {"typhaMetricsPort":9093}}'
+  d. kubectl apply -f ./cluster/monitoring/typha-metrics-service.yaml -->
+  <!-- a. kubectl apply -f ./cluster/monitoring/grafana-dashboards.yaml -->
+  <!-- e. kubectl patch clusterrole/prometheus-k8s --type json -p='[{"op": "add", "path": "/rules/-", "value":{
+    "verbs": [ "get", "list", "watch" ],
+    "apiGroups": [ "extensions" ],
+    "resources": [ "ingresses" ]
+  }}]' -->
+
+
+
+# Wireguard (alpine-v1.0.20210914-ls20):
+<!-- 1. ansible-playbook ./wireguard/ansible/wireguard.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. kubectl create namespace wireguard
+2. kubectl apply -f ./wireguard/wireguard-secret.yaml
+3. kubectl apply -f ./wireguard/wireguard-deployment.yaml -->
+
+<!-- 2. ssh k8s-control-0 "sudo -S iptables -L -v -n" > ./wireguard/iptables/k8s-control-0
+ssh k8s-control-0 "sudo -S iptables -L -n -t nat" > ./wireguard/iptables/k8s-control-0-nat
+ssh k8s-control-1 "sudo -S iptables -L -v -n" > ./wireguard/iptables/k8s-control-1
+ssh k8s-control-1 "sudo -S iptables -L -n -t nat" > ./wireguard/iptables/k8s-control-1-nat
+ssh k8s-control-2 "sudo -S iptables -L -v -n" > ./wireguard/iptables/k8s-control-2
+ssh k8s-control-2 "sudo -S iptables -L -n -t nat" > ./wireguard/iptables/k8s-control-2-nat
+
+ssh k8s-control-0 "sudo -S iptables -L -v -n" > ./wireguard/iptables/k8s-control-0-wired
+ssh k8s-control-0 "sudo -S iptables -L -n -t nat" > ./wireguard/iptables/k8s-control-0-nat-wired
+
+ssh k8s-control-1 "sudo -S iptables-legacy -L -v -n" > ./wireguard/iptables/k8s-control-1-legacy
+ssh k8s-control-1 "sudo -S iptables-legacy -L -n -t nat" > ./wireguard/iptables/k8s-control-1-legacy-nat
+
+sudo modprobe -r iptable_filter iptable_nat iptable_mangle iptable_raw iptable_security
+
+sudo iptables -L -v -n
+sudo iptables -L -n -t nat
+
+kubectl -n wireguard get secret wireguard -o jsonpath="{['data']}"  | jq '.["wg0.conf.template"]' --decode && echo
+kubectl exec -it -n wireguard wireguard-7f5d5c8d87-pwlj2 -- sh -->
+
+# Cloudflared (2023.3.1)
+<!-- 1. ansible-playbook ./cloudflare/ansible/cloudflared.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+
+# Monitoring (initial CRDS)
+<!-- 1. ansible-playbook ./monitoring/ansible/monitoring-setup.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. kubectl create namespace monitoring
+2. kubectl apply --server-side -f ./monitoring/my-kube-prometheus/manifests/setup
+  until kubectl get servicemonitors --all-namespaces ; do date; sleep 1; echo ""; done -->
+
+<!-- https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-k8s.md#kubernetes-version-requirements
+# Sysbox
+1. kubectl label nodes k8s-0-worker sysbox-install=yes --overwrite
+kubectl label nodes k8s-0-worker2 sysbox-install=yes --overwrite
+kubectl label nodes k8s-0-worker3 sysbox-install=yes --overwrite
+2. kubectl apply -f https://raw.githubusercontent.com/nestybox/sysbox/master/sysbox-k8s-manifests/sysbox-install.yaml -->
+
+<!-- https://github.com/kubernetes-sigs/kind/issues/745#issuecomment-516951195
+https://forums.docker.com/t/unable-to-mount-sys-inside-the-container-with-rw-access-in-unprivileged-mode/97043/2
+https://github.com/nestybox/sysbox#installation -->
+
+# Ingress (initial CRDS)
+<!-- 1. ansible-playbook ./ingress/ansible/apisix-setup.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+
+# Rook + Ceph (rook:v1.11.1 ceph:v17.2.5):
+<!-- 1. ansible-playbook ./rook/ansible/rook-ceph-main.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. ansible-playbook ./rook/ansible/rook-ceph.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. helm repo add rook-release https://charts.rook.io/release
+helm repo update rook-release
+2. kubectl create namespace rook-ceph
+kubectl label namespace rook-ceph istio-injection=disabled --overwrite
+3. kubectl apply -f ./rook/serviceMesh/peerAuthentication.yaml
+3. helm upgrade -i rook-ceph rook-release/rook-ceph  \
+  --version v1.10.5 \
+  --namespace rook-ceph \
+  --values ./rook/helm/values/rook-ceph-values.yaml \
+  --debug \
+  --dry-run \
+  > ./rook/helm/rook-ceph.yaml
+kubectl get pods -n rook-ceph -->
+
+<!-- 4. ansible-playbook ./rook/ansible/rook-ceph-cluster.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 4. helm upgrade -i rook-ceph-cluster rook-release/rook-ceph-cluster  \
+  --version v1.10.5 \
+  --namespace rook-ceph \
+  --values ./rook/helm/values/rook-ceph-cluster-values.yaml \
+  --debug \
+  --dry-run \
+  > ./rook/helm/rook-ceph-cluster.yaml -->
+
+<!-- 4. kubectl apply -f ./rook/rook-config-override.yaml -->
+<!-- 4. kubectl apply -f ./rook/cluster.yaml -->
+<!-- 4. kubectl apply -f ./rook/cluster-test.yaml -->
+<!-- 4. kubectl apply -f ./rook/cluster-on-local-pvc.yaml -->
+
+<!-- kubectl patch -n rook-ceph CephBlockPool/ec-data-pool -p '{"metadata":{"finalizers":[]}}' --type=merge
+kubectl patch -n rook-ceph CephBlockPool/replicated-metadata-pool -p '{"metadata":{"finalizers":[]}}' --type=merge
+kubectl patch -n rook-ceph CephFilesystem/myfs-ec -p '{"metadata":{"finalizers":[]}}' --type=merge
+kubectl patch -n rook-ceph CephObjectStore/my-store -p '{"metadata":{"finalizers":[]}}' --type=merge 
+
+sudo rm -rf /var/lib/rook
+sudo sgdisk --zap-all /dev/sdb
+sudo dd if=/dev/zero of=/dev/sdb bs=4M count=1
+sudo blkdiscard -f /dev/sdb
+sudo partprobe /dev/sdb
+sudo sgdisk --zap-all /dev/sdc
+sudo dd if=/dev/zero of=/dev/sdc bs=4M count=1
+sudo blkdiscard -f /dev/sdc
+sudo partprobe /dev/sdc
+-->
+
+<!-- kubectl get pods -n rook-ceph
+5. dashboard: -->
+  <!-- a. kubectl -n rook-ceph port-forward svc/rook-ceph-mgr-dashboard 7000:7000 & -->
+  <!-- b. kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo -->
+<!-- 5. toolbox config: -->
+  <!-- a. kubectl apply -f ./rook/toolbox.yaml -->
+  <!-- b. kubectl -n rook-ceph exec -it deployment/rook-ceph-tools -- bash -->
+  <!-- c. [root@rook-ceph-tools-78cdfd976c-sclh9 /]# ceph mgr module enable rook -->
+  <!-- d. [root@rook-ceph-tools-78cdfd976c-sclh9 /]# ceph orch set backend rook -->
+  <!-- e. [root@rook-ceph-tools-78cdfd976c-sclh9 /]# ceph orch status
+    Backend: rook
+    Available: True -->
+  <!-- ceph dashboard ac-user-create [--enabled] [--force-password] [--pwd_update_required] <username> -i <file-containing-password> [<rolename>] [<name>] [<email>] [<pwd_expiration_date>]
+  f. ceph dashboard ac-user-create ceph-admin -i ceph-admin-pass.txt administrator -->
+  <!-- ceph config set global mon_max_pg_per_osd 400
+  ceph config set global osd_memory_target 896Mi
+  ceph config set global osd_class_update_on_start false -->
+  <!-- ceph config set global osd_pool_default_ec_fast_read true -->
+  <!-- g. ceph config dump -->
+  <!-- h. ceph osd pool autoscale-status -->
+  <!-- i. ceph crash archive-all -->
+  <!-- h. ceph osd status -->
+  <!-- ceph config get osd.0 osd_memory_target_autotune
+  ceph config get osd.0 osd_memory_target
+  ceph config set global osd_memory_target 896Mi 939524096 -->
+  <!-- ceph dashboard set-grafana-api-url https://internal.example.com/grafana -->
+  <!-- ceph dashboard get-grafana-api-url -->
+  <!-- ceph dashboard set-grafana-frontend-api-url https://internal.example.com/grafana -->
+  <!-- ceph dashboard get-grafana-frontend-api-url -->
+  <!-- ceph dashboard set-grafana-api-ssl-verify False -->
+  <!-- ceph dashboard get-grafana-api-ssl-verify -->
+  <!-- ceph dashboard reset-grafana-api-ssl-verify -->
+  <!-- ceph pg dump osds -->
+  <!-- h. ceph config get osd.0 osd_pool_default_pg_num
+  ceph config set global osd_pool_default_pg_num 16
+  ceph config set mon rgw_rados_pool_pg_num_min 8 -->
+  <!-- h. ceph osd pool set replicated-metadata-pool pg_num_min 8
+  ceph osd pool set ec-data-pool pg_num_min 8
+  ceph osd pool set my-store.rgw.control pg_num_min 8
+  ceph osd pool set my-store.rgw.meta pg_num_min 8
+  ceph osd pool set my-store.rgw.log pg_num_min 8
+  ceph osd pool set my-store.rgw.buckets.index pg_num_min 8
+  ceph osd pool set my-store.rgw.buckets.non-ec pg_num_min 8
+  ceph osd pool set .rgw.root pg_num_min 8
+  ceph osd pool set my-store.rgw.buckets.data pg_num_min 8
+  ceph osd pool set myfs-ec-metadata pg_num_min 4
+  ceph osd pool set myfs-ec-data0 pg_num_min 8
+  ceph osd pool set myfs-ec-erasurecoded pg_num_min 8 -->
+<!-- 6. kubectl apply -f ./rook/storageclass-ec.yaml -->
+<!-- 7. kubectl patch storageclass standard -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+kubectl patch storageclass ceph-block -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' -->
+<!-- 7. kubectl apply -f ./rook/filesystem-ec.yaml
+kubectl apply -f ./rook/rook-cephfs-storageclass.yaml -->
+<!-- kubectl patch -n rook-ceph CephFilesystem/myfs-ec --type=merge -p '{"spec":{"preserveFilesystemOnDelete":false}}' -->
+<!-- 9. kubectl apply -f ./rook/object-ec.yaml
+kubectl apply -f ./rook/rook-ceph-bucket-storageclass.yaml -->
+<!-- kubectl patch -n rook-ceph CephObjectStore/my-store --type=merge -p '{"spec":{"preservePoolsOnDelete":false}}' -->
+<!-- ceph osd pool delete my-store.rgw.meta my-store.rgw.meta --yes-i-really-really-mean-it -->
+<!-- 6. kubectl apply -f ./rook/object.yaml -->
+<!-- 7. kubectl apply -f ./rook/rook-ceph-bucket-delete.yaml
+kubectl -n rook-ceph edit CephBlockPool/builtin-mgr
+kubectl -n rook-ceph edit CephObjectStore/my-store -->
+<!-- kubectl -n rook-ceph port-forward svc/rook-ceph-rgw-my-store 8080:80 & -->
+<!-- kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo -->
+<!-- 6. Ingress:
+  a. kubectl apply -f ./rook/ingress/ceph-dashboard-route.yaml -->
+  <!-- b. kubectl apply -f ./rook/ingress/ceph-s3-route.yaml -->
+<!-- kubectl -n rook-ceph exec deployment/rook-ceph-tools -- ceph crash ls
+kubectl -n rook-ceph exec deployment/rook-ceph-tools -- ceph crash info 2023-01-13T15:09:05.485032Z_b3630521-b162-48e2-9b39-e2b63f1520f6
+kubectl -n rook-ceph exec deployment/rook-ceph-tools -- ceph crash archive 2023-01-13T15:09:05.485032Z_b3630521-b162-48e2-9b39-e2b63f1520f6 -->
+
+# Vault (1.12.1):
+<!-- 1. ansible-playbook ./vault/ansible/vault.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. helm repo add hashicorp https://helm.releases.hashicorp.com
+helm repo update hashicorp -->
+<!-- 2. kubectl create namespace vault
+kubectl label namespace vault istio-injection=disabled --overwrite
+3. helm upgrade -i vault hashicorp/vault  \
+  --version 0.22.1 \
+  --namespace vault \
+  --values ./vault/helm/values/vault-values.yaml \
+  --debug \
+  --dry-run \
+  > ./vault/helm/vault.yaml -->
+<!-- kubectl get pods -n vault -->
+<!-- 4. kubectl exec -n vault vault-0 -- vault operator init \
+    -key-shares=1 \
+    -key-threshold=1 \
+    -format=json > ./vault/cluster-keys.json -->
+<!-- 5. kubectl exec -n vault vault-0 -- vault operator unseal $(jq -r ".unseal_keys_b64[]" ./vault/cluster-keys.json)
+  yel+Zu212JzNG7mymYtxDLjrpfRW0k+uSGCmQtsrUHI=
+6. kubectl exec -n vault -ti vault-1 -- vault operator raft join http://vault-0.vault-internal:8200
+kubectl exec -n vault -ti vault-1 -- vault operator unseal  $(jq -r ".unseal_keys_b64[]" ./vault/cluster-keys.json)
+7. kubectl exec -n vault -ti vault-2 -- vault operator raft join http://vault-0.vault-internal:8200
+kubectl exec -n vault -ti vault-2 -- vault operator unseal $(jq -r ".unseal_keys_b64[]" ./vault/cluster-keys.json)
+8. jq -r ".root_token" ./vault/cluster-keys.json -->
+<!-- 9. Port-forwarding:
+kubectl -n vault port-forward svc/vault-active 8200:8200 -->
+<!-- 10. export VAULT_TOKEN=<secret>
+export VAULT_ADDR=http://localhost:8200 -->
+<!-- 11. vault login
+12. vault secrets enable pki
+13. vault secrets tune -max-lease-ttl=8760h pki
+13. vault write -field=certificate pki/root/generate/internal common_name="svc.cluster.local" ttl=8760h > ./vault/CA_cert.crt -->
+<!-- 14. vault write pki/config/urls issuing_certificates="http://vault-active.vault.svc.cluster.local:8200/v1/pki/ca"
+crl_distribution_points="http://vault-active.vault.svc.cluster.local:8200/v1/pki/crl" -->
+<!-- 15. vault secrets enable -path=pki_int pki -->
+<!-- 16. vault secrets tune -max-lease-ttl=4380h pki_int -->
+<!-- 17. vault write -format=json pki_int/intermediate/generate/internal common_name="svc.cluster.local Intermediate Authority" | jq -r '.data.csr' > ./vault/pki_intermediate.csr -->
+<!-- 18. vault write -format=json pki/root/sign-intermediate csr=@./vault/pki_intermediate.csr format=pem_bundle ttl="4380h" | jq -r '.data.certificate' > ./vault/intermediate.cert.pem -->
+<!-- 19. vault write pki_int/intermediate/set-signed certificate=@./vault/intermediate.cert.pem -->
+<!-- 20. vault write pki_int/roles/cluster-dot-local allowed_domains="svc.cluster.local" allow_subdomains=true max_ttl="72h" require_cn=false allowed_uri_sans="spiffe://cluster.local/*" -->
+<!-- 21. vault auth enable approle -->
+<!-- 22. vault policy write cert-manager -<< EOF 
+path "pki_int/sign/cluster-dot-local" { capabilities = ["update"] }
+EOF -->
+<!-- 23. vault write auth/approle/role/cert-manager token_policies="cert-manager " token_ttl=1h token_max_ttl=4h -->
+<!-- 24. vault read auth/approle/role/cert-manager/role-id
+c04a8acf-549d-59cc-db1f-dd0b7290f453
+25. vault write -force auth/approle/role/cert-manager/secret-id-->
+<!-- 26. kubectl create namespace cert-manager
+kubectl label namespace cert-manager istio-injection=disabled --overwrite
+27. kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml -->
+<!-- 28. kubectl apply -f ./vault/test1-pod.yaml
+29. kubectl -n cert-manager exec -it pod/test1 -- bash
+  apt update && apt-get install libcap2-bin sudo curl software-properties-common -y
+  curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add 
+  sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+  sudo apt-get update && sudo apt-get install vault -y
+  setcap cap_ipc_lock= /usr/bin/vault
+  export VAULT_TOKEN=<secret>
+  export VAULT_ADDR=http://vault.vault:8200 -->
+<!-- 30. kubectl create namespace istio-system
+31. echo '87121bda-c454-2c85-95f3-4fe2694d70cd' | base64
+  ODcxMjFiZGEtYzQ1NC0yYzg1LTk1ZjMtNGZlMjY5NGQ3MGNkCg==
+32. kubectl apply -f ./vault/cert-manager-vault-approle.yaml
+33. kubectl apply -f ./vault/vault-issuer.yaml
+34. kubectl get issuers vault-issuer -n istio-system -o wide
+35. kubectl create secret generic istio-root-ca --from-file=ca.cert.pem=./vault/intermediate.cert.pem -n cert-manager -->
+
+# Vault auto-unseal (v0.1.0)
+<!-- https://github.com/omegion/vault-unseal -->
+<!-- 1. ansible-playbook ./vault/auto-unseal/ansible/vault-auto-unseal.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. helm repo add omegion https://charts.omegion.dev
+helm repo update omegion
+2. helm upgrade -i vault-unseal-cronjob omegion/vault-unseal-cronjob \
+  --version 0.4.0 \
+  --namespace vault \
+  --values ./vault/auto-unseal/values.yaml \
+  --debug \
+  --dry-run \
+  > ./vault/auto-unseal/helm.yaml -->
+<!-- 3. kubectl create job -n vault --from=cronjob/vault-unseal-cronjob manual-unseal-job
+kubectl delete job -n vault manual-unseal-job -->
+
+# Vault recovery
+<!-- 1. uncomment extraArgs: -recovery in ./vault/helm-vault-raft-values.yaml
+2. kubectl exec -n vault vault-0 -- vault operator generate-root -generate-otp -recovery-token
+KP0TBDlqwJdkCsxXDwqXNz0Tyigu
+3. kubectl exec -n vault vault-0 -- vault operator generate-root -init \
+    -otp=KP0TBDlqwJdkCsxXDwqXNz0Tyigu \
+    -recovery-token
+f2ce767c-4d61-4004-ef4c-5304a182f114
+4. kubectl exec -n vault vault-0 -- vault operator generate-root \
+    -nonce f2ce767c-4d61-4004-ef4c-5304a182f114 \
+    -recovery-token $(jq -r ".unseal_keys_b64[]" ./vault/cluster-keys.json)
+5. RE-comment extraArgs: -recovery in ./vault/helm-vault-raft-values.yaml -->
+
+# CertManager (cert-manager:v1.11.0 istio-csr:v0.6.0):
+<!-- 1. ansible-playbook ./certmanager/ansible/cert-manager-main.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- ansible-playbook ./certmanager/ansible/cert-manager.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. kubectl create namespace cert-manager
+kubectl label namespace cert-manager istio-injection=disabled --overwrite -->
+<!-- 2. kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml -->
+<!-- 2. helm repo add jetstack https://charts.jetstack.io
+helm repo update jetstack
+kubectl get pods -n cert-manager
+helm upgrade -i -n cert-manager cert-manager jetstack/cert-manager \
+  --version v1.10.1 \
+  --set installCRDs=true \
+  --debug \
+  --dry-run \
+  > ./certmanager/helm/helm.yaml -->
+<!-- 4. Config:
+  <!-- https://cert-manager.io/docs/tutorials/istio-csr/istio-csr/#create-a-cert-manager-issuer-and-issuing-certificate
+  a. kubectl create namespace istio-system
+  b. kubectl apply -f https://raw.githubusercontent.com/cert-manager/website/master/content/docs/tutorials/istio-csr/example/example-issuer.yaml
+  c. kubectl get -n istio-system secret istio-ca -ogo-template='{{index .data "tls.crt"}}' | base64 -d > ./certmanager/rootcerts/ca.pem
+  d. kubectl create secret generic -n cert-manager istio-root-ca --from-file=ca.pem=./certmanager/rootcerts/ca.pem -->
+  <!-- a. kubectl create namespace istio-system -->
+  <!-- b. echo '90913a7d-9ce7-7e09-9cd5-918821f836c4' | base64
+    OTA5MTNhN2QtOWNlNy03ZTA5LTljZDUtOTE4ODIxZjgzNmM0Cg==
+  c. kubectl apply -f ./vault/cert-manager-vault-approle.yaml
+  d. kubectl apply -f ./vault/vault-issuer.yaml
+  e. kubectl get issuers vault-issuer -n istio-system -o wide
+  f. kubectl create secret generic istio-root-ca --from-file=ca.cert.pem=./vault/intermediate.cert.pem -n cert-manager -->
+  <!-- kubectl get MutatingWebhookConfiguration -A
+  ansible-playbook ./certmanager/ansible/cert-manager-vault-issuer.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+6. ansible-playbook ./certmanager/ansible/cert-manager-istio-csr.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s  -->
+<!-- helm upgrade -i -n cert-manager cert-manager-istio-csr jetstack/cert-manager-istio-csr \
+  --version v0.5.0 \
+  --set "app.certmanager.issuer.name=vault-issuer" \
+  --set "app.tls.certificateDNSNames={cert-manager-istio-csr.cert-manager.svc.cluster.local}" \
+	--set "app.tls.rootCAFile=/var/run/secrets/istio-csr/ca.cert.pem" \
+	--set "volumeMounts[0].name=root-ca" \
+	--set "volumeMounts[0].mountPath=/var/run/secrets/istio-csr" \
+	--set "volumes[0].name=root-ca" \
+	--set "volumes[0].secret.secretName=istio-root-ca" \
+  --debug \
+  --dry-run \
+  > ./certmanager/istio-csr/helm.yaml -->
+<!-- 7. kubectl patch -n cert-manager deployment cert-manager --patch-file ./certmanager/monitoring/cert-manager-deployment-patch.yaml
+kubectl patch -n cert-manager service cert-manager --patch-file ./certmanager/monitoring/cert-manager-service-patch.yaml -->
+<!-- 7. kubectl get pods -n cert-manager
+kubectl get certificates -n istio-system -->
+
+# Istio (1.17.1):
+<!-- 1. ansible-playbook ./istio/ansible/istio-main.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. calicoctl patch FelixConfiguration default --patch \
+   '{"spec": {"policySyncPathPrefix": "/var/run/nodeagent"}}' -->
+<!-- 2. kubectl patch installation default --type=merge -p '{"spec": {"flexVolumePath": "None"}}' -->
+<!-- 3. kubectl apply -f ./cluster/release-v3.24.5/manifests/csi-driver.yaml -->
+<!-- 4. istioctl operator init -->
+<!-- 5. kubectl label namespace kube-system istio-injection=disabled --overwrite
+  kubectl label namespace kube-public istio-injection=disabled --overwrite
+  kubectl label namespace istio-system istio-injection=disabled --overwrite -->
+<!-- 6. istioctl install -f ./istio/istioOperator.yaml
+kubectl get pods -n istio-system -->
+<!-- istioctl upgrade -f ./istio/istioOperator.yaml -->
+<!-- 7. kubectl patch configmap -n istio-system istio-sidecar-injector --patch "$(cat ./cluster/release-v3.24.5/manifests/alp/istio-inject-configmap-1.10.yaml)" -->
+<!-- 8. kubectl patch configmap -n istio-system istio-sidecar-injector --patch "$(cat ./istio/istio-inject-configmap-1.15.0-patch.yaml)"
+9. kubectl apply -f ./cluster/release-v3.24.5/manifests/alp/istio-app-layer-policy-envoy-v3.yaml -->
+<!-- 9. kubectl apply -f ./istio/defaultIstioNetworkPolicy.yaml -->
+<!-- 10. kubectl apply -f https://raw.githubusercontent.com/istio/istio/1.15.0/samples/addons/kiali.yaml
+11. kubectl patch configMap/kiali \
+  -n istio-system \
+  --type merge \
+  --patch-file ./istio/kialiPatch.yaml &&
+  kubectl rollout restart -n istio-system deployment kiali
+12. kubectl patch deployment/kiali -n istio-system --type json -p='[
+  {'op': 'replace', 'path': '/spec/template/metadata/labels/sidecar.istio.io~1inject', 'value': "true"}
+]' -->
+  <!-- {'op': 'add', 'path': '/spec/template/metadata/annotations/traffic.sidecar.istio.io~1excludeInboundPorts', 'value': "15020"}, -->
+<!-- 12. istioctl dashboard kiali -->
+<!-- 13. kubectl label namespace default istio-injection=enabled --overwrite -->
+<!-- kubectl label namespace default istio-injection- -->
+<!-- 13. Additional config
+  a. kubectl apply -f ./certmanager/ingress/namespace-peer-authentication.yaml
+  b. kubectl apply -f ./certmanager/ingress/webhook-peer-authentication.yaml
+  c. kubectl delete pods --all -n cert-manager -->
+<!-- 9. kubectl apply -f istio/peerAuthentication.yaml
+10. kubectl delete pods --all -n istio-operator
+kubectl get pods -n istio-operator -->
+<!-- 11. Monitoring:
+  a. ./istio/monitoring/istio-monitoring-patch.sh -->
+
+# Kiali (1.65.0):
+<!-- 1. ansible-playbook ./istio/ansible/kiali-main.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1.  helm repo add kiali https://kiali.org/helm-charts
+helm repo update kiali
+2. helm upgrade -i kiali-operator kiali/kiali-operator \
+  --version 1.56.0 \
+  --namespace istio-operator \
+  --debug \
+  --dry-run \
+  > ./istio/kiali/helm.yaml
+kubectl get pods -n istio-operator
+4. kubectl apply -f ./istio/kiali/kiali.yaml
+kubectl get pods -n istio-system -->
+<!-- 5. Monitoring:
+  a. ./istio/kiali/monitoring/kiali-monitoring-patch.sh -->
+<!-- 9. Port-forwarding:
+kubectl -n istio-system port-forward svc/kiali 20001:20001 -->
+
+# Sidecar Cleaner (v1.1.0.1):
+<!-- 1. ansible-playbook ./istio/ansible/sidecar-cleaner.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- https://github.com/AOEpeople/kubernetes-sidecar-cleaner -->
+<!-- 1. helm repo add sidecar-cleaner https://opensource.aoe.com/kubernetes-sidecar-cleaner/
+helm upgrade -i sidecar-cleaner sidecar-cleaner/sidecar-cleaner \
+  --version 0.3.0 \
+  --namespace istio-operator \
+  --debug \
+  --dry-run \
+  > ./istio/sidecar-cleaner/helm.yaml
+2. kubectl patch deployment/sidecar-cleaner -n istio-operator --type=merge -p '{"spec": {"template": {"metadata": {"labels":{"sidecar.istio.io/inject":"false"}}}}}'
+kubectl exec -i -t -n k8ssandra-operator cassandra-dc1-reaper-init-8snj9 --container dikastes -- sh -->
+
+<!-- https://gitlab.com/kubitus-project/kubitus-pod-cleaner-operator -->
+<!-- 1. helm repo add kubitus-pod-cleaner-operator https://gitlab.com/api/v4/projects/32151358/packages/helm/stable
+helm repo update kubitus-pod-cleaner-operator
+helm upgrade -i kubitus-pod-cleaner-operator kubitus-pod-cleaner-operator/kubitus-pod-cleaner-operator \
+  --version v1.1.0 \
+  --namespace istio-operator \
+  --set image.repository=k8s-lb:5000/kubitus-project/kubitus-pod-cleaner-operator \
+  --set image.tag=v1.1.0.1 \
+  --debug \
+  --dry-run \
+  > ./istio/sidecar-cleaner/helm.yaml
+kubectl get pods -n istio-operator -->
+
+# External-DNS (1.12.1)
+<!-- 1. ansible-playbook ./externaldns/ansible/external-dns.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+
+# ETCD (v3.5.6):
+<!-- 1. ansible-playbook ./etcd/ansible/etcd.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. cd ./etcd/etcd-cluster-operator/
+2. docker build . --tag=k8s-lb:5000/improbable/etcd-cluster-operator:v0.2.0.1
+3. docker push k8s-lb:5000/improbable/etcd-cluster-operator:v0.2.0.1
+4. make install
+5. make deploy
+6. cd ../..
+7. kubectl apply -f ./etcd/serviceMesh/peerAuthentication.yaml
+7. kubectl create namespace ingress-apisix
+8. kubectl apply -f ./etcd/etcdCluster.yaml
+kubectl get pods -n ingress-apisix -->
+
+# Monitoring (kube-prometheus:v0.12.0):
+<!-- 1. ansible-playbook ./monitoring/ansible/monitoring.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. cd ./monitoring/my-kube-prometheus
+2. ./build.sh
+3. cd ~/dataStore -->
+<!-- 4. kubectl create namespace monitoring -->
+<!-- kubectl apply -f ./monitoring/ingress/namespace-peer-authentication.yaml -->
+<!-- kubectl apply -f ./monitoring/ingress/prometheus-peer-authentication.yaml -->
+<!-- 5. kubectl label namespace monitoring istio-injection=disabled --overwrite -->
+<!-- 6. kubectl apply --server-side -f ./monitoring/my-kube-prometheus/manifests/setup
+  until kubectl get servicemonitors --all-namespaces ; do date; sleep 1; echo ""; done -->
+<!-- 7. kubectl apply --server-side -f ./monitoring/my-kube-prometheus/manifests -->
+<!-- 8. kubectl apply -f ./cluster/monitoring/kube-proxy-podMonitor-patch.yaml -->
+<!-- 8. kubectl patch prometheus/k8s -n monitoring --type merge --patch-file ./monitoring/prometheus-prometheus-patch2.yaml -->
+<!-- kubectl patch Prometheus -n monitoring k8s --type merge --patch-file ./monitoring/prometheus-prometheus-patch.yaml -->
+<!-- kubectl apply -f ./monitoring/prometheus-peer-authentication.yaml -->
+<!-- 9. kubectl patch service/prometheus-operated -n monitoring --type json -p='[
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service prometheus-operated -n monitoring -o json  | jq '.spec.ports | map(.name == "web") | index(true)')/name', "value": "http-web"}
+]'
+kubectl patch service/prometheus-k8s -n monitoring --type json -p='[
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service prometheus-k8s -n monitoring -o json  | jq '.spec.ports | map(.name == "web") | index(true)')/name', "value": "http-web"},
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service prometheus-k8s -n monitoring -o json  | jq '.spec.ports | map(.name == "reloader-web") | index(true)')/name', "value": "http-reloader-web"},
+]' -->
+  <!-- https://github.com/prometheus-operator/kube-prometheus/pull/1630 -->
+<!-- kubectl patch deployment/prometheus-adapter -n monitoring --type json -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args/4", "value": "--prometheus-url=http://prometheus-operated.monitoring.svc:9090/"}]' -->
+<!-- 2. kubectl patch Alertmanager/main -n monitoring --type json -p='[{"op": "replace", "path": "/spec/replicas", "value": 1}]'
+kubectl patch Prometheus/k8s -n monitoring --type json -p='[{"op": "replace", "path": "/spec/replicas", "value": 1}]'
+kubectl patch deployment/prometheus-adapter -n monitoring --type json -p='[{"op": "replace", "path": "/spec/replicas", "value": 1}]' -->
+<!-- 3. kubectl patch secret/grafana-datasources -n monitoring --type json -p='[{"op": "replace", "path": "/data/datasources.yaml", "value": <secret>}]'
+kubectl patch secret/grafana-config -n monitoring --type json -p='[{"op": "replace", "path": "/data/grafana.ini", "value": <secret>}]'
+kubectl rollout restart -n monitoring deployment grafana -->
+<!-- 4. kubectl patch clusterrole/prometheus-k8s --type json -p='[{"op": "add", "path": "/rules/-", "value":{
+  "verbs": [ "get", "list", "watch" ],
+  "apiGroups": [ "" ],
+  "resources": [ "pods", "endpoints", "services", "nodes/proxy", "nodes" ]
+}}]' -->
+<!-- 5. kubectl apply -f ./cluster/monitoring/kube-scheduler-serviceMonitor.yaml
+kubectl apply -f ./cluster/monitoring/kube-scheduler-service.yaml
+kubectl apply -f ./cluster/monitoring/kube-controller-manager-serviceMonitor.yaml
+kubectl apply -f ./cluster/monitoring/kube-controller-manager-service.yaml
+kubectl apply -f ./cluster/monitoring/kube-proxy-podMonitor.yaml -->
+<!-- 8. kubectl apply -f ./cluster/monitoring/calico-felix-metrics-serviceMonitor.yaml
+kubectl apply -f ./cluster/monitoring/calico-typha-metrics-serviceMonitor.yaml -->
+<!-- kubectl apply -f ./istio/monitoring/istio-podMonitor.yaml
+kubectl apply -f ./istio/monitoring/istio-serviceMonitor.yaml -->
+<!-- kubectl apply -f ./certmanager/monitoring/cert-manager-serviceMonitor.yaml -->
+<!-- kubectl apply -f ./rook/monitoring/rook-ceph-mgr-serviceMonitor.yaml -->
+<!-- 9. kubectl --namespace monitoring port-forward svc/prometheus-k8s 9090 &
+kubectl --namespace monitoring port-forward svc/grafana 3000 &
+kubectl --namespace monitoring port-forward svc/alertmanager-main 9093 &
+10. kubectl get apiService v1beta1.metrics.k8s.io --all-namespaces
+kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes" --all-namespaces -->
+<!-- 11. Monitoring:
+  a. ./monitoring/monitoring/monitoring-monitoring-patch.sh -->
+<!-- 12. Ingress:
+  a. kubectl apply -f ./monitoring/ingress/prometheus-route.yaml
+  b. kubectl apply -f ./monitoring/ingress/grafana-route.yaml
+  c. kubectl apply -f ./monitoring/ingress/alertmanager-route.yaml -->
+
+# Ingress (3.2.0):
+<!-- 1. ansible-playbook ./ingress/ansible/apisix.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. kubectl create namespace ingress-apisix -->
+<!-- 2. kubectl create secret -n ingress-apisix generic etcd --from-file=./cluster/etcd/ca.crt --from-file=./cluster/etcd/apiserver-etcd-client.crt --from-file=./cluster/etcd/apiserver-etcd-client.key -->
+<!-- 2. helm repo add apisix https://charts.apiseven.com -->
+<!-- helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update apisix bitnami -->
+<!-- --set admin.allow.ipList={127.0.0.1/24\,10.244.0.0/16\,10.96.0.0/12} \ -->
+<!-- --set serviceMonitor.enabled=true \
+--set ingress-controller.serviceMonitor.enabled=true \
+--set dashboard.serviceMonitor.enabled=true \
+--set etcd.replicaCount=1 \
+--set dashboard.image.repository=localhost:5000/apache/apisix-dashboard \-->
+<!-- helm upgrade -i apisix apisix/apisix \ 
+--set etcd.host={https://k8s-0-control-plane:2379} \
+--set etcd.host={https://172.18.0.3:2379} \
+--set etcd.auth.tls.sni=k8s-0-control-plane \
+--set etcd.auth.tls.verify=false \
+--set apisix.podAnnotations."traffic\.sidecar\.istio\.io/excludeInboundPorts"="9080\,15020\,30080" \ -->
+<!-- helm upgrade -i apisix ./ingress/apisix-helm-chart-apisix-0.10.0/charts/apisix/ \ -->
+<!-- helm upgrade -i apisix apisix/apisix \
+  --version 1.1.0 \
+  --namespace ingress-apisix \
+  --values ./ingress/helm/values/apisix-values.yaml \
+  --debug \
+  --dry-run \
+  > ./ingress/helm/helm.yaml -->
+<!-- 3. kubectl patch service/apisix-gateway -n ingress-apisix --type json -p='[
+  {"op": "replace", "path": "/spec/ports/2/nodePort", "value": 30942},
+  {"op": "replace", "path": "/spec/ports/3/nodePort", "value": 30992}
+]' -->
+<!-- kubectl patch deployment/apisix-ingress-controller -n ingress-apisix --type json -p='[
+  {'op': 'remove', 'path': '/spec/template/spec/initContainers/$(kubectl get deployment apisix-ingress-controller -n ingress-apisix -o json  | jq '.spec.template.spec.initContainers | map(.name == "wait-apisix-admin") | index(true)')'}
+]' -->
+<!-- 3. kubectl patch deployment/apisix -n ingress-apisix --type json -p='[
+  {"op": "add", "path": "/spec/template/metadata/labels/app", "value": "apisix"},
+  {"op": "add", "path": "/spec/template/metadata/labels/version", "value": "2.14.1"}
+]' -->
+<!-- kubectl patch deployment/apisix-ingress-controller -n ingress-apisix --type json -p='[
+  {"op": "add", "path": "/spec/template/metadata/labels/app", "value": "apisix-ingress-controller"},
+  {"op": "add", "path": "/spec/template/metadata/labels/version", "value": "1.4.1"},
+  {'op': 'remove', 'path': '/spec/template/spec/initContainers/$(kubectl get deployment apisix-ingress-controller -n ingress-apisix -o json  | jq '.spec.template.spec.initContainers | map(.name == "wait-apisix-admin") | index(true)')'}
+]' -->
+<!-- kubectl patch deployment/apisix-dashboard -n ingress-apisix --type json -p='[
+  {"op": "add", "path": "/spec/template/metadata/labels/app", "value": "apisix-dashboard"},
+  {"op": "add", "path": "/spec/template/metadata/labels/version", "value": "2.13"}
+]' -->
+<!-- kubectl patch service/apisix-gateway -n ingress-apisix --type json -p='[
+  {"op": "replace", "path": "/spec/ports/0/name", "value": "http-apisix-gateway"},
+  {"op": "replace", "path": "/spec/ports/1/name", "value": "tls-apisix-gateway"},
+  {"op": "replace", "path": "/spec/ports/2/name", "value": "tcp-proxy-0"},
+  {"op": "replace", "path": "/spec/ports/2/nodePort", "value": 30942},
+  {"op": "replace", "path": "/spec/ports/3/name", "value": "tcp-proxy-1"},
+  {"op": "replace", "path": "/spec/ports/3/nodePort", "value": 30992}
+]' -->
+<!-- kubectl patch service/apisix-admin -n ingress-apisix --type json -p='[
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service apisix-admin -n ingress-apisix -o json  | jq '.spec.ports | map(.name == "apisix-admin") | index(true)')/name', "value": "http-apisix-admin"},
+  {"op": "add", "path": "/spec/ports/-", "value": {
+      "name": "http-prometheus",
+      "protocol": "TCP",
+      "port": 9091,
+      "targetPort": 9091,
+  }}
+]' -->
+<!-- kubectl apply -f ./ingress/ingress/apisix-peer-authentication.yaml -->
+<!-- {"op": "add", "path": "/metadata/annotations/auth.istio.io~180", "value": "NONE"} -->
+<!-- 4. kubectl patch configmap/apisix \
+  -n ingress-apisix \
+  --type merge \
+  --patch-file ./ingress/apisix-patch.yaml
+  kubectl rollout restart -n ingress-apisix deployment apisix -->
+<!-- 5. kubectl patch deployment/apisix-dashboard -n ingress-apisix --type json -p='[
+  {"op": "add", "path": "/spec/template/spec/volumes/-", "value": {
+    "name": "ssl",
+    "secret": {
+      "secretName": "etcd",
+      "defaultMode": 420
+    }
+  }},
+  {"op": "add", "path": "/spec/template/spec/volumes/-", "value": {
+    "name": "etcd-ssl",
+    "secret": {
+      "secretName": "etcd",
+      "defaultMode": 420
+    }
+  }},
+  {"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/-", "value": {
+    "name": "ssl",
+    "mountPath": "/usr/local/apisix/conf/ssl/ca.crt",
+    "subPath": "ca.crt"
+  }},
+  {"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/-", "value": {
+    "name": "etcd-ssl",
+    "mountPath": "/etcd-ssl"
+  }}
+]' -->
+<!-- 6. kubectl patch configmap/apisix-dashboard \
+  -n ingress-apisix \
+  --type merge \
+  --patch-file ./ingress/apisix-dashboard-patch.yaml
+kubectl rollout restart -n ingress-apisix deployment apisix-dashboard -->
+<!-- 7. kubectl patch configmap/apisix-configmap \
+  -n ingress-apisix \
+  --type merge \
+  --patch-file ./ingress/apisix-configmap-patch.yaml
+kubectl rollout restart -n ingress-apisix deployment apisix-ingress-controller -->
+<!-- 7. kubectl patch serviceMonitor/apisix -n ingress-apisix --type merge --patch-file ./ingress/monitoring/apisix-service-monitor-patch.yaml
+kubectl patch serviceMonitor/apisix-ingress-controller -n ingress-apisix --type merge --patch-file ./ingress/monitoring/apisix-ingress-controller-service-monitor-patch.yaml -->
+<!-- kubectl apply -f ./ingress/ingress/namespace-peer-authentication.yaml -->
+<!-- 5. kubectl apply -f ./ingress/apisix-admin-service.yaml -->
+<!-- kubectl patch configmap/apisix-configmap \
+  -n ingress-apisix \
+  --type merge \
+  --patch-file ./ingress/apisix-configmap-patch.yaml -->
+<!-- kubectl patch deployment apisix -n ingress-apisix --type json -p='[{"op": "replace", "path": "/spec/template/spec/initContainers/0/command/2", "value":"until nc -z apisix-etcd-headless.ingress-apisix.svc.cluster.local 2379; do echo waiting for etcd `date`; sleep 2; done;"}]'
+kubectl patch deployment apisix-ingress-controller -n ingress-apisix --type json -p='[{"op": "replace", "path": "/spec/template/spec/initContainers/0/command/2", "value":"until nc -z apisix-admin-headless.ingress-apisix.svc.cluster.local 9180; do echo waiting for apisix-admin `date`; sleep 2; done;"}]'
+kubectl patch configmap/apisix-dashboard \
+  -n ingress-apisix \
+  --type merge \
+  --patch-file ./ingress/apisix-dashboard-patch.yaml
+kubectl rollout restart -n ingress-apisix deployment apisix-dashboard -->
+<!-- 6. kubectl exec -i -t -n ingress-apisix apisix-5cbb945c77-pc9mn --container wait-etcd -- sh
+nc -z apisix-admin.ingress-apisix.svc.cluster.local 9180 -w 1 -v -->
+<!-- 7. Monitoring:
+  a. ./ingress/monitoring/apisix-monitoring-patch.sh -->
+<!-- 7. export NODE_PORT=$(kubectl get --namespace ingress-apisix -o jsonpath="{.spec.ports[0].nodePort}" services apisix-gateway)
+export NODE_IP=$(kubectl get nodes --namespace ingress-apisix -o jsonpath="{.items[0].status.addresses[0].address}")
+echo http://$NODE_IP:$NODE_PORT
+    http://172.20.0.3:32725
+8. export POD_NAME=$(kubectl get pods --namespace ingress-apisix -l "app.kubernetes.io/name=dashboard,app.kubernetes.io/instance=apisix" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace ingress-apisix $POD_NAME -o jsonpath="{.spec.containers[1].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace ingress-apisix port-forward $POD_NAME 8080:$CONTAINER_PORT &
+  http://127.0.0.1:8080 <user>:<password> -->
+<!-- 9. kubectl exec -i -t -n ingress-apisix apisix-ingress-controller-8f96b6b7b-ltxk7 --container wait-apisix-admin -- sh
+nc -z apisix-admin.ingress-apisix.svc.cluster.local 9180 -w 1 -v -->
+<!-- 10. kubectl -n ingress-apisix port-forward svc/apisix-gateway 32725:80 &
+10. while true; do kubectl -n ingress-apisix port-forward svc/apisix-gateway 32725:80; done
+10. kubectl -n ingress-apisix port-forward svc/apisix-gateway 9042:9042 &
+10. kubectl -n ingress-apisix port-forward svc/apisix-gateway 9092:9092 & -->
+
+# Ingress Config:
+- Ingress:
+1. 
+<!-- kubectl apply  -f ./ingress/kustomize/apisix/base/apisix-ingress.yaml && kubectl apply  -f ./ingress/kustomize/apisix/base/apisix-apisixtls.yaml
+kubectl apply  -f ./ingress/kustomize/apisix/base/apisix-internal-ingress.yaml && kubectl apply  -f ./ingress/kustomize/apisix/base/apisix-internal-apisixtls.yaml
+kubectl apply  -f ./ingress/ingress/apisix-dashboard-ingress.yaml && kubectl apply -f ./ingress/ingress/apisix-dashboard-route.yaml -->
+<!-- kubectl apply -f ./rook/ingress/ceph-dashboard-route.yaml -->
+<!-- kubectl apply -f ./vault/ingress/vault-ingress.yaml && kubectl apply -f ./vault/ingress/vault-route.yaml -->
+<!-- kubectl apply -f ./istio/ingress/kiali-route.yaml -->
+<!-- kubectl apply -f ./monitoring/ingress/prometheus-route.yaml
+kubectl apply -f ./monitoring/ingress/grafana-route.yaml
+kubectl apply -f ./monitoring/ingress/alertmanager-route.yaml -->
+kubectl apply -f ./keycloak/httpbin.yaml && kubectl apply -f ./ingress/kustomize/apisix/base/httpbin-ingress.yaml && kubectl apply -f ./ingress/kustomize/apisix/base/httpbin-tls-ingress.yaml && kubectl apply -f ./ingress/httpbin-route.yaml
+<!-- 4. kubectl apply -f ./ingress/ingress/apisix-dashboard-route.yaml -->
+<!-- http://localhost:32725/user/login?redirect=/
+http://localhost:32725/prometheus/alerts
+http://localhost:32725/grafana/
+http://localhost:32725/alertmanager/
+5. Monitoring:
+  6. https://grafana.com/grafana/dashboards/11719
+- OpenTelemetry
+1. kubectl apply -f ./monitoring/ingress/opentelemetry-plugin.yaml -->
+
+# Dashboard (v2.7.0):
+<!-- 1. ansible-playbook ./dashboard/ansible/dashboard.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. kubectl create namespace kubernetes-dashboard -->
+<!-- 2. kubectl label namespace kubernetes-dashboard istio-injection=enabled --overwrite -->
+<!-- 2. kubectl apply -f ./dashboard/dashboard-2.6.0/aio/deploy/recommended.yaml
+3. kubectl patch deployment/kubernetes-dashboard -n kubernetes-dashboard --type json -p='[
+  {'op': 'replace', 'path': '/spec/template/spec/containers/0/args', 'value': [
+      "--namespace=kubernetes-dashboard",
+      "--enable-insecure-login"
+    ]
+  },
+  {'op': 'add', 'path': '/spec/template/spec/containers/0/ports/-', 'value': {
+      containerPort: 9090,
+      protocol: "TCP"
+    }
+  },
+  {'op': 'replace', 'path': '/spec/template/spec/containers/0/livenessProbe/httpGet/scheme', 'value': "HTTP"},
+  {'op': 'replace', 'path': '/spec/template/spec/containers/0/livenessProbe/httpGet/port', 'value': 9090},
+]'
+kubectl patch service/kubernetes-dashboard -n kubernetes-dashboard --type json -p='[
+  {'op': 'replace', 'path': '/spec/ports/0/name', 'value': "https" },
+  {'op': 'add', 'path': '/spec/ports/-', 'value': {
+      name: "http",
+      protocol: "TCP",
+      appProtocol: "http",
+      port: 9090,
+      targetPort: 9090
+    }
+  }
+]' -->
+<!-- kubectl patch deployment/dashboard-metrics-scraper -n kubernetes-dashboard --type=merge -p '{"spec": {"template": {"metadata": {"annotations":{"traffic.sidecar.istio.io/excludeInboundPorts":"8000"}}}}}' -->
+<!-- 4. kubectl apply -f ./dashboard/serviceMesh/peerAuthentication.yaml
+4. kubectl apply -f ./dashboard/adminuser.yaml
+5. kubectl apply -f ./dashboard/clusterrolebinding.yaml -->
+<!-- 6. kubectl -n kubernetes-dashboard create token admin-user --duration=999999h
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-user-secret
+  namespace: kubernetes-dashboard
+  annotations:
+    kubernetes.io/service-account.name: admin-user
+type: kubernetes.io/service-account-token
+EOF -->
+<!-- kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/admin-user -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}" -->
+<!-- -->
+<!-- 7. kubectl proxy &
+8. http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+9. Monitoring: -->
+  <!-- a. ./dashboard/monitoring/dashboard-monitoring-patch.sh -->
+  <!-- kubectl apply -f ./dashboard/ingress/dashboard-peer-authentication.yaml -->
+<!-- 10. Ingress:
+  a. kubectl apply -f ./dashboard/ingress/dashboard-route.yaml -->
+
+# OpenTelemetry (0.71.0):
+<!-- 1. ansible-playbook ./opentelemetry/ansible/opentelemetry.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. kubectl create namespace opentelemetry-operator-system -->
+<!-- 1. kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml -->
+<!-- 1. helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update open-telemetry
+2. helm upgrade -i open-telemetry open-telemetry/opentelemetry-operator \
+  --version 0.12.0 \
+  --namespace opentelemetry-operator-system \
+  --set manager.serviceMonitor.enabled=true \
+  --set manager.prometheusRule.enabled=true \
+  --set manager.prometheusRule.defaultRules.enabled=true \
+  --debug \
+  --dry-run \
+  > ./opentelemetry/helm.yaml
+kubectl get pods -n opentelemetry-operator-system -->
+<!-- 3. kubectl patch deployment/opentelemetry-operator-controller-manager -n opentelemetry-operator-system --type=merge -p '{"spec": {"template": {"metadata": {"annotations":{"traffic.sidecar.istio.io/excludeInboundPorts":"9443"}}}}}' -->
+<!-- 3. kubectl apply -f ./opentelemetry/serviceMesh/peerAuthentication.yaml
+4. kubectl apply -f ./opentelemetry/collector.yaml
+4. kubectl apply -f ./opentelemetry/serviceMesh/serviceEntry.yaml -->
+<!-- kubectl apply -f ./opentelemetry/serviceMesh/sidecar.yaml -->
+<!-- 5. kubectl patch serviceMonitor/opentelemetry-operator \
+-n opentelemetry-operator-system \
+--type merge \
+--patch-file ./opentelemetry/monitoring/opentelemetry-operator-serviceMonitor-patch.yaml
+6. kubectl apply -f ./opentelemetry/monitoring/daemonset-collector-monitoring-podMonitor.yaml
+11. Monitoring:
+  a. ./opentelemetry/monitoring/opentelemetry-monitoring-patch.sh -->
+
+# Scylla (5.1.6):
+<!-- 1. ansible-playbook ./scylla/ansible/scylla-main.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. ansible-playbook ./scylla/ansible/scylla-operator.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+ansible-playbook ./scylla/ansible/scylla-manager.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+ansible-playbook ./scylla/ansible/scylla-cluster.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. kubectl apply -f ./scylla/operator.yaml
+2. kubectl apply -f ./scylla/cluster.yaml
+3. kubectl apply -f ./scylla/ingress/apisixRoute.yaml -->
+8. PortFowarding:
+  kubectl -n scylla port-forward svc/scylla-client 9042 &
+
+kubectl -n scylla-manager exec -it deployment/scylla-manager -- sctool tasks
+
+kubectl -n scylla-manager exec -it scylla-manager-dc-default-0 -c scylla-manager-agent -- scylla-manager-agent check-location --debug --location s3:scylla-manager-bucket-28689fd1-dd1b-4f20-a673-d00550f10125
+
+
+# Cassandra (4.0.4):
+<!-- 1. kubectl create namespace k8ssandra-operator -->
+<!-- 2. kubectl label namespace k8ssandra-operator istio-injection=disabled --overwrite -->
+<!-- 1. kubectl apply -f ./cassandra/medusa-bucket.yaml
+  a. kubectl -n k8ssandra-operator get cm k8ssandra-medusa-bucket -o jsonpath='{.data.BUCKET_HOST}'
+      rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+  b. kubectl -n k8ssandra-operator get cm k8ssandra-medusa-bucket -o jsonpath='{.data.BUCKET_PORT}'
+      80
+  b. kubectl -n k8ssandra-operator get cm k8ssandra-medusa-bucket -o jsonpath='{.data.BUCKET_NAME}'
+      k8ssandra-medusa-bucket-3f5e3e33-066d-4d2c-9610-327df49495d7
+  c. kubectl -n k8ssandra-operator get secret k8ssandra-medusa-bucket -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode
+  d. kubectl -n k8ssandra-operator get secret k8ssandra-medusa-bucket -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode
+  e.  export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+      export PORT=80
+      export BUCKET_NAME=k8ssandra-medusa-bucket-3f5e3e33-066d-4d2c-9610-327df49495d7
+      export AWS_ACCESS_KEY_ID=<secret>
+      export AWS_SECRET_ACCESS_KEY=<secret>
+2. kubectl apply -f ./cassandra/medusa-bucket-key.yaml -->
+<!-- 3. kustomize build ./cassandra/deployment > ./cassandra/deployment.yaml
+kustomize build ./cassandra/deployment | kubectl apply --server-side -f - -->
+<!-- --set-string commonLabels."sidecar\.istio\.io/inject"=false \ 
+--set commonLabels."traffic\.sidecar\.istio\.io/excludeInboundPorts"="9443" \-->
+<!-- 3. helm repo add k8ssandra https://helm.k8ssandra.io/stable
+helm repo update k8ssandra -->
+<!-- --set-string podAnnotations."traffic\.sidecar\.istio\.io/excludeInboundPorts"=9443 \ -->
+<!-- 4. helm upgrade -i k8ssandra-operator k8ssandra/k8ssandra-operator \
+  --version 0.38.1 \
+  --namespace k8ssandra-operator \
+  --debug \
+  --dry-run \
+  > ./cassandra/helm.yaml
+kubectl get pods -n k8ssandra-operator
+5. kubectl apply -f ./cassandra/serviceMesh/peerAuthentication.yaml -->
+<!-- 3. kustomize build ./cassandra/k8ssandra-operator-1.1.1/config/deployments/control-plane/ > ./cassandra/deployment.yaml
+kustomize build ./cassandra/k8ssandra-operator-1.1.1/config/deployments/control-plane/ | kubectl apply --server-side -f - -->
+<!-- 5. kubectl patch deployment/k8ssandra-operator -n k8ssandra-operator --type=merge -p '{"spec": {"template": {"metadata": {"labels":{"sidecar.istio.io/inject":"false"}}}}}'
+kubectl patch deployment/k8ssandra-operator-cass-operator -n k8ssandra-operator --type=merge -p '{"spec": {"template": {"metadata": {"labels":{"sidecar.istio.io/inject":"false"}}}}}' -->
+<!-- 6. kubectl label namespace k8ssandra-operator istio-injection-
+kubectl delete pods --all -n k8ssandra-operator -->
+<!-- 4. ./cassandra/operatorApply.sh
+5. ./cassandra/cassandra-seed-service-patch.sh
+6. kubectl apply -f ./cassandra/stargate-service.yaml -->
+<!-- kubectl delete K8ssandraCluster/cassandra -n k8ssandra-operator -->
+<!-- 7. ./cassandra/cassandra-reaper-patch.sh
+8. kubectl apply -f ./cassandra/ingress/cassandra-route.yaml
+kubectl apply -f ./cassandra/ingress/reaper-route.yaml
+9. kubectl -n k8ssandra-operator get secret cassandra-superuser -o jsonpath='{.data.password}' | base64 --decode
+10. kubectl -n k8ssandra-operator get secret reaper-ui-secret -o jsonpath='{.data.password}' | base64 --decode -->
+<!-- 7. Monitoring:
+  8. https://github.com/datastax/metric-collector-for-apache-cassandra/tree/master/dashboards/grafana/generated-dashboards
+  9. http://localhost:30080/reaper/webui/login.html
+8. PortFowarding:
+  kubectl -n k8ssandra-operator port-forward svc/cassandra-dc1-service 9042 & -->
+
+# Temp & Loki (2.7.4)
+<!-- 1. ansible-playbook ./monitoring/loki/ansible/loki.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+1. kubectl apply -f ./monitoring/loki/loki-bucket.yaml
+  a. kubectl -n monitoring get cm loki-bucket -o jsonpath='{.data.BUCKET_HOST}'
+      rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+  b. kubectl -n monitoring get cm loki-bucket -o jsonpath='{.data.BUCKET_PORT}'
+      80
+  b. kubectl -n monitoring get cm loki-bucket -o jsonpath='{.data.BUCKET_NAME}'
+      loki-bucket-0a3ccfd7-6f92-46e8-8738-0e02ed8c5716
+  c. kubectl -n monitoring get secret loki-bucket -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode
+  d. kubectl -n monitoring get secret loki-bucket -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode
+  e.  export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+      export PORT=80
+      export BUCKET_NAME=loki-bucket-0a3ccfd7-6f92-46e8-8738-0e02ed8c5716
+      export AWS_ACCESS_KEY_ID=<secret>
+      export AWS_SECRET_ACCESS_KEY=<secret>
+2. s3cmd --configure
+    S3 Endpoint [s3.amazonaws.com]: localhost:8080
+    DNS-style bucket+hostname:port template for accessing a bucket [%(bucket)s.s3.amazonaws.com]: localhost:8080
+    Use HTTPS protocol [Yes]: No
+    Test access with supplied credentials? [Y/n] Y
+  s3cmd ls
+  s3cmd setlifecycle ./monitoring/loki/loki-bucket-lifecycle-expiration.xml s3://loki-bucket-0a3ccfd7-6f92-46e8-8738-0e02ed8c5716
+  s3cmd info s3://loki-bucket-0a3ccfd7-6f92-46e8-8738-0e02ed8c5716
+  from toolbox:
+    radosgw-admin lc list
+    radosgw-admin lc get --bucket=loki-bucket-0a3ccfd7-6f92-46e8-8738-0e02ed8c5716
+    radosgw-admin lc process
+    radosgw-admin lc list
+<!-- 2. kubectl apply -f ./monitoring/loki/loki-bucket-user.yaml
+  a. kubectl -n monitoring get secret monitoring-object-user-my-store-loki-user -o jsonpath='{.data.AccessKey}' | base64 --decode
+  b. kubectl -n monitoring get secret monitoring-object-user-my-store-loki-user -o jsonpath='{.data.SecretKey}' | base64 --decode -->
+<!-- 2. helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update grafana -->
+<!-- 2. helm upgrade -i tempo grafana/tempo \
+  --version 0.16.1 \
+  --namespace monitoring \
+  --set tempo.extraArgs."distributor\.log-received-traces"=true \
+  --debug \
+  --dry-run \
+  > ./monitoring/tempo-helm.yaml -->
+<!-- 3. helm upgrade -i loki grafana/loki \
+  --version 2.14.1 \
+  --namespace monitoring \
+  --set networkPolicy.enabled=false \
+  --set persistence.enabled=true \
+  --set-string podLabels."sidecar\.istio\.io/inject"=false \
+  --set config.limits_config.max_global_streams_per_user=20000 \
+  --debug \
+  --dry-run \
+  > ./monitoring/loki-helm.yaml -->
+<!-- 3. helm upgrade -i loki grafana/loki-distributed  \
+  --version 0.55.7 \
+  --namespace monitoring \
+  --values ./monitoring/loki/loki-values.yaml \
+  --debug \
+  --dry-run \
+  > ./monitoring/loki/loki-helm.yaml -->
+<!-- 4. kubectl apply -f ./monitoring/loki/serviceMesh/peerAuthentication.yaml
+5. kubectl patch service/loki-loki-distributed-querier-headless -n monitoring --type json -p='[
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service loki-loki-distributed-querier-headless -n monitoring -o json  | jq '.spec.ports | map(.port == 9095) | index(true)')/appProtocol', "value": "tcp"},
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service loki-loki-distributed-querier-headless -n monitoring -o json  | jq '.spec.ports | map(.port == 3100) | index(true)')/appProtocol', "value": "tcp"}
+]'
+kubectl patch service/loki-loki-distributed-query-frontend -n monitoring --type json -p='[
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service loki-loki-distributed-query-frontend -n monitoring -o json  | jq '.spec.ports | map(.port == 9095) | index(true)')/appProtocol', "value": "tcp"},
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service loki-loki-distributed-query-frontend -n monitoring -o json  | jq '.spec.ports | map(.port == 3100) | index(true)')/appProtocol', "value": "tcp"}
+]'
+kubectl patch service/loki-loki-distributed-ingester-headless -n monitoring --type json -p='[
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service loki-loki-distributed-ingester-headless -n monitoring -o json  | jq '.spec.ports | map(.port == 9095) | index(true)')/appProtocol', "value": "tcp"},
+  {"op": "replace", "path": '/spec/ports/$(kubectl get service loki-loki-distributed-ingester-headless -n monitoring -o json  | jq '.spec.ports | map(.port == 3100) | index(true)')/appProtocol', "value": "tcp"}
+]' -->
+6. Monitoring:
+  <!-- a. ./monitoring/loki/monitoring/loki-serviceMonitor-patches.sh -->
+5. kubectl -n rook-ceph port-forward svc/rook-ceph-rgw-my-store 8080:80 &
+
+# fluentbit (v2.0.9)
+<!-- 1. ansible-playbook ./fluent/ansible/fluent-operator.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+ansible-playbook ./fluent/ansible/fluent-bit.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s -->
+<!-- 1. kubectl create namespace fluent
+2. helm upgrade -i fluent-operator https://github.com/fluent/fluent-operator/releases/download/v1.7.0/fluent-operator.tgz \
+  --namespace fluent \
+  --set Kubernetes=true \
+  --set containerRuntime=containerd \
+  --debug \
+  --dry-run \
+  > ./fluent/helm.yaml
+3. kubectl apply -f ./fluent/fluent-output.yaml
+4. kubectl apply -f ./fluent/kubernetes-filter.yaml
+5. kubectl apply -f ./fluent/cri-parser.yaml
+5. kubectl apply -f ./fluent/tail-input.yaml
+6. Monitoring
+  a. ./fluent/monitoring/fluent-monitoring-patch.sh -->
+
+# RedPanda (v23.1.2)
+1. ansible-playbook ./redpanda/ansible/redpanda-operator.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+ansible-playbook ./redpanda/ansible/redpanda-cluster.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+8. PortFowarding:
+  kubectl -n redpanda port-forward svc/redpanda 9092 &
+  kubectl -n redpanda port-forward svc/redpanda 9644 &
+  kubectl -n redpanda port-forward svc/redpanda-console 8080 &
+
+# Kafka (3.2.0):
+<!-- 1. kubectl create namespace kafka
+3. helm repo add strimzi https://strimzi.io/charts/
+helm repo update strimzi -->
+<!-- --set-string labels."sidecar\.istio\.io/inject"=false \ -->
+<!-- 4. helm upgrade -i strimzi strimzi/strimzi-kafka-operator \
+  --version 0.30.0 \
+  --namespace kafka \
+  --set extraEnvs[0].name=KUBERNETES_SERVICE_DNS_DOMAIN \
+  --set extraEnvs[0].value=cluster.local \
+  --set extraEnvs[1].name=STRIMZI_NETWORK_POLICY_GENERATION \
+  --set-string extraEnvs[1].value=false \
+  --debug \
+  --dry-run \
+  > ./kafka/helm.yaml
+4. kubectl apply -f ./kafka/strimzi-0.30.0/install/drain-cleaner/certmanager -->
+<!-- 3. kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
+4. kubectl patch deployment/strimzi-cluster-operator -n kafka --type=merge -p '{"spec": {"template": {"metadata": {"labels":{"sidecar.istio.io/inject":"false"}}}}}' -->
+<!-- 4. kubectl apply -f ./kafka/kafka-metrics.yaml -n kafka -->
+<!-- 4. kubectl apply -f ./kafka/kafka-cruise-control-metrics.yaml -n kafka -->
+<!-- 5. kubectl apply -f ./kafka/prometheus-rules.yaml -n kafka
+6. kubectl apply -f ./kafka/strimzi-operator-headless-service.yaml
+kubectl apply -f ./kafka/strimzi-pod-monitor.yaml -n kafka
+7. kubectl apply -f ./kafka/kafka-persistent.yaml -n kafka -->
+<!-- 8. kubectl patch service/kafka-zookeeper-nodes -n kafka --type json -p='[
+  {'op': 'add', 'path': '/spec/ports/-', 'value': {
+      name: "http",
+      protocol: "TCP",
+      appProtocol: "http",
+      port: 9090,
+      targetPort: 9090
+    }
+  }
+]' -->
+<!-- 8. kubectl apply -f ./kafka/monitoring/kafka-resources-metrics-service.yaml
+kubectl apply -f ./kafka/monitoring/entity-operator-metrics-service.yaml
+10. Ingress:
+  a. kubectl apply -f ./kafka/ingress/kafka-route.yaml -->
+<!-- 9. Monitoring: 
+  a. ./kafka/monitoring/kafka-monitoring-patch.sh -->
+  <!-- 10. kubectl patch clusterrole/prometheus-k8s --type json -p='[{"op": "add", "path": "/rules/-", "value":{
+    "verbs": [ "get", "list", "watch" ],
+    "apiGroups": [ "extensions" ],
+    "resources": [ "ingresses" ]
+  }}]' -->
+  <!-- 11. https://github.com/strimzi/strimzi-kafka-operator/tree/main/examples/metrics/grafana-dashboards
+  12. https://github.com/danielqsj/kafka_exporter#grafana-dashboard -->
+
+# Elasticsearch (8.6.2)
+1. ansible-playbook ./elastic/ansible/elastic-operator.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+PortFowarding:
+  kubectl -n elastic port-forward svc/kibana-kb-http 5601 &
+  kubectl -n elastic port-forward svc/elasticsearch-es-http 9200 &
+
+# Opensearch (2.1.0):
+<!-- 1. kubectl create namespace opensearch
+2. helm repo add opensearch-operator https://opster.github.io/opensearch-k8s-operator/
+  helm repo update opensearch-operator
+3. helm upgrade -i opensearch-operator opensearch-operator/opensearch-operator \
+  --version 2.0.0 \
+  --namespace opensearch \
+  --debug \
+  --dry-run \
+  > ./opensearch/helm.yaml
+4. kubectl apply -f ./opensearch/opensearch-cluster.yaml
+5. kubectl patch crd/opensearchclusters.opensearch.opster.io -p '{"metadata":{"finalizers":[]}}' --type=merge -->
+
+<!-- 1. kubectl create namespace opensearch-operator-system
+cd ./opensearch/opensearch-k8s-operator-main/opensearch-operator/
+go env -w GOPATH=/home/<user>/dataStore/opensearch/opensearch-k8s-operator-main/opensearch-operator/bin
+go env -w GOBIN=/home/<user>/dataStore/opensearch/opensearch-k8s-operator-main/opensearch-operator/bin
+make controller-gen
+make kustomize
+find ./ -iname controller-gen
+find ./ -iname kustomize
+cd ./bin/pkg/mod/sigs.k8s.io/controller-tools@v0.4.1/cmd/controller-gen
+sudo go build -buildvcs=false
+sudo chown <user>:<user> controller-gen
+cp controller-gen ../../../../../..
+cd ~/dataStore/opensearch/opensearch-k8s-operator-main/opensearch-operator/
+cd ./bin/pkg/mod/sigs.k8s.io/kustomize/kustomize/v3@v3.8.7
+sudo go build -buildvcs=false
+sudo chown <user>:<user> kustomize
+cp kustomize ../../../../../..
+cd ~/dataStore/opensearch/opensearch-k8s-operator-main/opensearch-operator/
+sudo rm -rf ./bin/pkg
+go env -u GOPATH
+go env -u GOBIN
+make build manifests
+2. docker build . --tag=k8s-lb:5000/opster/opensearch-k8s-operator:2.0.0
+3. docker push k8s-lb:5000/opster/opensearch-k8s-operator:2.0.0
+4. make install
+5. make deploy
+6. cd ~/dataStore
+7. kubectl apply -f ./opensearch/opensearch-cluster.yaml -->
+<!-- curl -X DELETE http://localhost:30080/opensearch/.kibana_1 -u <user>:<password> -->
+<!-- 8. Ingress:
+  a. kubectl apply -f ./opensearch/ingress/opensearch-route.yaml
+  kubectl apply -f ./opensearch/ingress/opensearch-route2.yaml
+  c. kubectl apply -f ./opensearch/ingress/opensearch-dashboards-route.yaml
+9. Monitoring:
+  a. helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  helm repo update prometheus-community
+  helm upgrade -i opensearch-exporter prometheus-community/prometheus-elasticsearch-exporter \
+  --version 4.13.0 \
+  --namespace opensearch-operator-system \
+  --set es.uri=http://<user>:<password>@opensearch.opensearch-operator-system.svc.cluster.local:9200 \
+  --set serviceMonitor.enabled=true \
+  --set serviceMonitor.scheme=https \
+  --set serviceMonitor.tlsConfig.caFile=/etc/prom-certs/root-cert.pem \
+  --set serviceMonitor.tlsConfig.certFile=/etc/prom-certs/cert-chain.pem \
+  --set serviceMonitor.tlsConfig.insecureSkipVerify=true \
+  --set serviceMonitor.tlsConfig.keyFile=/etc/prom-certs/key.pem \
+  --debug \
+  --dry-run \
+  > ./opensearch/monitoring/helm.yaml
+  b. kubectl patch serviceMonitor/opensearch-exporter-prometheus-elasticsearch-exporter -n opensearch-operator-system --type json -p='[
+      {"op": "replace", "path": "/spec/endpoints/0/tlsConfig", "value": {
+          "caFile": "/etc/prom-certs/root-cert.pem",
+          "certFile": "/etc/prom-certs/cert-chain.pem",
+          "insecureSkipVerify": true,
+          "keyFile": "/etc/prom-certs/key.pem"
+        }
+      }
+    ]'
+  c. ./opensearch/monitoring/opensearch-monitoring-patch2.sh -->
+  <!-- b. ./opensearch/monitoring/opensearch-monitoring-patch.sh
+  kubectl delete pods --all -n opensearch-operator-system -->
+<!-- 9. kubectl -n opensearch-operator-system port-forward svc/opensearch 9200 &
+9. kubectl -n opensearch-operator-system port-forward svc/opensearch-dashboards 5601 & -->
+
+# Jaeger (1.42.0):
+1. ansible-playbook ./jaeger/ansible/jaeger-operator.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+<!-- 1. kubectl create namespace observability -->
+<!-- 2. kubectl create -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.35.0/jaeger-operator.yaml -->
+<!-- 2. helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+helm repo update jaegertracing
+3. helm upgrade -i jaegertracing jaegertracing/jaeger-operator \
+  --version 2.34.0 \
+  --namespace observability \
+  --set rbac.clusterRole=true \
+  --debug \
+  --dry-run \
+  > ./jaeger/helm.yaml -->
+4. kubectl apply -f ./jaeger/serviceMesh/peerAuthentication.yaml
+<!-- kubectl patch deployment/jaegertracing-jaeger-operator -n observability --type=merge -p '{"spec": {"template": {"metadata": {"annotations":{"traffic.sidecar.istio.io/excludeInboundPorts":"9443"}}}}}' -->
+3. kubectl create secret generic -n observability jaeger-secrets --from-literal=ES_PASSWORD=<password> --from-literal=ES_USERNAME=<user>
+4. kubectl apply -f ./jaeger/jaeger.yaml
+5. kubectl patch CronJob/jaeger-spark-dependencies -n observability --type json -p='[
+  {"op": "add", "path": "/spec/jobTemplate/spec/template/spec/containers/0/env/-", "value": { "name": "ES_USE_ALIASES", "value": "true" }}
+]'
+6. Ingress:
+  a. kubectl apply -f ./jaeger/ingress/jaeger-route.yaml
+  <!-- b. kubectl apply -f ./jaeger/ingress/jaeger-peer-authentication.yaml -->
+<!-- 9. Monitoring:
+  a. ./jaeger/monitoring/jaeger-monitoring-patch.sh -->
+
+# Flink (1.15.3):
+1. ansible-playbook ./flink/ansible/flink-cluster.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+<!-- 1. kubectl create namespace flink -->
+<!-- kubectl label namespace flink istio-injection=disabled --overwrite -->
+<!-- kubectl apply -f ./flink/ingress/namespace-peer-authentication.yaml -->
+<!-- 2. kubectl apply -f ./flink/flink-bucket.yaml
+  a. kubectl -n flink get cm flink-bucket -o jsonpath='{.data.BUCKET_HOST}'
+      rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+  b. kubectl -n flink get cm flink-bucket -o jsonpath='{.data.BUCKET_PORT}'
+      80
+  b. kubectl -n flink get cm flink-bucket -o jsonpath='{.data.BUCKET_NAME}'
+      flink-bucket-b88634f8-1321-4f82-b1c0-45b30b6eca98
+  c. kubectl -n flink get secret flink-bucket -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode
+  d. kubectl -n flink get secret flink-bucket -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode
+  e.  export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+      export PORT=80
+      export BUCKET_NAME=flink-bucket-b88634f8-1321-4f82-b1c0-45b30b6eca98
+      export AWS_ACCESS_KEY_ID=<secret>
+      export AWS_SECRET_ACCESS_KEY=<secret>
+3. kubectl apply -f ./flink/flink-pv.yaml
+3. helm repo add flink-operator https://downloads.apache.org/flink/flink-kubernetes-operator-1.3.1/
+helm repo update flink-operator -->
+<!-- --set-string operatorPod.annotations."traffic\.sidecar\.istio\.io/excludeInboundPorts"=9443 \ -->
+<!-- 4. helm upgrade -i flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator \
+  --version 1.1.0 \
+  --namespace flink \
+  --set image.repository=ghcr.io/apache/flink-kubernetes-operator \
+  --set image.tag=1.1.0 \
+  --set operatorVolumeMounts.create=true \
+  --set operatorVolumes.create=true \
+  --set-string operatorPod.annotations."traffic\.sidecar\.istio\.io/excludeOutboundPorts"=443 \
+  -f ./flink/flink-operator-patch.yaml \
+  --debug \
+  --dry-run \
+  > ./flink/helm.yaml
+5. kubectl apply -f ./flink/serviceMesh/peerAuthentication.yaml -->
+<!-- kubectl patch deployment/flink-kubernetes-operator -n flink --type=merge -p '{"spec": {"template": {"metadata": {"labels":{"sidecar.istio.io/inject":"false"}}}}}' -->
+<!-- 5. kubectl patch deployment/flink-kubernetes-operator -n flink --type=merge -p '{"spec": {"template": {"metadata": {"labels":{"sidecar.istio.io/inject":"false"}}}}}' -->
+<!-- kubectl label namespace flink istio-injection- -->
+<!-- 5. kubectl apply -f ./flink/flink-kubernetes-operator-main/helm/flink-kubernetes-operator/crds/flinkdeployments.flink.apache.org-v1.yml && \
+kubectl apply -f ./flink/flink-kubernetes-operator-main/helm/flink-kubernetes-operator/crds/flinksessionjobs.flink.apache.org-v1.yml -->
+<!-- 5. kubectl patch flinkDeployment/flink -p '{"metadata":{"finalizers":[]}}' --type=merge -->
+<!-- 6. kubectl apply -f ./flink/basic.yaml -->
+  <!-- a. kubectl patch deployment/flink -n flink --type=merge -p '{"spec": {"template": {"metadata": {"labels":{"sidecar.istio.io/inject":"false"}}}}}' -->
+  <!-- a. kubectl patch service/flink-rest -n flink --type json -p='[
+      {"op": "replace", "path": '/spec/ports/$(kubectl get service flink-rest -n flink -o json  | jq '.spec.ports | map(.name == "rest") | index(true)')/appProtocol', "value": "http"}
+    ]'
+7. kubectl apply -f ./flink/flink-operator-service-headless.yaml
+kubectl apply -f ./flink/flink-jobmanager-headless-service.yaml
+kubectl apply -f ./flink/flink-taskmanager-headless-service.yaml -->
+<!-- 8. kubectl cp flink/flink-5b56679899-bg57l:/opt/flink/examples/streaming/ ./flink/artifacts/
+9. kubectl cp ./flink/artifacts/ flink/flink-kubernetes-operator-6556958d76-vrj86:/opt/flink/ -->
+11. kubectl apply -f ./flink/flink-session-job.yaml
+<!-- 12. Ingress: -->
+  <!-- a. kubectl apply -f ./flink/ingress/flink-route.yaml -->
+<!-- 12. Monitoring: -->
+  <!-- a. ./flink/monitoring/flink-monitoring-patch.sh
+  ./flink/monitoring/flink-monitoring-patch2.sh -->
+  <!-- 13. kubectl apply -f ./flink/monitoring/flink-pod-monitor.yaml -->
+7. kubectl -n flink port-forward svc/flink-rest 8081 &
+
+<!-- # Operator Lifecycle Manager
+1. kubectl create namespace olm
+2. kubectl label namespace olm istio-injection=disabled --overwrite
+3. kubectl create -f https://raw.githubusercontent.com/operator-framework/operator-lifecycle-manager/master/deploy/upstream/quickstart/crds.yaml
+4. kubectl create -f https://raw.githubusercontent.com/operator-framework/operator-lifecycle-manager/master/deploy/upstream/quickstart/olm.yaml -->
+
+<!-- https://www.kubegres.io/doc/getting-started.html -->
+<!-- # Postgresql
+1. kubectl apply -f https://raw.githubusercontent.com/reactive-tech/kubegres/v1.15/kubegres.yaml
+2. kubectl apply -f ./postgres/my-postgres-secret.yaml
+3. kubectl apply -f ./postgres/my-backup-pvc.yaml
+4. kubectl apply -f ./postgres/my-postgres.yaml
+
+kubectl -n kubegres-system port-forward svc/mypostgres 5432 &
+
+kubectl -n kubegres-system port-forward svc/kubegres-controller-manager-metrics-service 8443 & -->
+
+https://github.com/thedatabaseme/cookbooks/tree/master/kubernetes/zalando-postgres-operator
+https://github.com/zalando/patroni/blob/master/kubernetes/README.md#citus-on-k8s
+# Postgres (15.1)
+1. ansible-playbook ./postgres/ansible/postgres-operator.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+<!-- 1. kubectl create namespace postgres -->
+<!-- kubectl label namespace postgres istio-injection=disabled --overwrite -->
+<!-- 2. kubectl apply -f ./postgres/postgres-bucket.yaml
+  a. kubectl -n postgres get cm postgres-bucket -o jsonpath='{.data.BUCKET_HOST}'
+      rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+  b. kubectl -n postgres get cm postgres-bucket -o jsonpath='{.data.BUCKET_PORT}'
+      80
+  b. kubectl -n postgres get cm postgres-bucket -o jsonpath='{.data.BUCKET_NAME}'
+      postgres-bucket-80d58bf3-2699-435d-9d2e-4621ec3c21a6
+  c. kubectl -n postgres get secret postgres-bucket -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode
+  d. kubectl -n postgres get secret postgres-bucket -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode
+  e.  export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+      export PORT=80
+      export BUCKET_NAME=postgres-bucket-80d58bf3-2699-435d-9d2e-4621ec3c21a6
+      export AWS_ACCESS_KEY_ID=<secret>
+      export AWS_SECRET_ACCESS_KEY=<secret>
+2. helm repo add postgres-operator-charts https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+helm repo update postgres-operator-charts
+3. helm upgrade -i postgres-operator postgres-operator-charts/postgres-operator  \
+  --version v1.8.2 \
+  --namespace postgres \
+  --values ./postgres/operator-values.yaml \
+  --debug \
+  --dry-run \
+  > ./postgres/helm.yaml -->
+<!-- 4. helm repo add postgres-operator-ui-charts https://opensource.zalando.com/postgres-operator/charts/postgres-operator-ui
+helm repo update postgres-operator-ui-charts
+5. helm upgrade -i postgres-operator-ui postgres-operator-ui-charts/postgres-operator-ui  \
+  --version v1.8.2 \
+  --namespace postgres \
+  --values ./postgres/ui-values.yaml \
+  --debug \
+  --dry-run \
+  > ./postgres/ui-helm.yaml -->
+6. kubectl port-forward -n postgres svc/postgres-operator-ui 8081:80 &
+<!-- 7. kubectl apply -f ./postgres/postgres-pod-configmap.yaml -->
+<!-- 8. kubectl apply -f ./postgres/postgres-cluster-headless-service.yaml
+9. kubectl apply -f ./postgres/postgres-cluster.yaml -->
+10. kubectl port-forward -n postgres $(kubectl get pod -n postgres -l cluster-name=postgres-cluster,spilo-role=master -o jsonpath='{.items[0].metadata.name}') 5432:5432 &
+
+<!-- https://github.com/keycloak/keycloak/issues/10321 -->
+<!-- https://github.com/bungle/lua-resty-session/blob/master/README.md#nginx-configuration-variables -->
+# Keycloak (21.0.2):
+1. ansible-playbook ./keycloak/ansible/keycloak-operator.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+<!-- kubectl create namespace keycloak-operator -->
+<!-- 1. postgres:
+  a. kubectl apply -f ./keycloak/postgres/keycloak-postgres-secret.yaml
+  b. kubectl apply -f ./keycloak/postgres/keycloak-backup-pvc.yaml
+  c. kubectl apply -f ./keycloak/postgres/keycloak-postgres.yaml
+  d. kubectl patch configMap/base-kubegres-config \
+  -n keycloak-operator \
+  --type merge \
+  --patch-file ./keycloak/postgres/keycloak-postgres-init-patch.yaml
+  kubectl patch kubegres/keycloak-postgres -n keycloak-operator --type=merge -p '{"spec": {"failover": {"isDisabled": true}}}'
+  kubectl delete -n keycloak-operator persistentvolumeclaim postgres-db-keycloak-postgres-1-0
+  kubectl rollout restart statefulset/keycloak-postgres-1 -n keycloak-operator
+  kubectl patch kubegres/keycloak-postgres -n keycloak-operator --type=merge -p '{"spec": {"failover": {"isDisabled": true}}}'
+kubectl delete pods --all -n my-keycloak-operator
+  d. kubectl -n keycloak-operator port-forward svc/keycloak-postgres 5432 & -->
+<!-- 1. kubectl apply -f https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/20.0.3/kubernetes/keycloaks.k8s.keycloak.org-v1.yml
+kubectl apply -f https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/20.0.3/kubernetes/keycloakrealmimports.k8s.keycloak.org-v1.yml
+2. kubectl apply -n keycloak-operator -f https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/20.0.3/kubernetes/kubernetes.yml -->
+<!-- 3. kubectl apply -f ./keycloak/keycloak.yaml -->
+4. kubectl -n keycloak port-forward svc/keycloak-service 8080 &
+<!-- 5. kubectl get secret -n keycloak keycloak-initial-admin -o go-template='{{range $k,$v := .data}}{{printf "%s: " $k}}{{if not $v}}{{$v}}{{else}}{{$v | base64decode}}{{end}}{{"\n"}}{{end}}' -->
+<!-- 6. kubectl apply -f ./keycloak/keycloak-realm.yaml -->
+7. Ingress:
+  <!-- a. kubectl apply -f ./keycloak/ingress/keycloak-route.yaml -->
+7. Testing
+  <!-- a. kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml -->
+  a. kubectl apply -f ./keycloak/httpbin.yaml
+  b. kubectl apply -f ./keycloak/ingress/httpbin-route.yaml
+
+
+<!-- 1. https://operatorhub.io/operator/keycloak-operator
+2. kubectl create namespace my-keycloak-operator
+3. kubectl label namespace my-keycloak-operator istio-injection=disabled --overwrite
+4. kubectl apply -f https://operatorhub.io/install/keycloak-operator.yaml
+5. kubectl apply -f ./keycloak/keycloak.yaml
+6. kubectl patch configMap/keycloak-probes \
+  -n my-keycloak-operator \
+  --type merge \
+  --patch-file ./keycloak/keycloak-probes-patch.yaml
+kubectl delete pods --all -n my-keycloak-operator -->
+
+<!-- # redis
+1. kubectl create namespace redis
+2. helm repo add redis-operator https://spotahome.github.io/redis-operator
+helm repo update redis-operator
+  <!-- --values ./zalando/operator-values.yaml \ -->
+<!-- 3. helm upgrade -i redis-operator redis-operator/redis-operator  \
+  --version v3.2.3 \
+  --namespace redis \
+  --debug \
+  --dry-run \
+  > ./redis/helm.yaml
+4. kubectl apply -f ./redis/redisfailover-headless-services.yaml
+5. kubectl apply -f ./redis/basic.yaml -->
+<!-- 6. kubectl patch configmap/rfr-redisfailover \
+  -n redis \
+  --type merge \
+  --patch-file ./redis/rfr-redisfailover-patch.yaml
+  kubectl scale -n redis statefulset rfr-redisfailover --replicas=0
+  kubectl scale -n redis statefulset rfr-redisfailover --replicas=2 -->
+<!-- 6. kubectl -n redis port-forward svc/rfs-redisfailover 26379:26379 &
+7. redis-cli -p 26379 PING
+redis-cli CONFIG GET *
+redis-cli -p 26379 --replica
+redis-cli --latency
+redis-cli -c --latency-dist
+redis-cli -c --lru-test 10000000
+watch -n1 ls -l
+redis-cli -c SETEX key 600 value
+redis-cli -c get key --> -->
+
+<!-- 
+# redis2
+1. kubectl create namespace redis
+2. kubectl -n redis apply -f https://raw.githubusercontent.com/RedisLabs/redis-enterprise-k8s-docs/v6.2.12-1/bundle.yaml
+3. kubectl apply -f ./redis/test-rec.yaml
+4. kubectl apply -f ./redis/test-rec-internode-headless-service.yaml
+kubectl apply -f ./redis/test-rec-bootstrap-readiness-headless-service.yaml
+5. kubectl get secret -n redis admission-tls -o jsonpath='{.data.cert}' > ./redis/cert.crt
+6. CERT=`kubectl get secret admission-tls -o jsonpath='{.data.cert}'`
+sed 's/NAMESPACE_OF_SERVICE_ACCOUNT/demo/g' admission/webhook.yaml | kubectl -n redis create -f -
+7. sudo crictl ps | grep redis
+sudo crictl stop 01e1ec7e99637
+
+cat > modified-webhook.yaml <<EOF
+webhooks:
+- name: redb.admission.redislabs
+  clientConfig:
+    caBundle: $CERT
+  admissionReviewVersions: ["v1beta1"]
+EOF -->
+
+# redis3 (v6.2.5):
+1. ansible-playbook ./redis/ansible/redis-operator.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+1. kubectl create namespace redis
+2. helm repo add ot-helm https://ot-container-kit.github.io/helm-charts/
+helm repo update ot-helm
+3. helm upgrade -i redis-operator ot-helm/redis-operator  \
+  --version v0.11.2 \
+  --namespace redis \
+  --debug \
+  --dry-run \
+  > ./redis/helm.yaml
+4. kubectl apply -f ./redis/redis-cluster-internode-headless-service.yaml
+5. kubectl apply -f ./redis/redis-cluster.yaml
+<!-- 5. kubectl patch service/redis-cluster-leader-headless -n redis --type json -p='[
+  {'op': 'add', 'path': '/spec/ports/-', 'value': {
+      name: "16379",
+      protocol: "TCP",
+      appProtocol: "tcp",
+      port: 16379,
+      targetPort: 16379
+    }
+  }
+]' -->
+5. kubectl -n redis port-forward svc/redisinsight-chart 8080:80 &
+5. kubectl exec -it -n redis redis-cluster-leader-0 -c redis-cluster-leader -- redis-cli CLUSTER MEET 10.242.226.39 6379
+kubectl exec -it -n redis redis-cluster-leader-0 -c redis-cluster-leader -- redis-cli CLUSTER MEET 10.242.226.7 6379
+kubectl exec -it redis-cluster-leader-0 -n redis -- redis-cli cluster nodes
+5. kubectl exec -it -n redis redis-cluster-leader-0 -c redis-cluster-leader -- sh
+kubectl -n redis port-forward svc/redis-cluster-leader-headless 6379:6379 &
+redis-cli CLUSTER NODES
+redis-cli -c --latency-dist
+redis-cli -c --lru-test 10000000
+watch -n1 ls -l
+redis-cli -c SETEX key 600 value
+redis-cli -c get key
+kubectl exec -it -n redis redis-cluster-leader-0 -c redis-cluster-leader -- redis-cli --cluster call localhost:6379 KEYS "*" --cluster-only-masters
+
+
+kubectl get event --namespace keycloak-operator --field-selector involvedObject.name=keycloak-0
+
+echo '#!/bin/bash
+set -e
+curl -s --max-time 10 --fail http://$(hostname -i | awk '{print $2}'):8080/auth > /dev/null' > /probes/liveness_probe.sh
+
+# Port-forwarding:
+kubectl -n kubernetes-dashboard create token admin-user
+kubectl proxy &
+kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard 9090:9090 &
+kubectl -n ingress-apisix port-forward svc/apisix-gateway 9042:9042 &
+kubectl -n ingress-apisix port-forward svc/apisix-gateway 9092:9092 &
+export POD_NAME=$(kubectl get pods --namespace ingress-apisix -l "app.kubernetes.io/name=dashboard,app.kubernetes.io/instance=apisix" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace ingress-apisix $POD_NAME -o jsonpath="{.spec.containers[1].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace ingress-apisix port-forward $POD_NAME 8080:$CONTAINER_PORT &
+kubectl -n opensearch port-forward svc/opensearch 9200 &
+kubectl -n opensearch port-forward svc/opensearch-dashboards 5601 &
+kubectl -n flink port-forward svc/flink-rest 8081 &
+while true; do kubectl -n ingress-apisix port-forward svc/apisix-gateway 32725:80; done
+kubectl port-forward -n istio-system svc/kiali 20001 &
+kubectl -n observability port-forward svc/jaeger-query 16686 &
+
+# wsl stuff:
+socat tcp-listen:9042,reuseaddr,fork tcp:localhost:30942 &
+socat tcp-listen:9092,reuseaddr,fork tcp:localhost:30992 &
+socat tcp-listen:9200,reuseaddr,fork tcp:localhost:30080 &
+
+sudo iptables -L -v -n
+sudo iptables -L -n -t nat
+sudo iptables -t nat -A OUTPUT -p tcp --dport 9042 -j REDIRECT --to-port 30942
+sudo iptables -t nat -A OUTPUT -p tcp --dport 9092 -j REDIRECT --to-port 30992
+sudo iptables -t nat -A OUTPUT -p tcp --dport 9200 -j REDIRECT --to-port 30080
+
+<!-- sudo iptables -t nat -I PREROUTING -p tcp --dport 9200 -j REDIRECT --to-ports 30080 -->
+
+sudo ss -ltnp
+sudo netstat -ltnp
+
+kubectl get --all-namespaces  --output json  pods | jq '.items[] | select(.status.podIP=="10.252.231.239")' | jq .metadata.name
+
+# corrupt cached images (exec /app/cmd/controller/controller: exec format error)
+1. kubectl scale -n cert-manager deployment cert-manager-cainjector --replicas=0
+2. ssh into bad node
+3. sudo crictl images
+4. sudo crictl rmi IMAGE-ID 11778d29f8cc2
+5. sudo crictl rmi --prune
+6. kubectl scale -n cert-manager deployment cert-manager-cainjector --replicas=1
+
+# find pods stuck in terminating
+1. kubectl get pods -A | grep Terminating | awk '{print $1 " " $2}'
+while read -r fname; do echo "kubectl delete pod -n $fname --grace-period=0 --force"; done <<< `kubectl get pods -A | grep Terminating | awk '{print $1 " " $2}'`
+2. while read -r fname; do echo "kubectl delete pod -n $fname --grace-period=0 --force"; done <<< `kubectl get pods -A | awk '{print $1 " " $2}'`
+
+# stopp containerd pods stuck in NotReady
+sudo crictl pods --state notready -q | while read pod_id; do if [ $(sudo crictl ps --pod $pod_id -q | wc -l) -eq 0 ]; then sudo crictl rmp $pod_id; fi; done
+
+# delete completed pods
+1. kubectl delete pods -A --field-selector=status.phase==Succeeded
+kubectl delete pods -A --field-selector=status.phase==Failed
+kubectl get pods -A --field-selector=status.phase!=Running
+
+# delete istio pods
+1. kubectl get pods -A -o=custom-columns='NAMESPACE:metadata.namespace,NAME:metadata.name,IMAGE:spec.containers[?(@.image=="docker.io/istio/proxyv2:1.16.1")].image' \
+| awk '{if($3 != "<none>"){print $1,$2}}' \
+| awk '{print "kubectl delete pod -n "$0" &&"}'
+
+# check events
+kubectl get events -n rook-ceph --sort-by=.metadata.creationTimestamp
+
+# loki istio log query
+1. {log_name="otel_envoy_accesslog"} |= "NR filter_chain_not_found"
+2. {log_name="otel_envoy_accesslog"} |= "PassthroughCluster"
+
+# investigate
+1. Uptime kuma
+  https://github.com/louislam/uptime-kuma
+2. Apache guacamole keycloak duo mobile mfa
+
+ansible-playbook ./main.yaml -i ./ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/k8s-inventory-k8s
+
+watch 'kubectl get pods -A -o custom-columns=NAMESPACE:metadata.namespace,POD:metadata.name,PodIP:status.podIP,READY-true:status.containerStatuses[*].ready | grep false'
+
+kubectl get certificates -A -o custom-columns=NAMESPACE:metadata.namespace,CERTIFICATE:metadata.name,PodIP:status.podIP,READY-true:status.containerStatuses[*].ready | grep false
+

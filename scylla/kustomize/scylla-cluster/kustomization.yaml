@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# kustomize openapi fetch | jq '.definitions | { definitions: with_entries(select(.key | in({"com.coreos.monitoring.v1.ServiceMonitor":1}))) }' > ./openapi-schema.json
+openapi:
+  path: schemas/com.coreos.monitoring.v1.ServiceMonitor.json
+
+resources:
+- ./base/scylla-namespace.yaml
+- ./base/scylla-bucket.yaml
+- ./base/scylla-config-configmap.yaml
+- ./base/scylla-agent-config-secret.yaml
+- ./base/scylla/templates/scyllacluster.yaml
+- ./base/scylla/templates/servicemonitor.yaml
+- ./base/scylla-peerauthentication.yaml
+
+patches:
+- path: ./patches/scylla-manager-servicemonitor-patch.yaml

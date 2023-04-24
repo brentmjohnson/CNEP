@@ -1,0 +1,14 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: scylla-route
+  namespace: scylla
+spec:
+  stream:
+    - name: rule1
+      protocol: TCP
+      match:
+        ingressPort: 9042
+      backend:
+        serviceName: simple-cluster-client
+        servicePort: 9042

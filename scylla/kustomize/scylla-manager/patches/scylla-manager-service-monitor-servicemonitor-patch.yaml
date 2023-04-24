@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: scylla-manager-service-monitor
+  namespace: scylla-manager
+spec:
+  endpoints:
+  - port: agent-prometheus
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      keyFile: /etc/prom-certs/key.pem
+      insecureSkipVerify: true  # Prometheus does not support Istio security naming, thus skip verifying target pod certificate
+  - port: prometheus
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      keyFile: /etc/prom-certs/key.pem
+      insecureSkipVerify: true  # Prometheus does not support Istio security naming, thus skip verifying target pod certificate

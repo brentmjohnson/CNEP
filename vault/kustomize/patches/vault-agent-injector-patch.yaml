@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-agent-injector
+spec:
+  template:
+    spec:
+      containers:
+        - name: sidecar-injector
+          env:
+            - name: AGENT_INJECT_VAULT_ADDR
+              value: http://vault.vault.svc:8200
+            - name: AGENT_INJECT_TLS_AUTO
+              value: vault-agent-injector-cfg
+            - name: AGENT_INJECT_TLS_AUTO_HOSTS
+              value: vault-agent-injector-svc,vault-agent-injector-svc.vault,vault-agent-injector-svc.vault.svc

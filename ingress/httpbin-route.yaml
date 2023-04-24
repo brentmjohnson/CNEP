@@ -1,0 +1,48 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: httpbin-route
+  namespace: default
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+        - httpbin.example.com
+        - httpbin.internal.example.com
+      paths:
+        - /*
+    backends:
+      - serviceName: httpbin
+        servicePort: 80
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: httpbin.default.svc.cluster.local
+      # - name: real-ip
+      #   enable: true
+      #   config:
+      #     source: CF-Connecting-IP
+      #     trusted_addresses:
+      #       - "10.0.0.0/24"
+      #     recursive: true
+      # - name: response-rewrite
+      #   enable: true
+      #   config:
+      #     headers:
+      #       remote_addr: $remote_addr
+      #       remote_port: $remote_port

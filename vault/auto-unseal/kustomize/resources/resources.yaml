@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  annotations:
+    meta.helm.sh/release-name: vault-unseal-cronjob
+    meta.helm.sh/release-namespace: vault
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    chart: vault-unseal-cronjob-0.4.0
+  name: vault-unseal-cronjob
+  namespace: vault
+spec:
+  jobTemplate:
+    metadata:
+      annotations:
+        meta.helm.sh/release-name: vault-unseal-cronjob
+        meta.helm.sh/release-namespace: vault
+    spec:
+      template:
+        metadata:
+          annotations:
+            meta.helm.sh/release-name: vault-unseal-cronjob
+            meta.helm.sh/release-namespace: vault
+          labels:
+            app: vault-unseal-cronjob
+        spec:
+          containers:
+          - args:
+            - unseal
+            - --address=http://vault-internal.vault.svc.cluster.local:8200
+            - --shard=rycK8351EXLOUV3nctla0dIMyoXUjnkVMO3KyrSUqoY=
+            image: ghcr.io/omegion/vault-unseal:v0.1.0
+            imagePullPolicy: IfNotPresent
+            name: vault-unseal-cronjob
+          restartPolicy: OnFailure
+  schedule: '*/5 * * * *'
+  successfulJobsHistoryLimit: 1

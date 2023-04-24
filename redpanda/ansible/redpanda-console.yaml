@@ -1,0 +1,78 @@
+- name: Install redpanda-console
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - name: Setting helm redpanda values templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../helm/values/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../helm/values/templates/*.j2"
+
+    - name: Add redpanda-console chart repo
+      kubernetes.core.helm_repository:
+        name: redpanda
+        repo_url: "https://charts.redpanda.com/"
+
+    - name: Separately update the redpanda-console cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: redpanda
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template redpanda-console chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=0.5.6
+          --namespace=redpanda
+          --values={{ playbook_dir }}/../helm/values/redpanda-console-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/redpanda-console/base
+          redpanda-console redpanda/console
+
+    - name: Add redpanda-console resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/console/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/redpanda-console/"
+
+    - name: Kustomize build redpanda-console manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/redpanda-console/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy redpanda-console resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/redpanda-console/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply redpanda-console manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/redpanda-console/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the redpanda-console deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: redpanda-console
+        namespace: redpanda
+      register: myoutput
+
+    

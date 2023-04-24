@@ -1,0 +1,172 @@
+apisix:
+  image:
+    repository: k8s-lb:5000/apache/apisix
+    pullPolicy: Always
+    tag: 3.2.0.1-debian
+  replicaCount: 1
+  podAnnotations:
+    # traffic.sidecar.istio.io/excludeInboundPorts: 9080,9443,9042,9092
+    proxy.istio.io/config: |  # configure an env variable `OUTPUT_CERTS` to write certificates to the given folder
+        proxyMetadata:
+          OUTPUT_CERTS: /etc/istio-output-certs
+    sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]' # mount the shared volume at sidecar proxy
+    sidecar.istio.io/logLevel: 'dns:debug'
+  stream_proxy:
+    only: false
+  podSecurityContext:
+    sysctls:
+      - name: net.ipv4.ip_unprivileged_port_start
+        value: "1"
+gateway:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
+  http:
+    containerPort: 80
+    enabled: true
+    nodePort: 30080
+  tls:
+    containerPort: 443
+    enabled: true
+    # existingCASecret: etcd
+    # certCAFilename: ca.crt
+    nodePort: 30443
+  stream:
+    enabled: true
+    tcp:
+      - 9042
+      - 9092
+etcd:
+  enabled: false
+  host:
+    - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+    # - https://k8s-control-0:2379
+    # - https://k8s-control-1:2379
+    # - https://k8s-control-2:2379
+  # auth:
+  #   tls:
+  #     enabled: true
+  #     existingSecret: etcd
+  #     certFilename: apiserver-etcd-client.crt
+  #     certKeyFilename: apiserver-etcd-client.key
+serviceMonitor:
+  enabled: true
+ingress-controller:
+  enabled: true
+  config:
+    apisix:
+      adminAPIVersion: v3
+      serviceNamespace: ingress-apisix
+    ingressPublishService: ingress-apisix/apisix-gateway
+    kubernetes:
+      apisixRouteVersion: apisix.apache.org/v2
+      resyncInterval: 10m
+  serviceMonitor:
+    enabled: true
+    namespace: ingress-apisix
+dashboard:
+  enabled: true
+  image:
+    tag: 3.0.0-alpine
+  config:
+    conf:
+      etcd:
+        endpoints:
+          - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+          # - https://k8s-control-0:2379
+          # - https://k8s-control-1:2379
+          # - https://k8s-control-2:2379
+        # mtls:
+        #   key_file: /etcd-ssl/apiserver-etcd-client.key
+        #   cert_file: /etcd-ssl/apiserver-etcd-client.crt
+        #   ca_file: /usr/local/apisix/conf/ssl/ca.crt
+    authentication:
+      users:
+        - username: {{ credentials.apisix_dashboard.username }}
+          password: {{ credentials.apisix_dashboard.password }}
+  serviceMonitor:
+    enabled: true
+extraVolumes:
+  - name: istio-certs
+    emptyDir:
+      medium: Memory
+extraVolumeMounts:
+  - name: istio-certs
+    mountPath: /etc/prom-certs/
+  - mountPath: /usr/local/apisix/conf/debug.yaml
+    name: apisix-config
+    subPath: debug.yaml
+nginx:
+  workerProcesses: 1
+pluginAttrs:
+  opentelemetry:
+    # trace_id_source: x-request-id
+    trace_id_source: random
+    resource:
+      service.name: APISIX
+    collector:
+      address: daemonset-collector.opentelemetry-operator-system.svc.cluster.local:4318
+      request_timeout: 3
+    batch_span_processor:
+      drop_on_queue_full: false
+      max_queue_size: 2048
+      batch_timeout: 5
+      inactive_timeout: 2
+      max_export_batch_size: 256
+  request-id:
+    snowflake:
+      enable: false
+      snowflake_epoc: 1609459200000   # the starting timestamp is expressed in milliseconds
+      data_machine_bits: 12           # data machine bit, maximum 31, because Lua cannot do bit operations greater than 31
+      sequence_bits: 10               # each machine generates a maximum of (1 << sequence_bits) serial numbers per millisecond
+      data_machine_ttl: 30            # live time for data_machine in etcd (unit: second)
+      data_machine_interval: 10       # lease renewal interval in etcd (unit: second)
+configurationSnippet:
+  main: |
+
+  httpStart: |
+    proxy_buffer_size 32k;
+    proxy_buffers 8 32k;
+    proxy_busy_buffers_size 32k;
+    lua_shared_dict redis_cluster_slot_locks 100k;
+    # cache for discovery metadata documents
+    # lua_shared_dict discovery 1m;
+    # cache for JWKs
+    # lua_shared_dict jwks 1m;
+    # cache for validation results
+    # lua_shared_dict introspection 10m;
+    # cache for JWT verification results
+    lua_shared_dict jwt_verification 10m;
+
+  httpEnd: |
+
+  httpSrv: |
+    proxy_buffer_size 32k;
+    proxy_buffers 8 32k;
+    proxy_busy_buffers_size 32k;
+    set $session_name "apisix_session";
+    # set $session_cipher none;
+    set $session_cookie_samesite Strict;
+    # set $session_cookie_renew 60;
+    # set $session_cookie_lifetime 360;
+    large_client_header_buffers 4 16k;
+    set $session_strategy regenerate;
+    set $session_storage redis;
+    set $session_secret <secret>;
+    # set_by_lua_block $session_secret {
+    #     local secrets = {
+    #         ["httpbin.internal.example.com"] = <secret>,
+    #     }
+    #     # ngx.log(ngx.STDERR, 'host: ', ngx.var.host, ' ', 'secret: ', secrets[ngx.var.host] or nil)
+    #     return secrets[ngx.var.host] or nil
+    # }
+    # set $session_redis_host redis-cluster-leader-headless.redis.svc.cluster.local;
+    # set $session_redis_port 26379;
+    # set $session_redis_ssl off;
+    # set $session_redis_ssl_verify off;
+    set $session_redis_uselocking off;
+    set $session_redis_cluster_name redis-cluster;
+    set $session_redis_cluster_nodes 'redis-cluster-leader-headless.redis.svc.cluster.local redis-cluster-follower-headless.redis.svc.cluster.local';
+
+  httpAdmin: |
+
+  stream: |

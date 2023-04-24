@@ -1,0 +1,707 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scylla-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: scylla-manager
+    app.kubernetes.io/name: scylla-manager
+  name: scylla-manager
+  namespace: scylla-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: scylla-manager
+    app.kubernetes.io/name: scylla-manager-controller
+  name: scylla-manager-controller
+  namespace: scylla-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.operator.scylladb.com/aggregate-to-scylla-manager-controller: "true"
+  name: scylladb:controller:aggregate-to-manager-controller
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - scylla.scylladb.com
+  resources:
+  - scyllaclusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - scylla.scylladb.com
+  resources:
+  - scyllaclusters/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.operator.scylladb.com/aggregate-to-scylla-manager-controller: "true"
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: scylladb:controller:manager-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: scylladb:controller:manager-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: scylladb:controller:manager-controller
+subjects:
+- kind: ServiceAccount
+  name: scylla-manager-controller
+  namespace: scylla-manager
+---
+apiVersion: v1
+data:
+  scylla.yaml: "# Scylla storage config YAML\n\n#######################################\n#
+    This file is split to two sections:\n# 1. Supported parameters\n# 2. Unsupported
+    parameters: reserved for future use or backwards\n#    compatibility.\n# Scylla
+    will only read and use the first segment\n#######################################\n\n###
+    Supported Parameters\n\n# The name of the cluster. This is mainly used to prevent
+    machines in\n# one logical cluster from joining another.\n# It is recommended
+    to change the default value when creating a new cluster.\n# You can NOT modify
+    this value for an existing cluster\n#cluster_name: 'Test Cluster'\n\n# This defines
+    the number of tokens randomly assigned to this node on the ring\n# The more tokens,
+    relative to other nodes, the larger the proportion of data\n# that this node will
+    store. You probably want all nodes to have the same number\n# of tokens assuming
+    they have equal hardware capability.\nnum_tokens: 256\n\n# Directory where Scylla
+    should store all its files, which are commitlog,\n# data, hints, view_hints and
+    saved_caches subdirectories. All of these\n# subs can be overriden by the respective
+    options below.\n# If unset, the value defaults to /var/lib/scylla\n# workdir:
+    /var/lib/scylla\n\n# Directory where Scylla should store data on disk.\n# data_file_directories:\n#
+    \   - /var/lib/scylla/data\n\n# commit log.  when running on magnetic HDD, this
+    should be a\n# separate spindle than the data directories.\n# commitlog_directory:
+    /var/lib/scylla/commitlog\n\n# commitlog_sync may be either \"periodic\" or \"batch.\"\n#\n#
+    When in batch mode, Scylla won't ack writes until the commit log\n# has been fsynced
+    to disk.  It will wait\n# commitlog_sync_batch_window_in_ms milliseconds between
+    fsyncs.\n# This window should be kept short because the writer threads will\n#
+    be unable to do extra work while waiting.  (You may need to increase\n# concurrent_writes
+    for the same reason.)\n#\n# commitlog_sync: batch\n# commitlog_sync_batch_window_in_ms:
+    2\n#\n# the other option is \"periodic\" where writes may be acked immediately\n#
+    and the CommitLog is simply synced every commitlog_sync_period_in_ms\n# milliseconds.\ncommitlog_sync:
+    periodic\ncommitlog_sync_period_in_ms: 10000\n\n# The size of the individual commitlog
+    file segments.  A commitlog\n# segment may be archived, deleted, or recycled once
+    all the data\n# in it (potentially from each columnfamily in the system) has been\n#
+    flushed to sstables.\n#\n# The default size is 32, which is almost always fine,
+    but if you are\n# archiving commitlog segments (see commitlog_archiving.properties),\n#
+    then you probably want a finer granularity of archiving; 8 or 16 MB\n# is reasonable.\ncommitlog_segment_size_in_mb:
+    32\n\n# seed_provider class_name is saved for future use.\n# A seed address is
+    mandatory.\nseed_provider:\n    # The addresses of hosts that will serve as contact
+    points for the joining node.\n    # It allows the node to discover the cluster
+    ring topology on startup (when\n    # joining the cluster).\n    # Once the node
+    has joined the cluster, the seed list has no function.\n    - class_name: org.apache.cassandra.locator.SimpleSeedProvider\n
+    \     parameters:\n          # In a new cluster, provide the address of the first
+    node.\n          # In an existing cluster, specify the address of at least one
+    existing node.\n          # If you specify addresses of more than one node, use
+    a comma to separate them.\n          # For example: \"<IP1>,<IP2>,<IP3>\"\n          -
+    seeds: \"127.0.0.1\"\n\n# Address to bind to and tell other Scylla nodes to connect
+    to.\n# You _must_ change this if you want multiple nodes to be able to communicate!\n#\n#
+    If you leave broadcast_address (below) empty, then setting listen_address\n# to
+    0.0.0.0 is wrong as other nodes will not know how to reach this node.\n# If you
+    set broadcast_address, then you can set listen_address to 0.0.0.0.\nlisten_address:
+    localhost\n\n# Address to broadcast to other Scylla nodes\n# Leaving this blank
+    will set it to the same value as listen_address\n# broadcast_address: 1.2.3.4\n\n\n#
+    When using multiple physical network interfaces, set this to true to listen on
+    broadcast_address\n# in addition to the listen_address, allowing nodes to communicate
+    in both interfaces.\n# Ignore this property if the network configuration automatically
+    routes between the public and private networks such as EC2.\n#\n# listen_on_broadcast_address:
+    false\n\n# port for the CQL native transport to listen for clients on\n# For security
+    reasons, you should not expose this port to the internet. Firewall it if needed.\n#
+    To disable the CQL native transport, remove this option and configure native_transport_port_ssl.\nnative_transport_port:
+    9042\n\n# Like native_transport_port, but clients are forwarded to specific shards,
+    based on the\n# client-side port numbers.\nnative_shard_aware_transport_port:
+    19042\n\n# Enabling native transport encryption in client_encryption_options allows
+    you to either use\n# encryption for the standard port or to use a dedicated, additional
+    port along with the unencrypted\n# standard native_transport_port.\n# Enabling
+    client encryption and keeping native_transport_port_ssl disabled will use encryption\n#
+    for native_transport_port. Setting native_transport_port_ssl to a different value\n#
+    from native_transport_port will use encryption for native_transport_port_ssl while\n#
+    keeping native_transport_port unencrypted.\n#native_transport_port_ssl: 9142\n\n#
+    Like native_transport_port_ssl, but clients are forwarded to specific shards,
+    based on the\n# client-side port numbers.\n#native_shard_aware_transport_port_ssl:
+    19142\n\n# How long the coordinator should wait for read operations to complete\nread_request_timeout_in_ms:
+    5000\n\n# How long the coordinator should wait for writes to complete\nwrite_request_timeout_in_ms:
+    2000\n# how long a coordinator should continue to retry a CAS operation\n# that
+    contends with other proposals for the same row\ncas_contention_timeout_in_ms:
+    1000\n\n# phi value that must be reached for a host to be marked down.\n# most
+    users should never need to adjust this.\n# phi_convict_threshold: 8\n\n# IEndpointSnitch.
+    \ The snitch has two functions:\n# - it teaches Scylla enough about your network
+    topology to route\n#   requests efficiently\n# - it allows Scylla to spread replicas
+    around your cluster to avoid\n#   correlated failures. It does this by grouping
+    machines into\n#   \"datacenters\" and \"racks.\"  Scylla will do its best not
+    to have\n#   more than one replica on the same \"rack\" (which may not actually\n#
+    \  be a physical location)\n#\n# IF YOU CHANGE THE SNITCH AFTER DATA IS INSERTED
+    INTO THE CLUSTER,\n# YOU MUST RUN A FULL REPAIR, SINCE THE SNITCH AFFECTS WHERE
+    REPLICAS\n# ARE PLACED.\n#\n# Out of the box, Scylla provides\n#  - SimpleSnitch:\n#
+    \   Treats Strategy order as proximity. This can improve cache\n#    locality
+    when disabling read repair.  Only appropriate for\n#    single-datacenter deployments.\n#
+    \ - GossipingPropertyFileSnitch\n#    This should be your go-to snitch for production
+    use.  The rack\n#    and datacenter for the local node are defined in\n#    cassandra-rackdc.properties
+    and propagated to other nodes via\n#    gossip.  If cassandra-topology.properties
+    exists, it is used as a\n#    fallback, allowing migration from the PropertyFileSnitch.\n#
+    \ - PropertyFileSnitch:\n#    Proximity is determined by rack and data center,
+    which are\n#    explicitly configured in cassandra-topology.properties.\n#  -
+    Ec2Snitch:\n#    Appropriate for EC2 deployments in a single Region. Loads Region\n#
+    \   and Availability Zone information from the EC2 API. The Region is\n#    treated
+    as the datacenter, and the Availability Zone as the rack.\n#    Only private IPs
+    are used, so this will not work across multiple\n#    Regions.\n#  - Ec2MultiRegionSnitch:\n#
+    \   Uses public IPs as broadcast_address to allow cross-region\n#    connectivity.
+    \ (Thus, you should set seed addresses to the public\n#    IP as well.) You will
+    need to open the storage_port or\n#    ssl_storage_port on the public IP firewall.
+    \ (For intra-Region\n#    traffic, Scylla will switch to the private IP after\n#
+    \   establishing a connection.)\n#  - RackInferringSnitch:\n#    Proximity is
+    determined by rack and data center, which are\n#    assumed to correspond to the
+    3rd and 2nd octet of each node's IP\n#    address, respectively.  Unless this
+    happens to match your\n#    deployment conventions, this is best used as an example
+    of\n#    writing a custom Snitch class and is provided in that spirit.\n#\n# You
+    can use a custom Snitch by setting this to the full class name\n# of the snitch,
+    which will be assumed to be on your classpath.\nendpoint_snitch: SimpleSnitch\n\n#
+    The address or interface to bind the Thrift RPC service and native transport\n#
+    server to.\n#\n# Set rpc_address OR rpc_interface, not both. Interfaces must correspond\n#
+    to a single address, IP aliasing is not supported.\n#\n# Leaving rpc_address blank
+    has the same effect as on listen_address\n# (i.e. it will be based on the configured
+    hostname of the node).\n#\n# Note that unlike listen_address, you can specify
+    0.0.0.0, but you must also\n# set broadcast_rpc_address to a value other than
+    0.0.0.0.\n#\n# For security reasons, you should not expose this port to the internet.
+    \ Firewall it if needed.\n#\n# If you choose to specify the interface by name
+    and the interface has an ipv4 and an ipv6 address\n# you can specify which should
+    be chosen using rpc_interface_prefer_ipv6. If false the first ipv4\n# address
+    will be used. If true the first ipv6 address will be used. Defaults to false preferring\n#
+    ipv4. If there is only one address it will be selected regardless of ipv4/ipv6.\nrpc_address:
+    localhost\n# rpc_interface: eth1\n# rpc_interface_prefer_ipv6: false\n\n# port
+    for Thrift to listen for clients on\nrpc_port: 9160\n\n# port for REST API server\napi_port:
+    10000\n\n# IP for the REST API server\napi_address: 127.0.0.1\n\n# Log WARN on
+    any batch size exceeding this value. 128 kiB per batch by default.\n# Caution
+    should be taken on increasing the size of this threshold as it can lead to node
+    instability.\nbatch_size_warn_threshold_in_kb: 128\n\n# Fail any multiple-partition
+    batch exceeding this value. 1 MiB (8x warn threshold) by default.\nbatch_size_fail_threshold_in_kb:
+    1024\n\n# Authentication backend, identifying users\n# Out of the box, Scylla
+    provides org.apache.cassandra.auth.{AllowAllAuthenticator,\n# PasswordAuthenticator}.\n#\n#
+    - AllowAllAuthenticator performs no checks - set it to disable authentication.\n#
+    - PasswordAuthenticator relies on username/password pairs to authenticate\n#   users.
+    It keeps usernames and hashed passwords in system_auth.credentials table.\n#   Please
+    increase system_auth keyspace replication factor if you use this authenticator.\n#
+    - com.scylladb.auth.TransitionalAuthenticator requires username/password pair\n#
+    \  to authenticate in the same manner as PasswordAuthenticator, but improper credentials\n#
+    \  result in being logged in as an anonymous user. Use for upgrading clusters'
+    auth.\nauthenticator: PasswordAuthenticator\n\n# Authorization backend, implementing
+    IAuthorizer; used to limit access/provide permissions\n# Out of the box, Scylla
+    provides org.apache.cassandra.auth.{AllowAllAuthorizer,\n# CassandraAuthorizer}.\n#\n#
+    - AllowAllAuthorizer allows any action to any user - set it to disable authorization.\n#
+    - CassandraAuthorizer stores permissions in system_auth.permissions table. Please\n#
+    \  increase system_auth keyspace replication factor if you use this authorizer.\n#
+    - com.scylladb.auth.TransitionalAuthorizer wraps around the CassandraAuthorizer,
+    using it for\n#   authorizing permission management. Otherwise, it allows all.
+    Use for upgrading\n#   clusters' auth.\nauthorizer: CassandraAuthorizer\n\n# initial_token
+    allows you to specify tokens manually.  While you can use # it with\n# vnodes
+    (num_tokens > 1, above) -- in which case you should provide a \n# comma-separated
+    list -- it's primarily used when adding nodes # to legacy clusters \n# that do
+    not have vnodes enabled.\n# initial_token:\n\n# RPC address to broadcast to drivers
+    and other Scylla nodes. This cannot\n# be set to 0.0.0.0. If left blank, this
+    will be set to the value of\n# rpc_address. If rpc_address is set to 0.0.0.0,
+    broadcast_rpc_address must\n# be set.\n# broadcast_rpc_address: 1.2.3.4\n\n# Uncomment
+    to enable experimental features\n# experimental_features:\n#     - udf\n#     -
+    alternator-streams\n#     - alternator-ttl\n#     - raft\n\n# The directory where
+    hints files are stored if hinted handoff is enabled.\n# hints_directory: /var/lib/scylla/hints\n\n#
+    The directory where hints files are stored for materialized-view updates\n# view_hints_directory:
+    /var/lib/scylla/view_hints\n\n# See https://docs.scylladb.com/architecture/anti-entropy/hinted-handoff\n#
+    May either be \"true\" or \"false\" to enable globally, or contain a list\n# of
+    data centers to enable per-datacenter.\n# hinted_handoff_enabled: DC1,DC2\n# hinted_handoff_enabled:
+    true\n\n# this defines the maximum amount of time a dead host will have hints\n#
+    generated.  After it has been dead this long, new hints for it will not be\n#
+    created until it has been seen alive and gone down again.\n# max_hint_window_in_ms:
+    10800000 # 3 hours\n\n\n# Validity period for permissions cache (fetching permissions
+    can be an\n# expensive operation depending on the authorizer, CassandraAuthorizer
+    is\n# one example). Defaults to 10000, set to 0 to disable.\n# Will be disabled
+    automatically for AllowAllAuthorizer.\n# permissions_validity_in_ms: 10000\n\n#
+    Refresh interval for permissions cache (if enabled).\n# After this interval, cache
+    entries become eligible for refresh. Upon next\n# access, an async reload is scheduled
+    and the old value returned until it\n# completes. If permissions_validity_in_ms
+    is non-zero, then this also must have\n# a non-zero value. Defaults to 2000. It's
+    recommended to set this value to\n# be at least 3 times smaller than the permissions_validity_in_ms.\n#
+    permissions_update_interval_in_ms: 2000\n\n# The partitioner is responsible for
+    distributing groups of rows (by\n# partition key) across nodes in the cluster.
+    \ You should leave this\n# alone for new clusters.  The partitioner can NOT be
+    changed without\n# reloading all data, so when upgrading you should set this to
+    the\n# same partitioner you were already using.\n#\n# Murmur3Partitioner is currently
+    the only supported partitioner,\n#\npartitioner: org.apache.cassandra.dht.Murmur3Partitioner\n\n#
+    Total space to use for commitlogs.\n#\n# If space gets above this value (it will
+    round up to the next nearest\n# segment multiple), Scylla will flush every dirty
+    CF in the oldest\n# segment and remove it.  So a small total commitlog space will
+    tend\n# to cause more flush activity on less-active columnfamilies.\n#\n# A value
+    of -1 (default) will automatically equate it to the total amount of memory\n#
+    available for Scylla.\ncommitlog_total_space_in_mb: -1\n\n# TCP port, for commands
+    and data\n# For security reasons, you should not expose this port to the internet.
+    \ Firewall it if needed.\n# storage_port: 7000\n\n# SSL port, for encrypted communication.
+    \ Unused unless enabled in\n# encryption_options\n# For security reasons, you
+    should not expose this port to the internet.  Firewall it if needed.\n# ssl_storage_port:
+    7001\n\n# listen_interface: eth0\n# listen_interface_prefer_ipv6: false\n\n# Whether
+    to start the native transport server.\n# Please note that the address on which
+    the native transport is bound is the\n# same as the rpc_address. The port however
+    is different and specified below.\n# start_native_transport: true\n\n# The maximum
+    size of allowed frame. Frame (requests) larger than this will\n# be rejected as
+    invalid. The default is 256MB.\n# native_transport_max_frame_size_in_mb: 256\n\n#
+    Whether to start the thrift rpc server.\n# start_rpc: true\n\n# enable or disable
+    keepalive on rpc/native connections\n# rpc_keepalive: true\n\n# Set to true to
+    have Scylla create a hard link to each sstable\n# flushed or streamed locally
+    in a backups/ subdirectory of the\n# keyspace data.  Removing these links is the
+    operator's\n# responsibility.\n# incremental_backups: false\n\n# Whether or not
+    to take a snapshot before each compaction.  Be\n# careful using this option, since
+    Scylla won't clean up the\n# snapshots for you.  Mostly useful if you're paranoid
+    when there\n# is a data format change.\n# snapshot_before_compaction: false\n\n#
+    Whether or not a snapshot is taken of the data before keyspace truncation\n# or
+    dropping of column families. The STRONGLY advised default of true \n# should be
+    used to provide data safety. If you set this flag to false, you will\n# lose data
+    on truncation or drop.\n# auto_snapshot: true\n\n# When executing a scan, within
+    or across a partition, we need to keep the\n# tombstones seen in memory so we
+    can return them to the coordinator, which\n# will use them to make sure other
+    replicas also know about the deleted rows.\n# With workloads that generate a lot
+    of tombstones, this can cause performance\n# problems and even exaust the server
+    heap.\n# (http://www.datastax.com/dev/blog/cassandra-anti-patterns-queues-and-queue-like-datasets)\n#
+    Adjust the thresholds here if you understand the dangers and want to\n# scan more
+    tombstones anyway.  These thresholds may also be adjusted at runtime\n# using
+    the StorageService mbean.\n# tombstone_warn_threshold: 1000\n# tombstone_failure_threshold:
+    100000\n\n# Granularity of the collation index of rows within a partition.\n#
+    Increase if your rows are large, or if you have a very large\n# number of rows
+    per partition.  The competing goals are these:\n#   1) a smaller granularity means
+    more index entries are generated\n#      and looking up rows withing the partition
+    by collation column\n#      is faster\n#   2) but, Scylla will keep the collation
+    index in memory for hot\n#      rows (as part of the key cache), so a larger granularity
+    means\n#      you can cache more hot rows\n# column_index_size_in_kb: 64\n\n#
+    Auto-scaling of the promoted index prevents running out of memory\n# when the
+    promoted index grows too large (due to partitions with many rows\n# vs. too small
+    column_index_size_in_kb).  When the serialized representation\n# of the promoted
+    index grows by this threshold, the desired block size\n# for this partition (initialized
+    to column_index_size_in_kb)\n# is doubled, to decrease the sampling resolution
+    by half.\n#\n# To disable promoted index auto-scaling, set the threshold to 0.\n#
+    column_index_auto_scale_threshold_in_kb: 10240\n\n# Log a warning when writing
+    partitions larger than this value\n# compaction_large_partition_warning_threshold_mb:
+    1000\n\n# Log a warning when writing rows larger than this value\n# compaction_large_row_warning_threshold_mb:
+    10\n\n# Log a warning when writing cells larger than this value\n# compaction_large_cell_warning_threshold_mb:
+    1\n\n# Log a warning when row number is larger than this value\n# compaction_rows_count_warning_threshold:
+    100000\n\n# Log a warning when writing a collection containing more elements than
+    this value\n# compaction_collection_elements_count_warning_threshold: 10000\n\n#
+    How long the coordinator should wait for seq or index scans to complete\n# range_request_timeout_in_ms:
+    10000\n# How long the coordinator should wait for writes to complete\n# counter_write_request_timeout_in_ms:
+    5000\n# How long a coordinator should continue to retry a CAS operation\n# that
+    contends with other proposals for the same row\n# cas_contention_timeout_in_ms:
+    1000\n# How long the coordinator should wait for truncates to complete\n# (This
+    can be much longer, because unless auto_snapshot is disabled\n# we need to flush
+    first so we can snapshot before removing the data.)\n# truncate_request_timeout_in_ms:
+    60000\n# The default timeout for other, miscellaneous operations\n# request_timeout_in_ms:
+    10000\n\n# Enable or disable inter-node encryption. \n# You must also generate
+    keys and provide the appropriate key and trust store locations and passwords.
+    \n#\n# The available internode options are : all, none, dc, rack\n# If set to
+    dc scylla  will encrypt the traffic between the DCs\n# If set to rack scylla  will
+    encrypt the traffic between the racks\n#\n# SSL/TLS algorithm and ciphers used
+    can be controlled by \n# the priority_string parameter. Info on priority string\n#
+    syntax and values is available at:\n#   https://gnutls.org/manual/html_node/Priority-Strings.html\n#\n#
+    The require_client_auth parameter allows you to \n# restrict access to service
+    based on certificate \n# validation. Client must provide a certificate \n# accepted
+    by the used trust store to connect.\n# \n# server_encryption_options:\n#    internode_encryption:
+    none\n#    certificate: conf/scylla.crt\n#    keyfile: conf/scylla.key\n#    truststore:
+    <not set, use system trust>\n#    certficate_revocation_list: <not set>\n#    require_client_auth:
+    False\n#    priority_string: <not set, use default>\n\n# enable or disable client/server
+    encryption.\n# client_encryption_options:\n#    enabled: false\n#    certificate:
+    conf/scylla.crt\n#    keyfile: conf/scylla.key\n#    truststore: <not set, use
+    system trust>\n#    certficate_revocation_list: <not set>\n#    require_client_auth:
+    False\n#    priority_string: <not set, use default>\n\n# internode_compression
+    controls whether traffic between nodes is\n# compressed.\n# can be:  all  - all
+    traffic is compressed\n#          dc   - traffic between different datacenters
+    is compressed\n#          none - nothing is compressed.\n# internode_compression:
+    none\n\n# Enable or disable tcp_nodelay for inter-dc communication.\n# Disabling
+    it will result in larger (but fewer) network packets being sent,\n# reducing overhead
+    from the TCP protocol itself, at the cost of increasing\n# latency if you block
+    for cross-datacenter responses.\n# inter_dc_tcp_nodelay: false\n\n# Relaxation
+    of environment checks.\n#\n# Scylla places certain requirements on its environment.
+    \ If these requirements are\n# not met, performance and reliability can be degraded.\n#\n#
+    These requirements include:\n#    - A filesystem with good support for aysnchronous
+    I/O (AIO). Currently,\n#      this means XFS.\n#\n# false: strict environment
+    checks are in place; do not start if they are not met.\n# true: relaxed environment
+    checks; performance and reliability may degraade.\n#\n# developer_mode: false\n\n\n#
+    Idle-time background processing\n#\n# Scylla can perform certain jobs in the background
+    while the system is otherwise idle,\n# freeing processor resources when there
+    is other work to be done.\n#\n# defragment_memory_on_idle: true\n#\n# prometheus
+    port\n# By default, Scylla opens prometheus API port on port 9180\n# setting the
+    port to 0 will disable the prometheus API.\n# prometheus_port: 9180\n#\n# prometheus
+    address\n# Leaving this blank will set it to the same value as listen_address.\n#
+    This means that by default, Scylla listens to the prometheus API on the same\n#
+    listening address (and therefore network interface) used to listen for\n# internal
+    communication. If the monitoring node is not in this internal\n# network, you
+    can override prometheus_address explicitly - e.g., setting\n# it to 0.0.0.0 to
+    listen on all interfaces.\n# prometheus_address: 1.2.3.4\n\n# Distribution of
+    data among cores (shards) within a node\n#\n# Scylla distributes data within a
+    node among shards, using a round-robin\n# strategy:\n#  [shard0] [shard1] ...
+    [shardN-1] [shard0] [shard1] ... [shardN-1] ...\n#\n# Scylla versions 1.6 and
+    below used just one repetition of the pattern;\n# this intefered with data placement
+    among nodes (vnodes).\n#\n# Scylla versions 1.7 and above use 4096 repetitions
+    of the pattern; this\n# provides for better data distribution.\n#\n# the value
+    below is log (base 2) of the number of repetitions.\n#\n# Set to 0 to avoid rewriting
+    all data when upgrading from Scylla 1.6 and\n# below.\n#\n# Keep at 12 for new
+    clusters.\nmurmur3_partitioner_ignore_msb_bits: 12\n\n# Bypass in-memory data
+    cache (the row cache) when performing reversed queries.\n# reversed_reads_auto_bypass_cache:
+    false\n\n# Use a new optimized algorithm for performing reversed reads.\n# Set
+    to `false` to fall-back to the old algorithm.\n# enable_optimized_reversed_reads:
+    true\n\n# Use on a new, parallel algorithm for performing aggregate queries.\n#
+    Set to `false` to fall-back to the old algorithm.\n# enable_parallelized_aggregation:
+    true\n\n# When enabled, the node will start using separate commit log for schema
+    changes\n# right from the boot. Without this, it only happens following a restart
+    after\n# all nodes in the cluster were upgraded.\n#\n# Having this option ensures
+    that new installations don't need a rolling restart\n# to use the feature, but
+    upgrades do.\n#\n# WARNING: It's unsafe to set this to false if the node previously
+    booted\n# with the schema commit log enabled. In such case, some schema changes\n#
+    may be lost if the node was not cleanly stopped.\nforce_schema_commit_log: true"
+kind: ConfigMap
+metadata:
+  name: scylla-config
+  namespace: scylla-manager
+---
+apiVersion: v1
+data:
+  scylla-manager.yaml: |-
+    http: :5080
+    logger:
+      level: info
+    database:
+      hosts:
+        - scylla-manager-dc-default-0
+      user: <user>
+      password: <password>
+kind: ConfigMap
+metadata:
+  name: scylla-manager-config
+  namespace: scylla-manager
+---
+apiVersion: v1
+data:
+  scylla-manager-agent.yaml: <secret>
+kind: Secret
+metadata:
+  name: scylla-agent-config
+  namespace: scylla-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: scylla-manager
+    app.kubernetes.io/name: scylla-manager
+  name: scylla-manager
+  namespace: scylla-manager
+spec:
+  ports:
+  - name: api
+    port: 80
+    protocol: TCP
+    targetPort: 5080
+  - appProtocol: http
+    name: metrics
+    port: 5090
+    protocol: TCP
+    targetPort: 5090
+  selector:
+    app.kubernetes.io/instance: scylla-manager
+    app.kubernetes.io/name: scylla-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: scylla-manager
+    app.kubernetes.io/name: scylla-manager
+  name: scylla-manager
+  namespace: scylla-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: scylla-manager
+      app.kubernetes.io/name: scylla-manager
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: scylla-manager
+        app.kubernetes.io/name: scylla-manager
+    spec:
+      containers:
+      - args:
+        - --config-file=/mnt/etc/scylla-manager/scylla-manager.yaml
+        command:
+        - /usr/bin/scylla-manager
+        image: scylladb/scylla-manager:3.0.2
+        imagePullPolicy: IfNotPresent
+        name: scylla-manager
+        readinessProbe:
+          httpGet:
+            path: /api/v1/clusters
+            port: 5080
+          periodSeconds: 10
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 300m
+            memory: 256Mi
+          requests:
+            cpu: 200m
+            memory: 32Mi
+        volumeMounts:
+        - mountPath: /mnt/etc/scylla-manager
+          name: scylla-manager-config
+      serviceAccountName: scylla-manager
+      volumes:
+      - configMap:
+          name: scylla-manager-config
+        name: scylla-manager-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: scylla-manager
+    app.kubernetes.io/name: scylla-manager-controller
+  name: scylla-manager-controller
+  namespace: scylla-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: scylla-manager
+      app.kubernetes.io/name: scylla-manager-controller
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: scylla-manager
+        app.kubernetes.io/name: scylla-manager-controller
+    spec:
+      containers:
+      - args:
+        - manager-controller
+        - --loglevel=2
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: scylladb/scylla-operator:1.8.0
+        imagePullPolicy: IfNotPresent
+        name: scylla-manager-controller
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+          requests:
+            cpu: 200m
+            memory: 32Mi
+      serviceAccountName: scylla-manager-controller
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: scylla-manager
+  namespace: scylla-manager
+spec:
+  endpoints:
+  - metricRelabelings:
+    - regex: (.*)
+      replacement: ${1}
+      sourceLabels:
+      - host
+      targetLabel: instance
+    port: metrics
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  jobLabel: app
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: scylla-manager
+      app.kubernetes.io/name: scylla-manager
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: scylla-manager-service-monitor
+  namespace: scylla-manager
+spec:
+  endpoints:
+  - metricRelabelings:
+    - regex: agent-prometheus
+      replacement: manager_agent
+      sourceLabels:
+      - endpoint
+      targetLabel: job
+    port: agent-prometheus
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  - metricRelabelings:
+    - action: replace
+      regex: (.*)
+      replacement: ${1}
+      sourceLabels:
+      - scylla_cluster
+      targetLabel: cluster
+    - action: replace
+      regex: (.*)
+      replacement: ${1}
+      sourceLabels:
+      - scylla_datacenter
+      targetLabel: dc
+    port: prometheus
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  jobLabel: app
+  podTargetLabels:
+  - scylla/datacenter
+  selector:
+    matchLabels:
+      app: scylla
+  targetLabels:
+  - scylla/cluster
+---
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: scylla-manager-bucket
+  namespace: scylla-manager
+spec:
+  generateBucketName: scylla-manager-bucket
+  storageClassName: ceph-bucket
+---
+apiVersion: scylla.scylladb.com/v1
+kind: ScyllaCluster
+metadata:
+  name: scylla-manager
+  namespace: scylla-manager
+spec:
+  agentRepository: scylladb/scylla-manager-agent
+  agentVersion: 3.0.2
+  backups:
+  - interval: 1d
+    location:
+    - s3:scylla-manager-bucket-64526f52-b2b5-4363-b451-365c5d820dfc
+    name: Daily Backup
+    rateLimit:
+    - "0"
+    retention: 7
+  datacenter:
+    name: dc
+    racks:
+    - members: 1
+      name: default
+      placement:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: cloudflared
+            topologyKey: kubernetes.io/hostname
+      resources:
+        limits:
+          cpu: 1
+          memory: 200Mi
+        requests:
+          cpu: 100m
+          memory: 200Mi
+      scyllaAgentConfig: scylla-agent-config
+      scyllaConfig: scylla-config
+      storage:
+        capacity: 2Gi
+  developerMode: true
+  repairs:
+  - intensity: "0"
+    interval: 1d
+    name: Daily Repair
+  repository: scylladb/scylla
+  version: 5.1.6

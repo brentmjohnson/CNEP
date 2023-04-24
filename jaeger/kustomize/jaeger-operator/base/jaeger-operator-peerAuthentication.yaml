@@ -1,0 +1,15 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: jaeger-operator-webhook-service
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: jaegertracing
+      app.kubernetes.io/name: jaeger-operator
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "9443":
+      mode: PERMISSIVE

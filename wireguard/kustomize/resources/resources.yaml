@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wireguard
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: wireguard
+  namespace: wireguard
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      name: wireguard
+  template:
+    metadata:
+      labels:
+        name: wireguard
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                name: wireguard
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - image: linuxserver/wireguard:alpine-v1.0.20210914-ls20
+        name: wireguard
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          privileged: true
+        volumeMounts:
+        - mountPath: /config/
+          name: wireguard-config
+          readOnly: false
+      hostNetwork: true
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - ENI=$(ip route get 1.1.1.1 | grep 1.1.1.1 | awk '{print $5}'); sed "s/ENI/$ENI/g"
+          /etc/wireguard-secret/$(hostname).conf.template > /config/wg0.conf; chmod
+          400 /config/wg0.conf
+        image: busybox
+        name: wireguard-template-replacement
+        volumeMounts:
+        - mountPath: /config/
+          name: wireguard-config
+        - mountPath: /etc/wireguard-secret/
+          name: wireguard-secret
+      volumes:
+      - emptyDir: {}
+        name: wireguard-config
+      - name: wireguard-secret
+        secret:
+          secretName: wireguard
+---
+apiVersion: crd.projectcalico.org/v1
+kind: BGPConfiguration
+metadata:
+  name: default
+spec:
+  asNumber: <asn>
+  nodeToNodeMeshEnabled: false
+  serviceLoadBalancerIPs:
+  - cidr: 10.0.1.0/24
+---
+apiVersion: crd.projectcalico.org/v1
+kind: BGPPeer
+metadata:
+  name: unifi-usg-peer
+spec:
+  asNumber: <asn>
+  peerIP: <host>

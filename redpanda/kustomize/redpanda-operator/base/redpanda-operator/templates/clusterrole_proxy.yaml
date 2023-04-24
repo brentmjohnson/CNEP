@@ -1,0 +1,25 @@
+---
+# Source: redpanda-operator/templates/clusterrole_proxy.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: redpanda-operator-proxy-role
+  labels:
+    app.kubernetes.io/name: redpanda-operator
+    helm.sh/chart: redpanda-operator-v23.1.2
+    app.kubernetes.io/instance: redpanda-operator
+    app.kubernetes.io/version: "v23.1.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create

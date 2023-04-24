@@ -1,0 +1,58 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: keycloak
+  namespace: keycloak-operator
+  labels:
+    app: keycloak
+spec:
+  instances: 1
+  serverConfiguration:
+    - name: db
+      value: postgres
+    - name: db-url-host
+      value: postgres-cluster.postgres.svc.cluster.local
+    - name: db-username
+      value: <user>
+    - name: db-password
+      value: <password>
+  hostname: INSECURE-DISABLE
+  tlsSecret: INSECURE-DISABLE
+  disableDefaultIngress: true
+  unsupported:
+    podTemplate:
+      spec:
+        containers:
+          - name: keycloak
+            args:
+              - start
+              # - --auto-build
+            env:
+              # - name: KC_PROXY
+              #   value: none
+              - name: KC_HTTP_RELATIVE_PATH
+                value: /keycloak
+              # - name: KC_HOSTNAME_PORT
+              #   value: "30080"
+              # - name: KC_HTTP_PORT
+              #   value: "30080"
+              # - name: KC_HOSTNAME_PATH
+              #   value: keycloak
+              # - name: KC_HOSTNAME_STRICT_BACKCHANNEL
+              #   value: 'true'
+            livenessProbe:
+              exec:
+                command:
+                  - curl
+                  - --head
+                  - --fail
+                  - --silent
+                  - http://127.0.0.1:8080/keycloak/health/live
+            readinessProbe:
+              exec:
+                command:
+                  - curl
+                  - --head
+                  - --fail
+                  - --silent
+                  - http://127.0.0.1:8080/keycloak/health/ready

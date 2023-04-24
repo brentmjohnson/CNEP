@@ -1,0 +1,55 @@
+---
+- name: Complete cluster setup
+  hosts: vm_host
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Prepare playbook for cluster deletion
+      ansible.builtin.template:
+        src: templates/cleanup-playbook.yml.j2
+        dest: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/{{ k8s.cluster_name }}-cleanup-playbook.yml"
+        mode: 0755
+
+    # - name: Delete image file
+    #   ansible.builtin.file:
+    #     path: "{{ item }}"
+    #     state: absent
+    #   loop:
+    #     - /tmp/{{ image_name }}.qcow2
+
+    - name: Label worker nodes
+      kubernetes.core.k8s_json_patch:
+        kind: Node
+        name: "{{ hostvars[item].host_fqdn }}"
+        kubeconfig: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        patch:
+          - op: add
+            path: /metadata/labels/node-role.kubernetes.io~1worker
+            value: ""
+      loop: "{{ groups['workers'] }}"
+      when: "'workers' in groups"
+
+    - name: Remove taint from control nodes
+      kubernetes.core.k8s_json_patch:
+        kind: Node
+        name: "{{ hostvars[item].host_fqdn }}"
+        kubeconfig: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        patch:
+          - op: remove
+            path: /spec/taints/0
+      loop: "{{ groups['controls'] }}"
+      when: k8s.control_schedulable
+      register: result
+      failed_when:
+        - result.status is defined
+        - result.status != 422
+
+# This seems to be required for accurate memory capacity
+- name: Reboot nodes before proceeding
+  hosts: k8s_nodes
+  become: true
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+  - name: Reboot nodes
+    ansible.builtin.reboot:

@@ -1,0 +1,31 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redpanda-cluster
+  namespace: redpanda
+spec:
+  endpoints:
+  - targetPort: 9644
+    path: /public_metrics
+    scheme: http
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      keyFile: /etc/prom-certs/key.pem
+      insecureSkipVerify: true  # Prometheus does not support Istio security naming, thus skip verifying target pod certificate
+  - targetPort: 9644
+    path: /metrics
+    scheme: http
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      keyFile: /etc/prom-certs/key.pem
+      insecureSkipVerify: true  # Prometheus does not support Istio security naming, thus skip verifying target pod certificate
+  namespaceSelector:
+    matchNames:
+    - redpanda
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: redpanda
+      app.kubernetes.io/instance: redpanda
+      app.kubernetes.io/name: redpanda

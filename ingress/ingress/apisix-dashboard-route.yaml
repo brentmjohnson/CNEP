@@ -1,0 +1,38 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: apisix-dashboard-route
+  namespace: ingress-apisix
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+        - apisix.internal.example.com
+      paths:
+      - /*
+    backends:
+       - serviceName: apisix-dashboard
+         servicePort: 80
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      - name: opentelemetry
+        enable: true
+        config:
+          sampler:
+            name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: apisix-dashboard.ingress-apisix.svc.cluster.local
+          # regex_uri:
+          #   - "^/apisix/(.*)"
+          #   - "/$1"

@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/base/templates/clusterrole.yaml
+- ./base/base/templates/clusterrolebinding.yaml
+- ./base/base/templates/default.yaml
+- ./base/base/templates/reader-serviceaccount.yaml
+- ./base/base/templates/role.yaml
+- ./base/base/templates/rolebinding.yaml
+- ./base/base/templates/serviceaccount.yaml
+- ./base/base/crds/crd-all.gen.yaml
+- ./base/base/crds/crd-operator.yaml

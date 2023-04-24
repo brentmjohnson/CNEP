@@ -1,0 +1,37 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: flink-rest-route
+  namespace: flink
+spec:
+  http:
+  - name: rule1
+    match:
+      paths:
+      - /flink/*
+    backends:
+       - serviceName: flink-rest
+         servicePort: 8081
+        #  resolveGranularity: service
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      - name: opentelemetry
+        enable: true
+        config:
+          sampler:
+            name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: flink-rest.flink.svc.cluster.local
+          regex_uri:
+            - "^/flink/(.*)"
+            - "/$1"

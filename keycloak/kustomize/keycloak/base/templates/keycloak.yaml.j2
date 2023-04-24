@@ -1,0 +1,87 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: keycloak
+  namespace: keycloak
+  labels:
+    app: keycloak
+spec:
+  instances: 1
+  additionalOptions:
+    - name: db
+      value: postgres
+    - name: db-url-host
+      value: postgres-cluster.postgres.svc.cluster.local
+    # - name: db-schema
+    #   value: public
+    # - name: db-url-database
+    #   value: keycloak
+    - name: db-username
+      value: {{ credentials.keycloak_postgres.username }}
+    - name: db-password
+      value: {{ credentials.keycloak_postgres.password }}
+    - name: http-enabled
+      value: 'true'
+    - name: http-relative-path
+      value: /keycloak
+    - name: health-enabled
+      value: 'true'
+    - name: metrics-enabled
+      value: 'true'
+  hostname:
+    strict: false
+    strictBackchannel: false
+    httpEnabled: true
+  ingress:
+    enabled: false
+  tlsSecret: INSECURE-DISABLE
+  # unsupported:
+  #   podTemplate:
+  #     spec:
+  #       containers:
+  #         - name: keycloak
+  #           args:
+  #             - start
+  #             # - --auto-build
+  #           env:
+  #             # - name: KC_PROXY
+  #             #   value: none
+  #             # - name: KC_HTTP_RELATIVE_PATH
+  #             #   value: /keycloak
+  #             # - name: KC_HOSTNAME_PORT
+  #             #   value: "30080"
+  #             # - name: KC_HTTP_ENABLED
+  #             #   value: 'true'
+  #             # - name: KC_HTTP_PORT
+  #             #   value: "30080"
+  #             # - name: KC_HOSTNAME_PATH
+  #             #   value: keycloak
+  #             # - name: KC_HOSTNAME_STRICT_BACKCHANNEL
+  #             #   value: 'true'
+  #           livenessProbe:
+  #             # exec:
+  #             #   command:
+  #             #     - curl
+  #             #     - --head
+  #             #     - --fail
+  #             #     - --silent
+  #             #     - http://127.0.0.1:8080/keycloak/health/live
+  #             httpGet:
+  #               path: /health/live
+  #               port: 8080
+  #               scheme: HTTP
+  #           readinessProbe:
+  #             # exec:
+  #             #   command:
+  #             #     - curl
+  #             #     - --head
+  #             #     - --fail
+  #             #     - --silent
+  #             #     - http://127.0.0.1:8080/keycloak/health/ready
+  #             httpGet:
+  #               path: /health/ready
+  #               port: 8080
+  #               scheme: HTTP
+  #           # ports:
+  #           #   - name: http
+  #           #     containerPort: 8080

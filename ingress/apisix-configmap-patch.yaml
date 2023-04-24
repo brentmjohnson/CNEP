@@ -1,0 +1,28 @@
+data:
+  config.yaml: |
+    # log options
+    log_level: "info"
+    log_output: "stderr"
+    cert_file: "/etc/webhook/certs/cert.pem"
+    key_file: "/etc/webhook/certs/key.pem"
+    http_listen: ":8080"
+    https_listen: ":8443"
+    ingress_publish_service: 
+    enable_profiling: true
+    kubernetes:
+      kubeconfig: ""
+      resync_interval: "6h"
+      app_namespaces:
+      - "*"
+      namespace_selector:
+      - ""
+      election_id: "ingress-apisix-leader"
+      ingress_class: "apisix"
+      ingress_version: "networking/v1"
+      watch_endpointslices: false
+      apisix_route_version: "apisix.apache.org/v2"
+      enable_gateway_api: false
+    apisix:
+      default_cluster_base_url: http://apisix-admin.ingress-apisix.svc.cluster.local:9180/apisix/admin
+      default_cluster_admin_key: "edd1c9f034335f136f87ad84b625c8f1"
+      default_cluster_name: "default"

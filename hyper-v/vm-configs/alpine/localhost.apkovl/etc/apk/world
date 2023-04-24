@@ -1,0 +1,6 @@
+alpine-base
+bind
+dhcp
+openssl
+python3
+radvd

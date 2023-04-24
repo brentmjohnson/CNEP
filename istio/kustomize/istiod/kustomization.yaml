@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/istiod/templates/autoscale.yaml
+- ./base/istiod/templates/clusterrole.yaml
+- ./base/istiod/templates/clusterrolebinding.yaml
+- ./base/istiod/templates/configmap.yaml
+- ./base/istiod/templates/deployment.yaml
+- ./base/istiod/templates/istiod-injector-configmap.yaml
+- ./base/istiod/templates/mutatingwebhook.yaml
+- ./base/istiod/templates/poddisruptionbudget.yaml
+- ./base/istiod/templates/reader-clusterrole.yaml
+- ./base/istiod/templates/reader-clusterrolebinding.yaml
+- ./base/istiod/templates/revision-tags.yaml
+- ./base/istiod/templates/role.yaml
+- ./base/istiod/templates/rolebinding.yaml
+- ./base/istiod/templates/service.yaml
+- ./base/istiod/templates/serviceaccount.yaml
+- ./base/istiod/templates/telemetryv2_1.13.yaml
+- ./base/istiod/templates/telemetryv2_1.14.yaml
+- ./base/istiod/templates/telemetryv2_1.15.yaml
+- ./base/istiod/templates/telemetryv2_1.16.yaml
+- ./base/istio-podMonitor.yaml
+- ./base/istio-serviceMonitor.yaml
+- ./base/istio-default-strict-mode-peerauthentication.yaml
+- ./base/istio-mesh-default-telemetry.yaml
+- ./base/istio-app-layer-policy-envoy-v3.yaml
+- ./base/istiod/templates/telemetryv2_1.17.yaml
+
+patches:
+- path: ./patches/istio-sidecar-injector-patch.yaml

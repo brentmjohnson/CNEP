@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-dashboard
+  namespace: ingress-apisix
+data:
+  conf.yaml: |-
+    conf:
+      listen:
+        host: 0.0.0.0
+        port: 9000
+      etcd:
+        prefix: "/apisix"
+        endpoints:
+          - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+      log:
+        error_log:
+          level: warn
+          file_path: /dev/stderr
+        access_log:
+          file_path: /dev/stdout
+    authentication:
+      secret: secret
+      expire_time: 3600
+      users:
+        - username: <user>
+          password: <password>

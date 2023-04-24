@@ -1,0 +1,11 @@
+--- /usr/src/dxgkrnl-5.15.90.1/dxgvmbus.c       2023-02-26 18:42:38.943643841 +0000
++++ updated-dxgvmbus.c  2023-02-26 23:38:59.789381897 +0000
+@@ -393,7 +393,7 @@
+        u32 packet_length = 0;
+
+        DXG_TRACE("New adapter message: %p", channel->adapter);
+-       foreach_vmbus_pkt(desc, channel->channel) {
++       for (desc = hv_pkt_iter_first_raw(channel->channel); desc; desc = hv_pkt_iter_next(channel->channel, desc)) {
+                packet_length = hv_pkt_datalen(desc);
+                DXG_TRACE("next packet (id, size, type): %llu %d %d",
+                        desc->trans_id, packet_length, desc->type);

@@ -1,0 +1,62 @@
+---
+# Source: jaeger-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaegertracing-jaeger-operator
+  namespace: observability
+  labels:
+    
+    app.kubernetes.io/name: jaeger-operator
+    app.kubernetes.io/instance: jaegertracing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: jaeger-operator
+      app.kubernetes.io/instance: jaegertracing
+  template:
+    metadata:
+      name: jaegertracing-jaeger-operator
+      labels:
+        
+        app.kubernetes.io/name: jaeger-operator
+        app.kubernetes.io/instance: jaegertracing
+    spec:
+      serviceAccountName: jaegertracing-jaeger-operator
+      containers:
+        - name: jaegertracing-jaeger-operator
+          image: "jaegertracing/jaeger-operator:1.42.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 8383
+            name: metrics
+          - containerPort: 9443
+            name: webhook-server
+            protocol: TCP  
+          volumeMounts:
+          - mountPath: /tmp/k8s-webhook-server/serving-certs
+            name: cert
+            readOnly: true
+          args: ["start"]
+          env:
+            - name: WATCH_NAMESPACE
+              value: ""
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OPERATOR_NAME
+              value: "jaegertracing-jaeger-operator"
+          resources:
+            {}
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: jaeger-operator-service-cert

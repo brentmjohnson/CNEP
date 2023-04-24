@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-apisix
+---
+apiVersion: etcd.improbable.io/v1alpha1
+kind: EtcdCluster
+metadata:
+  namespace: ingress-apisix
+  name: etcd-cluster
+spec:
+  replicas: 3
+  version: 3.5.6
+  storage:
+    volumeClaimTemplate:
+      storageClassName: ceph-block
+      resources:
+        requests:
+          # kubectl delete etcdcluster -n ingress-apisix etcd-cluster --cascade='orphan'
+          storage: 2Gi
+  podTemplate:
+    resources:
+      requests:
+        cpu: 20m
+        memory: 20Mi
+      # limits:
+      #   cpu: 200m
+      #   memory: 200Mi

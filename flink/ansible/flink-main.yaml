@@ -1,0 +1,2 @@
+- import_playbook: flink-operator.yaml
+- import_playbook: flink-cluster.yaml

@@ -1,0 +1,1305 @@
+Release "k8ssandra-operator" does not exist. Installing it now.
+NAME: k8ssandra-operator
+LAST DEPLOYED: Wed Sep 14 09:19:23 2022
+NAMESPACE: k8ssandra-operator
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+{}
+
+COMPUTED VALUES:
+cass-operator:
+  admissionWebhooks:
+    enabled: false
+  commonLabels: {}
+  fullnameOverride: ""
+  global:
+    clusterScoped: false
+  image:
+    pullPolicy: IfNotPresent
+    registry: docker.io
+    repository: k8ssandra/cass-operator
+    tag: v1.12.0
+  k8ssandra-common:
+    common:
+      exampleValue: common-chart
+      global:
+        clusterScoped: false
+    fullnameOverride: ""
+    global:
+      clusterScoped: false
+    nameOverride: ""
+  nameOverride: ""
+  podAnnotations: {}
+  podSecurityContext: {}
+  replicaCount: 1
+  resources: {}
+  securityContext:
+    readOnlyRootFilesystem: true
+    runAsGroup: 65534
+    runAsNonRoot: true
+    runAsUser: 65534
+  serviceAccount:
+    annotations: {}
+  vmwarePSPEnabled: false
+cleaner:
+  image:
+    pullPolicy: IfNotPresent
+    registry: docker.io
+    repository: k8ssandra/k8ssandra-tools
+    tag: latest
+client:
+  image:
+    pullPolicy: IfNotPresent
+    registry: docker.io
+    repository: k8ssandra/k8ssandra-tools
+    tag: latest
+commonLabels: {}
+controlPlane: true
+fullnameOverride: ""
+global:
+  clusterScoped: false
+image:
+  pullPolicy: IfNotPresent
+  registry: docker.io
+  registryOverride: null
+  repository: k8ssandra/k8ssandra-operator
+  tag: v1.2.0
+imagePullSecrets: []
+k8ssandra-common:
+  common:
+    exampleValue: common-chart
+    global:
+      clusterScoped: false
+  fullnameOverride: ""
+  global:
+    clusterScoped: false
+  nameOverride: ""
+nameOverride: ""
+podAnnotations: {}
+podSecurityContext: {}
+replicaCount: 1
+resources: {}
+securityContext:
+  runAsGroup: 65534
+  runAsNonRoot: true
+  runAsUser: 65534
+serviceAccount:
+  annotations: {}
+
+HOOKS:
+---
+# Source: k8ssandra-operator/templates/crd/service_account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8ssandra-operator-crd-upgrader-k8ssandra
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    "helm.sh/hook-weight": "0"
+---
+# Source: k8ssandra-operator/templates/crd/cluster_role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8ssandra-operator-crd-upgrader-k8ssandra
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    "helm.sh/hook-weight": "1"
+rules:
+  - apiGroups:
+      -  apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - create
+      - get
+      - watch
+      - list
+      - update
+      - patch
+---
+# Source: k8ssandra-operator/templates/crd/cluster_role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8ssandra-operator-crd-upgrader-k8ssandra
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    "helm.sh/hook-weight": "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8ssandra-operator-crd-upgrader-k8ssandra
+subjects:
+  - kind: ServiceAccount
+    name: k8ssandra-operator-crd-upgrader-k8ssandra
+    namespace: k8ssandra-operator
+---
+# Source: k8ssandra-operator/templates/crd/batch_job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k8ssandra-operator-crd-upgrader-job-k8ssandra
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "10"
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:         
+        app.kubernetes.io/name: k8ssandra-operator
+        helm.sh/chart: k8ssandra-operator-0.38.1
+        app.kubernetes.io/instance: k8ssandra-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: k8ssandra-operator-crd-upgrader-k8ssandra
+      containers:
+        - name: crd-upgrade-job-k8ssandra
+          image: docker.io/k8ssandra/k8ssandra-tools:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          args:
+            - -upgradecrds
+            - --targetVersion
+            - 0.38.1
+            - --chartName
+            - k8ssandra-operator
+MANIFEST:
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8ssandra-operator-cass-operator
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+---
+# Source: k8ssandra-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8ssandra-operator
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/configmap.yaml
+kind: ConfigMap
+metadata:
+  name: k8ssandra-operator-cass-operator-manager-config
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+apiVersion: v1
+data:
+  controller_manager_config.yaml: |
+    apiVersion: config.k8ssandra.io/v1beta1
+    kind: OperatorConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: b569adb7.cassandra.datastax.com
+    disableWebhooks: true
+    imageConfigFile: /configs/image_config.yaml
+  image_config.yaml: |
+    apiVersion: config.k8ssandra.io/v1beta1
+    kind: ImageConfig
+    images:
+      system-logger: "k8ssandra/system-logger:v1.10.0"
+      config-builder: "datastax/cass-config-builder:1.0.4-ubi7"
+    imagePullPolicy: IfNotPresent
+    defaults:
+      # Note, postfix is ignored if repository is not set
+      cassandra:
+        repository: "k8ssandra/cass-management-api"
+      dse:
+        repository: "datastax/dse-server"
+        suffix: "-ubi7"
+---
+# Source: k8ssandra-operator/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8ssandra-operator-manager-config
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+data:
+  controller_manager_config.yaml: |
+    apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
+    kind: ControllerManagerConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: dcabfccc.k8ssandra.io
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8ssandra-operator-cass-operator-cr
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: k8ssandra-operator-cass-operator-cr
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+subjects:
+  - kind: ServiceAccount
+    name: k8ssandra-operator-cass-operator
+    namespace: k8ssandra-operator
+roleRef:
+  kind: ClusterRole
+  name: k8ssandra-operator-cass-operator-cr
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/leader_election_role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: k8ssandra-operator-cass-operator-leader
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+rules:
+  - apiGroups:
+      - ""
+      - coordination.k8s.io
+    resources:
+      - configmaps
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: k8ssandra-operator-cass-operator
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+rules:
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - replicasets
+      - statefulsets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - cassandra.datastax.com
+    resources:
+      - cassandradatacenters
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - cassandra.datastax.com
+    resources:
+      - cassandradatacenters/finalizers
+    verbs:
+      - delete
+      - update
+  - apiGroups:
+      - cassandra.datastax.com
+    resources:
+      - cassandradatacenters/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - control.k8ssandra.io
+    resources:
+      - cassandratasks
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - control.k8ssandra.io
+    resources:
+      - cassandratasks/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - control.k8ssandra.io
+    resources:
+      - cassandratasks/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - events
+      - persistentvolumeclaims
+      - pods
+      - secrets
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+      - pods
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+# Source: k8ssandra-operator/templates/leader-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: k8ssandra-operator-leader-election-role
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+# Source: k8ssandra-operator/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: k8ssandra-operator
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - cassandra.datastax.com
+  resources:
+  - cassandradatacenters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - config.k8ssandra.io
+  resources:
+  - clientconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - control.k8ssandra.io
+  resources:
+  - cassandratasks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - k8ssandra.io
+  resources:
+  - clientconfigs
+  - k8ssandraclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - k8ssandra.io
+  resources:
+  - k8ssandraclusters/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - k8ssandra.io
+  resources:
+  - k8ssandraclusters/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - cassandrabackups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - cassandrabackups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - cassandradatacenters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - cassandrarestores
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - cassandrarestores/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackupjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackupjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackupjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackups/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackupschedules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackupschedules/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusabackupschedules/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusarestorejobs
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusarestorejobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusatasks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusatasks/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - medusa.k8ssandra.io
+  resources:
+  - medusatasks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - servicemonitors
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - reaper.k8ssandra.io
+  resources:
+  - reapers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - reaper.k8ssandra.io
+  resources:
+  - reapers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - replication.k8ssandra.io
+  resources:
+  - replicatedsecrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - replication.k8ssandra.io
+  resources:
+  - replicatedsecrets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - replication.k8ssandra.io
+  resources:
+  - replicatedsecrets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - stargate.k8ssandra.io
+  resources:
+  - stargates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - stargate.k8ssandra.io
+  resources:
+  - stargates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - stargate.k8ssandra.io
+  resources:
+  - stargates/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/leader_election_role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8ssandra-operator-cass-operator-leader
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: k8ssandra-operator-cass-operator-leader
+subjects:
+  - kind: ServiceAccount
+    name: k8ssandra-operator-cass-operator
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/rolebinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: k8ssandra-operator-cass-operator
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+subjects:
+  - kind: ServiceAccount
+    name: k8ssandra-operator-cass-operator
+roleRef:
+  kind: Role
+  name: k8ssandra-operator-cass-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: k8ssandra-operator/templates/leader-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8ssandra-operator-leader-election-rolebinding
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: k8ssandra-operator-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: k8ssandra-operator
+---
+# Source: k8ssandra-operator/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8ssandra-operator
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: k8ssandra-operator
+subjects:
+- kind: ServiceAccount
+  name: k8ssandra-operator
+---
+# Source: k8ssandra-operator/templates/webhook-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8ssandra-operator-webhook-service
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 9443
+  selector:
+    control-plane: k8ssandra-operator
+---
+# Source: k8ssandra-operator/charts/cass-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8ssandra-operator-cass-operator
+  labels:     
+    app.kubernetes.io/name: cass-operator
+    helm.sh/chart: cass-operator-0.37.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+    control-plane: k8ssandra-operator-controller-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cass-operator
+      app.kubernetes.io/instance: k8ssandra-operator
+      app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+  template:
+    metadata:
+      labels:        
+        app.kubernetes.io/name: cass-operator
+        helm.sh/chart: cass-operator-0.37.1
+        app.kubernetes.io/instance: k8ssandra-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+        control-plane: k8ssandra-operator-controller-manager
+    spec:
+      serviceAccountName: k8ssandra-operator-cass-operator
+      securityContext:
+        {}
+      containers:
+        - name: cass-operator
+          args:
+          - --config=/configs/controller_manager_config.yaml
+          command:
+          - /manager
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsGroup: 65534
+            runAsNonRoot: true
+            runAsUser: 65534
+          image: docker.io/k8ssandra/cass-operator:v1.12.0
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /configs
+              name: manager-config
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {}
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      volumes:
+        - configMap:
+            name: k8ssandra-operator-cass-operator-manager-config
+          name: manager-config
+---
+# Source: k8ssandra-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8ssandra-operator
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+    control-plane: k8ssandra-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k8ssandra-operator
+      app.kubernetes.io/instance: k8ssandra-operator
+      app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+      control-plane: k8ssandra-operator
+  template:
+    metadata:
+      labels:        
+        app.kubernetes.io/name: k8ssandra-operator
+        helm.sh/chart: k8ssandra-operator-0.38.1
+        app.kubernetes.io/instance: k8ssandra-operator
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+        control-plane: k8ssandra-operator
+    spec:
+      serviceAccountName: k8ssandra-operator
+      securityContext:
+        {}
+      containers:
+      - command:
+        - /manager
+        # args:
+        # - --config=controller_manager_config.yaml
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: K8SSANDRA_CONTROL_PLANE
+          value: "true"
+        image: docker.io/k8ssandra/k8ssandra-operator:v1.2.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+            runAsGroup: 65534
+            runAsNonRoot: true
+            runAsUser: 65534
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: k8ssandra-operator
+        ports:
+          - containerPort: 9443
+            name: webhook-server
+            protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+            {}
+        volumeMounts:
+        - mountPath: /controller_manager_config.yaml
+          name: manager-config
+          subPath: controller_manager_config.yaml
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - configMap:
+          name: k8ssandra-operator-manager-config
+        name: manager-config
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: k8ssandra-operator-webhook-server-cert
+---
+# Source: k8ssandra-operator/templates/webhook-serving-cert.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: k8ssandra-operator-serving-cert
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+spec:
+  dnsNames:
+    -  k8ssandra-operator-webhook-service.k8ssandra-operator.svc
+    -  k8ssandra-operator-webhook-service.k8ssandra-operator.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: k8ssandra-operator-selfsigned-issuer
+  secretName: k8ssandra-operator-webhook-server-cert
+---
+# Source: k8ssandra-operator/templates/issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: k8ssandra-operator-selfsigned-issuer
+  labels:     
+    app.kubernetes.io/name: k8ssandra-operator
+    helm.sh/chart: k8ssandra-operator-0.38.1
+    app.kubernetes.io/instance: k8ssandra-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: k8ssandra-k8ssandra-operator-k8ssandra-operator
+spec:
+  selfSigned: {}
+---
+# Source: k8ssandra-operator/templates/validatingwebhookconfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: k8ssandra-operator/k8ssandra-operator-serving-cert
+  name: k8ssandra-operator-validating-webhook-configuration
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: k8ssandra-operator-webhook-service
+        namespace: k8ssandra-operator
+        path: /validate-medusa-k8ssandra-io-v1alpha1-medusabackupschedule
+    failurePolicy: Fail
+    name: vmedusabackupschedule.kb.io
+    rules:
+    - apiGroups:
+      - medusa.k8ssandra.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - medusabackupschedules
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: k8ssandra-operator-webhook-service
+        namespace: k8ssandra-operator
+        path: /validate-k8ssandra-io-v1alpha1-k8ssandracluster
+    failurePolicy: Fail
+    name: vk8ssandracluster.kb.io
+    rules:
+      - apiGroups:
+          - k8ssandra.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - k8ssandraclusters
+    sideEffects: None
+

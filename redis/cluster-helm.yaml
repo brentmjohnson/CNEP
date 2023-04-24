@@ -1,0 +1,109 @@
+Release "redis-cluster" does not exist. Installing it now.
+NAME: redis-cluster
+LAST DEPLOYED: Wed Sep 28 11:54:30 2022
+NAMESPACE: redis
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+redisCluster:
+  clusterSize: 3
+  redisFollower:
+    replicas: 0
+
+COMPUTED VALUES:
+affinity: {}
+externalConfig:
+  data: |
+    tcp-keepalive 400
+    slowlog-max-len 158
+    stream-node-max-bytes 2048
+  enabled: false
+externalService:
+  enabled: false
+  port: 6379
+  serviceType: LoadBalancer
+nodeSelector: {}
+pdb:
+  enabled: false
+  maxUnavailable: 1
+  minAvailable: 1
+redisCluster:
+  clusterSize: 3
+  follower:
+    affinity: {}
+    replicas: 3
+    serviceType: ClusterIP
+  image: quay.io/opstree/redis
+  imagePullPolicy: IfNotPresent
+  leader:
+    affinity: {}
+    replicas: 3
+    serviceType: ClusterIP
+  redisFollower:
+    replicas: 0
+  resources: {}
+  tag: v6.2.5
+redisExporter:
+  enabled: true
+  image: quay.io/opstree/redis-exporter
+  imagePullPolicy: IfNotPresent
+  resources: {}
+  tag: "1.0"
+securityContext: {}
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  namespace: monitoring
+  scrapeTimeout: 10s
+sidecars: []
+storageSpec:
+  volumeClaimTemplate:
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+
+HOOKS:
+MANIFEST:
+---
+# Source: redis-cluster/templates/redis-cluster.yaml
+apiVersion: redis.redis.opstreelabs.in/v1beta1
+kind: RedisCluster
+metadata:
+  name: redis-cluster
+  labels:
+    app.kubernetes.io/name: redis-cluster
+    helm.sh/chart: redis-cluster-0.11.3
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: redis-cluster
+    app.kubernetes.io/version: 0.11.0
+    app.kubernetes.io/component: middleware
+spec:
+  clusterSize: 3
+  redisLeader:
+    replicas: 3
+  redisFollower:
+    replicas: 3
+  redisExporter:
+    enabled: true
+    image: "quay.io/opstree/redis-exporter:1.0"
+    imagePullPolicy: "IfNotPresent"
+    resources:
+      {}
+  kubernetesConfig:
+    image: "quay.io/opstree/redis:v6.2.5"
+    imagePullPolicy: "IfNotPresent"
+    resources:
+      {}
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+

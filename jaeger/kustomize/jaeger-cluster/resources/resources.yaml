@@ -1,0 +1,180 @@
+apiVersion: v1
+data:
+  KAFKA_PASSWORD: <password>
+  KAFKA_USERNAME: <user>
+kind: Secret
+metadata:
+  name: jaeger-redpanda
+  namespace: observability
+type: Opaque
+---
+apiVersion: v1
+data:
+  CASSANDRA_PASSWORD: <password>
+  CASSANDRA_USERNAME: <user>
+kind: Secret
+metadata:
+  name: jaeger-scylla
+  namespace: observability
+type: Opaque
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: jaeger-route
+  namespace: observability
+spec:
+  http:
+  - backends:
+    - serviceName: jaeger-query
+      servicePort: 16686
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /jaeger*
+    name: rule1
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: jaeger-query.observability.svc.cluster.local
+      enable: true
+      name: proxy-rewrite
+---
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: jaeger
+  namespace: observability
+spec:
+  collector:
+    annotations:
+      sidecar.istio.io/inject: "true"
+    kafkaSecretName: jaeger-redpanda
+    maxReplicas: 2
+    options:
+      kafka:
+        producer:
+          authentication: plaintext
+          brokers: redpanda.redpanda.svc.cluster.local:9092
+          plaintext:
+            mechanism: SCRAM-SHA-256
+            password: $(KAFKA_PASSWORD)
+            username: $(KAFKA_USERNAME)
+          protocol-version: 3.1.2
+      log-level: info
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 128Mi
+  ingester:
+    annotations:
+      sidecar.istio.io/inject: "true"
+    kafkaSecretName: jaeger-redpanda
+    maxReplicas: 3
+    options:
+      ingester:
+        deadlockInterval: 0
+      kafka:
+        consumer:
+          authentication: plaintext
+          brokers: redpanda.redpanda.svc.cluster.local:9092
+          plaintext:
+            mechanism: SCRAM-SHA-256
+            password: $(KAFKA_PASSWORD)
+            username: $(KAFKA_USERNAME)
+          protocol-version: 3.1.2
+      log-level: info
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+      requests:
+        cpu: 200m
+        memory: 128Mi
+  ingress:
+    enabled: false
+  query:
+    annotations:
+      sidecar.istio.io/inject: "true"
+    metricsStorage:
+      type: prometheus
+    options:
+      log-level: info
+      prometheus:
+        server-url: http://prometheus-operated.monitoring:9090
+      query:
+        base-path: /jaeger
+        max-clock-skew-adjustment: 0.005s
+    tracingEnabled: false
+  sampling:
+    options:
+      default_strategy:
+        param: 1
+        type: probabilistic
+  storage:
+    cassandraCreateSchema:
+      annotations:
+        sidecar.istio.io/inject: "true"
+      datacenter: dc
+      dependencies_ttl: 0
+      enabled: false
+      keyspace: jaeger
+      mode: prod
+      replication_factor: 1
+      trace_ttl: 172800
+    dependencies:
+      annotations:
+        sidecar.istio.io/inject: "true"
+      enabled: true
+      resources:
+        limits:
+          memory: 4096Mi
+        requests:
+          memory: 4096Mi
+      schedule: 55 23 * * *
+      sparkMaster: null
+    options:
+      cassandra:
+        consistency: LOCAL_ONE
+        keyspace: jaeger
+        local-dc: dc
+        servers: scylla-client.scylla.svc.cluster.local
+    secretName: jaeger-scylla
+    type: cassandra
+  strategy: streaming
+  ui:
+    options:
+      dependencies:
+        menuEnabled: true
+      log-level: info
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: jaeger-collector
+  namespace: observability
+spec:
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "14250":
+      mode: PERMISSIVE
+  selector:
+    matchLabels:
+      app: jaeger
+      app.kubernetes.io/component: collector
+      app.kubernetes.io/instance: jaeger
+      app.kubernetes.io/managed-by: jaeger-operator
+      app.kubernetes.io/name: jaeger-collector
+      app.kubernetes.io/part-of: jaeger

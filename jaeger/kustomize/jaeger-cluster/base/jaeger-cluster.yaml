@@ -1,0 +1,172 @@
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  namespace: observability
+  name: jaeger
+spec:
+  strategy: streaming
+  sampling:
+    options:
+      default_strategy:
+        type: probabilistic
+        param: 1
+  collector:
+    annotations:
+      sidecar.istio.io/inject: "true"
+    # #   traffic.sidecar.istio.io/excludeInboundPorts: "14250"
+    #   prometheus.io/port: "15020"
+    # # labels:
+    # #   version: "1.35.2"
+    options:
+      kafka:
+        producer:
+          # topic: jaeger-spans
+          brokers: redpanda.redpanda.svc.cluster.local:9092
+          protocol-version: "3.1.2"
+          # required-acks: "all"
+          authentication: plaintext
+          plaintext:
+            username: $(KAFKA_USERNAME)
+            password: $(KAFKA_PASSWORD)
+            mechanism: SCRAM-SHA-256
+          # tls:
+          #   enabled: true
+          # batch-size: 128000
+          # batch-linger: 1s
+          # batch-max-messages: 100
+          # tls:
+          #   enabled: true
+          #   ca:
+          #   cert:
+          #   key:
+          #   skip-host-verify: true
+      log-level: info
+    kafkaSecretName: jaeger-redpanda
+    maxReplicas: 2
+    resources:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  ingester:
+    annotations:
+      sidecar.istio.io/inject: "true"
+    #   prometheus.io/port: "15020"
+    # labels:
+    #   version: "1.35.2"
+    # image: jaegertracing/jaeger-ingester:1.37.0
+    options:
+      kafka:
+        consumer:
+          # topic: jaeger-spans
+          brokers: redpanda.redpanda.svc.cluster.local:9092
+          protocol-version: "3.1.2"
+          # group-id: jaeger-ingester
+          authentication: plaintext
+          plaintext:
+            username: $(KAFKA_USERNAME)
+            password: $(KAFKA_PASSWORD)
+            mechanism: SCRAM-SHA-256
+          # tls:
+          #   enabled: true
+      ingester:
+        deadlockInterval: 0
+      log-level: info
+    kafkaSecretName: jaeger-redpanda
+    maxReplicas: 3
+    resources:
+      requests:
+        cpu: 200m
+        memory: 128Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+  query:
+    annotations:
+      sidecar.istio.io/inject: "true"
+    #   prometheus.io/port: "15020"
+    # labels:
+    #   version: "1.35.2"
+    metricsStorage:
+      type: prometheus
+    options:
+      query:
+        base-path: /jaeger
+        max-clock-skew-adjustment: 0.005s
+      prometheus:
+        server-url: "http://prometheus-operated.monitoring:9090"
+      # es:
+      #   use-aliases: true
+      log-level: info
+    tracingEnabled: false
+  ui:
+    options: 
+      log-level: info
+      dependencies:
+        menuEnabled: true
+  storage:
+    type: cassandra
+    options:
+      cassandra:
+        servers: scylla-client.scylla.svc.cluster.local
+        keyspace: jaeger
+        local-dc: dc
+        consistency: LOCAL_ONE
+    cassandraCreateSchema:
+      enabled: false
+      annotations:
+        sidecar.istio.io/inject: "true"
+      mode: prod
+      datacenter: dc
+      keyspace: jaeger
+      replication_factor: 1
+      trace_ttl: 172800
+      dependencies_ttl: 0
+    # type: elasticsearch
+    # esRollover:
+    #   conditions: "{\"max_age\": \"24h\"}"
+    #   readTTL: 24h
+    #   schedule: "55 23 * * *"
+    #   annotations:
+    #     sidecar.istio.io/inject: "true"
+    dependencies:
+      enabled: true
+      # javaOpts: "-Xms128m -Xmx128m"
+      # image: localhost:5000/jaegertracing/spark-dependencies:latest
+      # imagePullPolicy: Always
+      # elasticsearchNodesWanOnly: true
+      schedule: "55 23 * * *"
+      # schedule: "*/5 * * * *"
+      sparkMaster:
+      resources:
+        requests:
+          memory: 4096Mi
+        limits:
+          memory: 4096Mi
+      annotations:
+        sidecar.istio.io/inject: "true"
+    # esIndexCleaner:
+    #   enabled: true
+    #   numberOfDays: 1
+    #   schedule: "55 23 * * *"
+    #   annotations:
+    #     sidecar.istio.io/inject: "true"
+    # options:
+    #   es:
+    #     create-index-templates: false
+    #     server-urls: http://opensearch-discovery.opensearch-operator-system:9200
+    #     use-aliases: true
+    #     # tls:
+    #     #   ca: /es/certificates/ca.crt
+    #   log-level: info
+    secretName: jaeger-scylla
+  ingress:
+    enabled: false
+  # agent:
+  #   annotations:
+  #     sidecar.istio.io/inject: "true"
+  #   labels:
+  #     version: "1.35.2"
+  #   strategy: DaemonSet

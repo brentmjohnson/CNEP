@@ -1,0 +1,5 @@
+configGeneral:
+  resync_period: 60s
+configKubernetes:
+  pod_environment_configmap: postgres/postgres-pod-config
+  pod_management_policy: parallel

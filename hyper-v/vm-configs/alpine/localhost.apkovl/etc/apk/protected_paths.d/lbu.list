@@ -1,0 +1,6 @@
++etc/init.d/dhcpd6
++root/apkcache.img
++var/cache/bind
++var/lib/bind
++var/lib/dhcp
++var/log/bind

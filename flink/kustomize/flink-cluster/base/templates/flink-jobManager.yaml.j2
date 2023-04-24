@@ -1,0 +1,151 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  namespace: flink
+  name: flink
+spec:
+  # image: flink:1.15.4
+  flinkVersion: v1_15
+  flinkConfiguration:
+    parallelism.default: "1"
+    taskmanager.numberOfTaskSlots: "1"
+    taskmanager.memory.managed.size: 192mb
+    taskmanager.memory.flink.size: 512mb
+    jobmanager.memory.flink.size: 512mb
+    rest.flamegraph.enabled: "true"
+    s3.endpoint: http://{{ flink_bucket.BUCKET_HOST }}.cluster.local
+    s3.access-key: {{ flink_bucket.AWS_ACCESS_KEY_ID }}
+    s3.secret-key: {{ flink_bucket.AWS_SECRET_ACCESS_KEY }}
+    s3.path.style.access: "true"
+    state.backend: org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory
+    state.backend.incremental: "true"
+    state.savepoints.dir: s3p://{{ flink_bucket.BUCKET_NAME }}/savepoints
+    state.checkpoints.dir: s3p://{{ flink_bucket.BUCKET_NAME }}/checkpoints
+    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    high-availability.storageDir: s3p://{{ flink_bucket.BUCKET_NAME }}/recovery
+    metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+    metrics.reporter.prom.port: "9999"
+    metrics.internal.query-service.port: "50100"
+    web.cancel.enable: "true"
+  serviceAccount: flink
+  jobManager:
+    podTemplate:
+      metadata:
+        labels:
+          app: flink-jobmanager
+          version: 1.15.4
+          # sidecar.istio.io/inject: "false"
+      spec:
+        containers:
+          - name: flink-main-container
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+    replicas: 1
+    resource:
+      memory: "1024m"
+      cpu: 1
+  taskManager:
+    podTemplate:
+      metadata:
+        labels:
+          app: flink-taskmanager
+          version: 1.15.4
+          # sidecar.istio.io/inject: "false"
+      spec:
+        containers:
+          - name: flink-main-container
+            image: k8s-lb:5000/apache/flink:1.15.4.1
+            env:
+              - name: ENABLE_BUILT_IN_PLUGINS
+                value: flink-s3-fs-presto-1.15.4.jar; flink-s3-fs-hadoop-1.15.4.jar
+              - name: DOCKER_HOST
+                value: "unix:///opt/flink/.docker/run/docker.sock"
+            volumeMounts:
+              - name: wsl-drivers
+                mountPath: /usr/lib/wsl
+                readOnly: true
+              - name: docker-socket
+                mountPath: /opt/flink/.docker/run
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                smarter-devices/dxg: 1
+          - name: beam-worker-pool
+            image: apache/beam_python3.10_sdk:2.46.0
+            args: ["--worker_pool"]
+            ports:
+              - containerPort: 50000
+                name: pool
+            livenessProbe:
+              tcpSocket:
+                port: 50000
+              initialDelaySeconds: 30
+              periodSeconds: 60
+          - name: dind
+            image: docker:23.0.1-dind
+            args:
+              - --insecure-registry=k8s-lb:5000
+            securityContext:
+              privileged: true
+              runAsGroup: 9999
+            volumeMounts:
+              - name: wsl-drivers
+                mountPath: /usr/lib/wsl
+                readOnly: true
+              - name: docker-socket
+                mountPath: /var/run
+            resources:
+              limits:
+                smarter-devices/dxg: 1
+          # - name: dind-rootless
+          #   image: k8s-lb:5000/docker:23.0.1.1-dind-rootless
+          #   args:
+          #     - --insecure-registry=k8s-lb:5000
+          #   env:
+          #     - name: DOCKER_HOST
+          #       value: unix:///run/user/9999/docker.sock
+          #   ports: 
+          #     - name: docker
+          #       containerPort: 2375
+          #       appProtocol: tcp
+          #   securityContext:
+          #     privileged: true
+          #   volumeMounts:
+          #     - name: wsl-drivers
+          #       mountPath: /usr/lib/wsl
+          #       readOnly: true
+          #     - name: docker-socket
+          #       mountPath: /run/user/9999
+          #   resources:
+          #     limits:
+          #       smarter-devices/dxg: 1
+        volumes:
+          - name: wsl-drivers
+            hostPath:
+              path: /usr/lib/wsl
+              type: Directory
+          - name: docker-socket
+            emptyDir: {}
+    resource:
+      memory: "1024m"
+      cpu: 1
+  podTemplate:
+    spec:
+      serviceAccount: flink
+      containers:
+        - name: flink-main-container
+          image: flink:1.15.4
+          env: 
+            - name: ENABLE_BUILT_IN_PLUGINS
+              value: flink-s3-fs-presto-1.15.4.jar; flink-s3-fs-hadoop-1.15.4.jar
+          ports:
+            - containerPort: 9999
+              name: metrics
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi

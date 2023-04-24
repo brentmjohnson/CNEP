@@ -1,0 +1,283 @@
+Release "external-dns" does not exist. Installing it now.
+NAME: external-dns
+LAST DEPLOYED: Tue Jan 10 06:08:16 2023
+NAMESPACE: external-dns
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+extraArgs:
+- --rfc2136-host=k8s-lb.internal.example.com
+- --rfc2136-port=53
+- --rfc2136-zone=internal.example.com
+- --rfc2136-tsig-secret=<secret>
+- --rfc2136-tsig-secret-alg=hmac-sha256
+- --rfc2136-tsig-keyname=ns-internal-example-com-rndc-key
+- --rfc2136-tsig-axfr
+- --domain-filter=internal.example.com
+provider: rfc2136
+sources:
+- ingress
+txtOwnerId: k8s
+txtPrefix: external-dns-
+
+COMPUTED VALUES:
+affinity: {}
+commonLabels: {}
+deploymentAnnotations: {}
+deploymentStrategy:
+  type: Recreate
+dnsPolicy: null
+domainFilters: []
+env: []
+extraArgs:
+- --rfc2136-host=k8s-lb.internal.example.com
+- --rfc2136-port=53
+- --rfc2136-zone=internal.example.com
+- --rfc2136-tsig-secret=<secret>
+- --rfc2136-tsig-secret-alg=hmac-sha256
+- --rfc2136-tsig-keyname=ns-internal-example-com-rndc-key
+- --rfc2136-tsig-axfr
+- --domain-filter=internal.example.com
+extraVolumeMounts: []
+extraVolumes: []
+fullnameOverride: ""
+image:
+  pullPolicy: IfNotPresent
+  repository: k8s.gcr.io/external-dns/external-dns
+  tag: ""
+imagePullSecrets: []
+interval: 1m
+livenessProbe:
+  failureThreshold: 2
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+logFormat: text
+logLevel: info
+nameOverride: ""
+nodeSelector: {}
+podAnnotations: {}
+podLabels: {}
+podSecurityContext:
+  fsGroup: 65534
+policy: upsert-only
+priorityClassName: ""
+provider: rfc2136
+rbac:
+  additionalPermissions: []
+  create: true
+readinessProbe:
+  failureThreshold: 6
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+registry: txt
+resources: {}
+secretConfiguration:
+  data: {}
+  enabled: false
+  mountPath: ""
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65534
+service:
+  annotations: {}
+  port: 7979
+serviceAccount:
+  annotations: {}
+  create: true
+  labels: {}
+  name: ""
+serviceMonitor:
+  additionalLabels: {}
+  enabled: false
+  interval: 1m
+  scrapeTimeout: 10s
+shareProcessNamespace: false
+sources:
+- ingress
+terminationGracePeriodSeconds: null
+tolerations: []
+topologySpreadConstraints: []
+triggerLoopOnEvent: false
+txtOwnerId: k8s
+txtPrefix: external-dns-
+txtSuffix: ""
+
+HOOKS:
+MANIFEST:
+---
+# Source: external-dns/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    helm.sh/chart: external-dns-1.12.0
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/version: "0.13.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: external-dns/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns
+  labels:
+    helm.sh/chart: external-dns-1.12.0
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/version: "0.13.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: ["extensions","networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get","watch","list"]
+---
+# Source: external-dns/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-viewer
+  labels:
+    helm.sh/chart: external-dns-1.12.0
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/version: "0.13.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+  - kind: ServiceAccount
+    name: external-dns
+    namespace: external-dns
+---
+# Source: external-dns/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    helm.sh/chart: external-dns-1.12.0
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/version: "0.13.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+  ports:
+    - name: http
+      port: 7979
+      targetPort: http
+      protocol: TCP
+---
+# Source: external-dns/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    helm.sh/chart: external-dns-1.12.0
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/version: "0.13.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-dns
+      app.kubernetes.io/instance: external-dns
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: external-dns
+        app.kubernetes.io/instance: external-dns
+    spec:
+      serviceAccountName: external-dns
+      securityContext:
+        fsGroup: 65534
+      containers:
+        - name: external-dns
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+          image: k8s.gcr.io/external-dns/external-dns:v0.13.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --log-level=info
+            - --log-format=text
+            - --interval=1m
+            - --source=ingress
+            - --policy=upsert-only
+            - --registry=txt
+            - --txt-owner-id=k8s
+            - --txt-prefix=external-dns-
+            - --provider=rfc2136
+            - --rfc2136-host=k8s-lb.internal.example.com
+            - --rfc2136-port=53
+            - --rfc2136-zone=internal.example.com
+            - --rfc2136-tsig-secret=<secret>
+            - --rfc2136-tsig-secret-alg=hmac-sha256
+            - --rfc2136-tsig-keyname=ns-internal-example-com-rndc-key
+            - --rfc2136-tsig-axfr
+            - --domain-filter=internal.example.com
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 7979
+          livenessProbe:
+            failureThreshold: 2
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+
+NOTES:
+***********************************************************************
+* External DNS                                                        *
+***********************************************************************
+  Chart version: 1.12.0
+  App version:   0.13.1
+  Image tag:     k8s.gcr.io/external-dns/external-dns:v0.13.1
+***********************************************************************

@@ -1,0 +1,35 @@
+apiVersion: kiali.io/v1alpha1
+kind: Kiali
+metadata:
+  name: kiali
+  namespace: istio-system
+spec:
+  installation_tag: "Kiali"
+  istio_namespace: "istio-system"
+  auth:
+    strategy: "anonymous"
+  deployment:
+    accessible_namespaces: ['**']
+    view_only_mode: false
+    pod_annotations:
+      prometheus.io/port: "15020"
+    pod_labels:
+      sidecar.istio.io/inject: "true"
+  server:
+    web_root: "/kiali"
+  external_services:
+    prometheus:
+      url: http://prometheus-k8s.monitoring.svc.cluster.local:9090/
+    grafana:
+        enabled: true
+        auth:
+          type: basic
+          username: <user>
+          password: <password>
+        in_cluster_url: 'http://grafana.monitoring.svc.cluster.local:3000/'
+        url: 'http://localhost:30080/grafana/'
+    tracing:
+        enabled: true
+        in_cluster_url: 'http://jaeger-query.observability.svc.cluster.local:16685/'
+        use_grpc: true
+        url: 'http://localhost:30080/jaeger'

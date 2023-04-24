@@ -1,0 +1,27 @@
+---
+# Source: loki-distributed/templates/ingester/servicemonitor-ingester.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: loki-loki-distributed-ingester
+  labels:
+    helm.sh/chart: loki-distributed-0.69.9
+    app.kubernetes.io/name: loki-distributed
+    app.kubernetes.io/instance: loki
+    app.kubernetes.io/version: "2.7.4"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: ingester
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki-distributed
+      app.kubernetes.io/instance: loki
+      app.kubernetes.io/component: ingester
+    matchExpressions:
+      - key: prometheus.io/service-monitor
+        operator: NotIn
+        values:
+          - "false"
+  endpoints:
+    - port: http
+      scheme: http

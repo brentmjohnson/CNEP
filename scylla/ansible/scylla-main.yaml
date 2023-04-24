@@ -1,0 +1,3 @@
+- import_playbook: scylla-operator.yaml
+- import_playbook: scylla-manager.yaml
+- import_playbook: scylla-cluster.yaml

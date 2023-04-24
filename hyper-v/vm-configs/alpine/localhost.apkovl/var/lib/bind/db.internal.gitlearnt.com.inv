@@ -1,0 +1,10 @@
+$TTL 60 ; 1 minute
+@                       IN SOA  internal.example.com. root.internal.example.com. (
+                                2023011001 ; serial
+                                60         ; refresh (1 minute)
+                                60         ; retry (1 minute)
+                                60         ; expire (1 minute)
+                                60         ; minimum (1 minute)
+                                )
+                        NS      k8s-lb.internal.example.com.
+2                       PTR     k8s-lb.internal.example.com.

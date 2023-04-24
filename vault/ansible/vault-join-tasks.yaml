@@ -1,0 +1,29 @@
+- name: Wait for vault
+  ansible.builtin.shell: 
+    cmd: | 
+      while ! \
+        kubectl -n vault exec vault-{{ item }} \
+        --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+        -- vault version;
+      do sleep 1;
+      done
+  register: myoutput
+# - debug: var=myoutput
+
+- name: Join vault
+  ansible.builtin.shell: 
+    cmd: | 
+      kubectl -n vault exec vault-{{ item }} \
+      --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+      -- vault operator raft join http://vault-0.vault-internal:8200;
+  register: myoutput
+# - debug: var=myoutput
+
+# - name: Add controls to given group
+#   ansible.builtin.shell: 
+#     cmd: | 
+#       kubectl -n vault exec vault-{{ item }} \
+#       --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+#       -- vault operator unseal {{ vault_unseal_keys_b64[0] }} ;
+#   register: myoutput
+# - debug: var=myoutput

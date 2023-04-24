@@ -1,0 +1,162 @@
+- name: Cleanup loadbalancer dhcp leases
+  hosts: loadbalancer
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Stop dhcpd services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: true
+      loop:
+        - dhcpd
+        - dhcpd6
+
+    # - name: Remove lease files
+    #   ansible.builtin.file:
+    #     path: "/var/lib/dhcp/{{ item }}"
+    #     state: absent
+    #   with_fileglob:
+    #     - /var/lib/dhcp/*
+    #   register: myoutput
+    # - debug: var=myoutput
+
+    - name: Find dhcp lease files
+      ansible.builtin.find:
+        paths: "/var/lib/dhcp/"
+        hidden: true
+        file_type: any
+      register: dhcp_lease_files
+    # - debug: var=dhcp_lease_files
+
+    - name: Remove dhcp lease files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ dhcp_lease_files.files }}"
+      register: myoutput
+    # - debug: var=myoutput
+
+    # - name: Reload dhcpd services
+    #   ansible.builtin.service:
+    #     name: "{{ item }}"
+    #     state: restarted
+    #     enabled: true
+    #   loop:
+    #     - dhcpd
+    #     - dhcpd6
+
+# # workaround - cannot unmarshal number 2147483648 into Go struct field Vm.LowMemoryMappedIoSpace of type int32
+# - hosts: hyperv_host
+#   vars_files:
+#   - vars/k8s_cluster.yml
+#   tasks:
+#     - name: Zero out LowMemoryMappedIoSpace
+#       ansible.windows.win_powershell:
+#         script: |
+#           $vmName = "{{ k8s.cluster_name }}-control-{{ item }}"
+#           Set-VM -LowMemoryMappedIoSpace 0 -VMName $vmName
+#       loop: "{{ range(0, k8s.control_plane.vms) | list }}"
+#       when: hostvars.localhost.nodes_ready|default(false) != true
+#       register: out
+#     # - debug: var=out
+
+- name: Cleanup playbook
+  hosts: vm_host
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - ansible.builtin.set_fact:
+        home_dir: "{{ ansible_env.HOME }}"
+
+    - name: Destroy cluster VM
+      community.general.terraform:
+        force_init: true
+        project_path: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/{{ item }}"
+        state: absent
+      loop:
+        - workers
+        - controls
+        # - loadbalancer
+      when:
+        - not rook_ceph.install_rook
+        - k8s.control_plane.vms > 1
+      # become: true
+
+    - name: Destroy cluster VM
+      community.general.terraform:
+        force_init: true
+        project_path: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/{{ item }}"
+        state: absent
+      loop:
+        - workers
+        - controls
+      when:
+        - not rook_ceph.install_rook
+        - k8s.control_plane.vms == 1
+      become: true
+
+    - name: Destroy cluster VM
+      community.general.terraform:
+        force_init: true
+        project_path: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/{{ item }}"
+        state: absent
+      loop:
+        - workers-rook
+        - workers
+        - controls
+        # - loadbalancer
+      when: rook_ceph.install_rook
+      become: true
+
+    - name: Destroy libvirt pool and network
+      community.general.terraform:
+        force_init: true
+        project_path: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/libvirt-resources"
+        state: absent
+      become: true
+
+    - name: Ensure images are deleted
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/OS-GenericCloud.qcow2
+      become: true
+
+    - name: Delete all created paths
+      ansible.builtin.file:
+        path: "{{ workspace_directory.base_path }}/clusters/{{ k8s.cluster_name }}/{{ item }}"
+        state: absent
+      loop:
+        - controls
+        - libvirt-resources
+        - vars
+        - workers
+        - workers-rook
+        - admin.kubeconfig
+        - id_rsa_k8s
+        - id_rsa_k8s.pub
+      become: true
+      # cd ~/dataStore/ansible/hyperv-k8s-provisioner/k8s-setup/clusters/k8s/loadbalancer
+      # terraform import hyperv_network_switch.k8s_network_switch k8s
+      # terraform import hyperv_vhd.k8s_lb_vhd_0 C:\\K8sImages\\k8s\(alpine\)\\k8s-lb\\k8s-lb-disk-0.vhdx
+      # terraform import hyperv_machine_instance.k8s_lb k8s-lb
+
+    - name: Cleanup local DNS config
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/NetworkManager/dnsmasq.d/{{ k8s.cluster_name }}-libvirt_dnsmasq.conf
+        - /etc/NetworkManager/conf.d/{{ k8s.cluster_name }}-localdns.conf
+      become: true
+
+    # - name: Restart NetworkManager and libvirtd
+    #   ansible.builtin.service:
+    #     name: "{{ item }}"
+    #     state: restarted
+    #   loop:
+    #     - libvirtd
+    #     - NetworkManager
+    #   become: true

@@ -1,0 +1,99 @@
+- name: Install kubernetes dashboard
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add kubernetes-dashboard chart repo
+      kubernetes.core.helm_repository:
+        name: kubernetes-dashboard
+        repo_url: "https://kubernetes.github.io/dashboard/"
+
+    - name: Separately update the kubernetes-dashboard cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: kubernetes-dashboard
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template kubernetes-dashboard chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=6.0.6
+          --namespace=kubernetes-dashboard
+          --values={{ playbook_dir }}/../helm/values/dashboard-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/base
+          kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard
+
+    - name: Add kubernetes-dashboard resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/kubernetes-dashboard/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/"
+
+    - name: Kustomize build kubernetes-dashboard manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy kubernetes-dashboard resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply kubernetes-dashboard manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Get admin-user token
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: kubernetes-admin
+        namespace: kubernetes-dashboard
+      register: admin_user_token
+    # - debug: var=admin_user_token.resources[0].data.token
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              kubernetes_dashboard:
+                password: "{{ admin_user_token.resources[0].data.token | b64decode }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.kubernetes_dashboard.password is not defined or
+        credentials.kubernetes_dashboard.password == None or
+        credentials.kubernetes_dashboard.password | length == 0 or
+        credentials.kubernetes_dashboard.password != admin_user_token.resources[0].data.token | b64decode"
+
+    - name: Wait for the kubernetes-dashboard deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: kubernetes-dashboard
+        namespace: kubernetes-dashboard
+      register: myoutput
+

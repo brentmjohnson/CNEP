@@ -1,0 +1,15 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: strimzi-operator-service-headless
+  namespace: kafka
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      appProtocol: tcp
+      port: 8080
+      targetPort: 8080
+  selector:
+    strimzi.io/kind: cluster-operator
+  clusterIP: None

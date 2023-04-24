@@ -1,0 +1,5 @@
+extraArgs:
+  - --enable-insecure-login
+protocolHttp: true
+metricsScraper:
+  enabled: true

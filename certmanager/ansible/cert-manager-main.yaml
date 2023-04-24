@@ -1,0 +1,4 @@
+- import_playbook: cert-manager.yaml
+- import_playbook: cert-manager-vault-issuer.yaml
+- import_playbook: cert-manager-istio-csr.yaml
+- import_playbook: cert-manager-letsencrypt-issuer.yaml

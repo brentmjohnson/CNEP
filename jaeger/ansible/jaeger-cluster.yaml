@@ -1,0 +1,275 @@
+- name: Install the jaeger cluster
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              jaeger_redpanda:
+                password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.jaeger_redpanda.password is not defined or
+        credentials.jaeger_redpanda.password == None or
+        credentials.jaeger_redpanda.password | length == 0"
+    
+    - name: Check jaeger redpanda credentials
+      ansible.builtin.shell:
+        # kubectl exec -n redpanda statefulset/redpanda -- rpk cluster health | awk -F\, 'NR>2' | head -n -4 | awk '{print $2}'
+        cmd: |
+          kubectl exec -n redpanda statefulset/redpanda -- \
+          rpk acl user list --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }} \
+          --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }} \
+          | grep '^{{ credentials.jaeger_redpanda.username }}$' || true
+      register: jaeger_admin
+    # - debug: var=jaeger_admin
+
+    - block:
+      - name: Create jaeger redpanda user
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -n redpanda statefulset/redpanda -- \
+            rpk acl user create {{ credentials.jaeger_redpanda.username }} -p {{ credentials.jaeger_redpanda.password }} \
+            --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }}
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Grant jaeger redpanda topic permissions
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -n redpanda statefulset/redpanda -- rpk acl create \
+            --allow-principal User:{{ credentials.jaeger_redpanda.username }} --operation all --topic jaeger-spans \
+            --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }}
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Grant jaeger redpanda group permissions
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -n redpanda statefulset/redpanda -- rpk acl create \
+            --allow-principal User:{{ credentials.jaeger_redpanda.username }} --operation all --group jaeger-ingester \
+            --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }}
+        register: myoutput
+      # - debug: var=myoutput
+
+      when: jaeger_admin.stdout | length == 0
+
+    - name: Check jaeger-spans redpanda topic
+      ansible.builtin.shell:
+        # kubectl exec -n redpanda statefulset/redpanda -- rpk cluster health | awk -F\, 'NR>2' | head -n -4 | awk '{print $2}'
+        cmd: |
+          kubectl exec -n redpanda statefulset/redpanda -- \
+          rpk topic list \
+          --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }} \
+          | grep '^jaeger-spans' || true
+      register: jaeger_topic
+    # - debug: var=jaeger_topic
+
+    - block:
+      - name: Create jaeger-spans redpanda topic
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -n redpanda statefulset/redpanda -- \
+            rpk topic create -c retention.ms=86400000 jaeger-spans -r 1 \
+            --user {{ credentials.redpanda_cluster.username }} --password {{ credentials.redpanda_cluster.password }}
+        register: myoutput
+      # - debug: var=myoutput
+      when: jaeger_topic.stdout | length == 0
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              jaeger_scylla:
+                password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.jaeger_scylla.password is not defined or
+        credentials.jaeger_scylla.password == None or
+        credentials.jaeger_scylla.password | length == 0"
+
+    - name: Check jaeger credentials
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+          cqlsh localhost -u {{ credentials.jaeger_scylla.username }} -p {{ credentials.jaeger_scylla.password }} \
+          -e "DESC CLUSTER;" \
+          | awk -F\, 'NR>1'
+      register: jaeger_admin_role
+    # - debug: var=myoutput
+
+    - block:
+      - name: Create jaeger keyspace
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_cluster.username }} -p {{ credentials.scylla_cluster.password }} \
+            --no-color \
+            -e "CREATE KEYSPACE IF NOT EXISTS jaeger WITH REPLICATION = 
+              { 'class' : 'NetworkTopologyStrategy', 'dc' : 1 };"
+        register: myoutput
+      # - debug: var=myoutput.stdout
+
+      - name: Create jaeger-admin role
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_cluster.username }} -p {{ credentials.scylla_cluster.password }} \
+            -e "CREATE ROLE '{{ credentials.jaeger_scylla.username }}' WITH PASSWORD = '{{ credentials.jaeger_scylla.password }}' AND LOGIN = true AND SUPERUSER = false;"
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Create jaeger-admin role grants
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_cluster.username }} -p {{ credentials.scylla_cluster.password }} \
+            -e "GRANT ALL PERMISSIONS on KEYSPACE jaeger to '{{ credentials.jaeger_scylla.username }}'; \
+            GRANT SELECT on TABLE system.size_estimates to '{{ credentials.jaeger_scylla.username }}';"
+        register: myoutput
+      # - debug: var=myoutput
+
+      when: jaeger_admin_role.stdout | length == 0
+
+    - name: Setting kustomize jaeger base templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/jaeger-cluster/base/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/jaeger-cluster/base/templates/*.j2"
+
+    - name: Kustomize build jaeger-cluster manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/jaeger-cluster/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy jaeger-cluster resources.
+      ansible.builtin.copy:
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/jaeger-cluster/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Check jaeger keyspace tables
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+          cqlsh localhost -u {{ credentials.jaeger_scylla.username }} -p {{ credentials.jaeger_scylla.password }} \
+          --no-color \
+          -e "SELECT COUNT(*) FROM system_schema.tables WHERE keyspace_name = 'jaeger';" \
+          | awk -F\, 'NR>3' \
+          | head -n -2 \
+          | awk '{print $1}'
+      register: jaeger_table_count
+    - debug: var=jaeger_table_count
+
+    - block:
+      - name: Create temporary jaeger-admin create keyspace grant
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_cluster.username }} -p {{ credentials.scylla_cluster.password }} \
+            -e "GRANT CREATE on ALL KEYSPACES to '{{ credentials.jaeger_scylla.username }}';"
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Apply jaeger-scylla-secret to the cluster
+        kubernetes.core.k8s:
+          state: present
+          src: "{{ playbook_dir }}/../kustomize/jaeger-cluster/base/jaeger-scylla-secret.yaml"
+          kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+          wait: true
+
+      - name: Apply jaeger-cassandra-schema-job to the cluster
+        kubernetes.core.k8s:
+          state: present
+          src: "{{ playbook_dir }}/../kustomize/jaeger-cluster/base/jaeger-cassandra-schema-job.yaml"
+          kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+          wait: true
+          wait_condition:
+            type: Complete
+            status: "True"
+
+      - name: Delete jaeger-cassandra-schema-job to the cluster
+        kubernetes.core.k8s:
+          state: absent
+          api_version: batch/v1
+          kind: Job
+          namespace: observability
+          name: jaeger-cassandra-schema-job
+          kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+          wait: true
+
+      - name: Revoke temporary jaeger-admin create keyspace grant
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n scylla statefulset/scylla-dc-default -- \
+            cqlsh localhost -u {{ credentials.scylla_cluster.username }} -p {{ credentials.scylla_cluster.password }} \
+            -e "REVOKE CREATE on ALL KEYSPACES from '{{ credentials.jaeger_scylla.username }}';"
+        register: myoutput
+      # - debug: var=myoutput
+
+      when: jaeger_table_count.stdout is not defined or
+        jaeger_table_count.stdout == None or
+        jaeger_table_count.stdout == '0'
+
+    - name: Apply jaeger-cluster manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/jaeger-cluster/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    # - name: Wait for the jaegertracing-jaeger-cluster deployment
+    #   kubernetes.core.k8s_info:
+    #     kind: Deployment
+    #     wait: yes
+    #     name: jaegertracing-jaeger-operator
+    #     namespace: observability
+    #   register: myoutput
+
+# kubectl delete job -n observability jaeger-cassandra-schema-job &&
+# kubectl get jobs -n observability jaeger-cassandra-schema-job -o yaml \
+# | kubectl neat \
+# | yq '.metadata.name = "jaeger-cassandra-schema-job2"' \
+# | yq 'del(.spec.selector)' \
+# | yq 'del(.spec.template.metadata.labels)' \
+# | yq '.spec.template.metadata.annotations."sidecar.istio.io/inject" = "true"' \
+# > jaeger/kustomize/jaeger-cluster/base/jaeger-cassandra-schema-job.yaml
+# | kubectl apply -f -

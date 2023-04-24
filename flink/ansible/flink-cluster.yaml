@@ -1,0 +1,84 @@
+- name: Install flink
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Get the flink-bucket configmap info
+      kubernetes.core.k8s_info:
+        kind: ConfigMap
+        wait: yes
+        name: flink-bucket
+        namespace: flink
+        # wait_timeout: 240
+      register: bucket_configmap_data
+    # - debug: var=bucket_configmap_data.resources[0].data
+    
+    - name: Get the flink-bucket secret info
+      kubernetes.core.k8s_info:
+        kind: Secret
+        wait: yes
+        name: flink-bucket
+        namespace: flink
+        # wait_timeout: 240
+      register: bucket_secret_data
+    # - debug: var=bucket_secret_data.resources[0].data
+  
+    - ansible.builtin.set_fact:
+        flink_bucket: "{{ {} |
+          combine(bucket_configmap_data.resources[0].data) |
+          combine(dict(secret_keys | zip(decoded_secret_values))) 
+          }}"
+      vars:
+        secret_keys: "{{ bucket_secret_data.resources[0].data.keys() | list }}"
+        secret_values: "{{ bucket_secret_data.resources[0].data.values() | list }}"
+        decoded_secret_values: "{{ secret_values | map('b64decode') | list }}"
+    # - debug: var=flink_bucket
+
+    - name: Setting kustomize flink base templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/flink-cluster/base/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/flink-cluster/base/templates/*.j2"
+
+    - name: Kustomize build flink-cluster manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/flink-cluster/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy flink-cluster resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/flink-cluster/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply flink-cluster manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/flink-cluster/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the flink deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: flink
+        namespace: flink
+      register: myoutput
+
+    # this handles the supported merge keys of port/protocol
+    - name: Patch flink-rest service
+      ansible.builtin.shell:
+        cmd: |
+          kubectl patch service/flink-rest -n flink -p='{"spec": { "ports": [ { "name": "rest", "port": 8081, "appProtocol": "http" } ] } }' \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+    # - debug: var=myoutput

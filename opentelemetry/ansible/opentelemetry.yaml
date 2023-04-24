@@ -1,0 +1,85 @@
+- name: Install opentelemetry-operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    # - name: Add opentelemetry-operator chart repo
+    #   kubernetes.core.helm_repository:
+    #     name: open-telemetry
+    #     repo_url: "https://open-telemetry.github.io/opentelemetry-helm-charts"
+
+    # - name: Separately update the opentelemetry-operator cache
+    #   kubernetes.core.helm:
+    #     release_state: absent
+    #     chart_ref: open-telemetry
+    #     update_repo_cache: yes
+    #     release_name: undefined
+    #     release_namespace: undefined
+
+    # - name: Helm template opentelemetry-operator chart
+    #   ansible.builtin.shell:
+    #     cmd: helm template
+    #       --version=0.21.2
+    #       --namespace=opentelemetry-operator-system
+    #       --values={{ playbook_dir }}/../helm/values/opentelemetry-operator-values.yaml
+    #       --output-dir={{ playbook_dir }}/../kustomize/opentelemetry/base
+    #       open-telemetry open-telemetry/opentelemetry-operator
+
+    # - name: Add opentelemetry-operator resources to kustomization file
+    #   ansible.builtin.shell:
+    #     cmd: kustomize edit add resource ./base/opentelemetry-operator/templates/*.yaml
+    #     chdir: "{{ playbook_dir }}/../kustomize/opentelemetry/"
+
+    # - name: Add opentelemetry-operator resources to kustomization file
+    #   ansible.builtin.shell:
+    #     cmd: kustomize edit add resource ./base/opentelemetry-operator/templates/admission-webhooks/*.yaml
+    #     chdir: "{{ playbook_dir }}/../kustomize/opentelemetry/"
+
+    - name: Kustomize build opentelemetry-operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/opentelemetry/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy opentelemetry-operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/opentelemetry/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply opentelemetry-operator manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/opentelemetry/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    # kubectl get daemonsets -n opentelemetry-operator-system daemonset-collector -o yaml > ./opentelemetry/kustomize/opentelemetry/base/daemonset-collector.yaml
+    # update hostNetwork: false
+    # istioctl kube-inject -f ./opentelemetry/kustomize/opentelemetry/base/daemonset-collector.yaml > ./opentelemetry/kustomize/opentelemetry/base/daemonset-collector-injected.yaml
+    # update hostNetwork: true
+    # kubectl apply -f ./opentelemetry/kustomize/opentelemetry/base/daemonset-collector-injected.yaml
+    # - name: Manual istio sidecar injection due to hostnetwork=true
+    #   ansible.builtin.shell:
+    #     cmd: "istioctl kube-inject -f samples/sleep/sleep.yaml | kubectl apply -f {{ playbook_dir }}/../kustomize/opentelemetry/resources/resources.yaml"
+
+    - name: Wait for the opentelemetry-operator-controller-manager deployment
+      kubernetes.core.k8s_info:
+        kind: Daemonset
+        wait: yes
+        name: daemonset-collector
+        namespace: opentelemetry-operator-system
+      register: myoutput
+
+    # - name: Wait for the opentelemetry-operator-controller-manager deployment
+    #   kubernetes.core.k8s_info:
+    #     kind: Deployment
+    #     wait: yes
+    #     name: opentelemetry-operator-controller-manager
+    #     namespace: opentelemetry-operator-system
+    #   register: myoutput

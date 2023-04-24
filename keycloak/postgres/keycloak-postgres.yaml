@@ -1,0 +1,28 @@
+apiVersion: kubegres.reactive-tech.io/v1
+kind: Kubegres
+metadata:
+  name: keycloak-postgres
+  namespace: keycloak-operator
+
+spec:
+  replicas: 1
+  image: postgres:14.5
+  database:
+    size: 200Mi
+
+  backup:
+    schedule: "0 */1 * * *"
+    pvcName: keycloak-postgres-backup-pvc
+    volumeMount: /var/lib/backup
+
+  env:
+    - name: POSTGRES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-postgres-secret
+          key: superUserPassword
+    - name: POSTGRES_REPLICATION_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: keycloak-postgres-secret
+          key: replicationUserPassword

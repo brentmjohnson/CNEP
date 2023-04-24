@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: calico-felix
+  name: calico-felix-metrics
+  namespace: monitoring
+spec:
+  endpoints:
+  - interval: 30s
+    port: metrics
+    relabelings:
+    - sourceLabels:
+      - __meta_kubernetes_endpoint_node_name
+      targetLabel: instance
+  namespaceSelector:
+    matchNames:
+    - calico-system
+  selector:
+    matchLabels:
+      k8s-app: calico-felix

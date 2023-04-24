@@ -1,0 +1,17 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: default
+  namespace: ingress-apisix
+spec:
+  host: apisix-gateway.ingress-apisix.svc.cluster.local
+  trafficPolicy:
+    portLevelSettings:
+    - port: 
+        number: 80
+      tls:
+        mode: DISABLE
+    - port: 
+        number: 443
+      tls:
+        mode: DISABLE

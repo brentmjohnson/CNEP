@@ -1,0 +1,9 @@
+apiVersion: builtin
+kind: LabelTransformer
+metadata:
+  name: helmLabeller
+labels:
+  app.kubernetes.io/managed-by: Helm
+fieldSpecs:
+- path: metadata/labels
+  create: true

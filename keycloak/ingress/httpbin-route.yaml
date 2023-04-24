@@ -1,0 +1,129 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: httpbin-route
+  namespace: default
+spec:
+  http:
+  - name: rule1
+    match:
+      paths:
+      - /httpbin/*
+    backends:
+      - serviceName: httpbin
+        servicePort: 80
+        #  resolveGranularity: service
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      #     additional_attributes:
+      #       - route_id
+      - name: zipkin
+        enable: true
+        config:
+          endpoint: http://daemonset-collector.opentelemetry-operator-system.svc.cluster.local:9411
+          sample_ratio: 1
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: httpbin.default.svc.cluster.local
+          # regex_uri:
+          #   - "^/httpbin/(.*)"
+          #   - "/$1"
+            # - ^/httpbin/(login.*|())(.*)
+            # - "/$2"
+      - name: openid-connect
+        enable: true
+        config:
+          client_id: httpbin
+          client_secret: <secret>
+          # discovery: http://localhost:9080/keycloak/realms/apisix_test_realm/.well-known/openid-configuration
+          # discovery: http://keycloak-service.keycloak-operator.svc.cluster.local:8080/keycloak/realms/apisix_test_realm/.well-known/openid-configuration
+          discovery: http://localhost:9080/keycloak-internal/keycloak/realms/apisix/.well-known/openid-configuration
+          scope: openid profile
+          bearer_only: false
+          # realm: apisix
+          introspection_endpoint: http://keycloak-service.keycloak-operator.svc.cluster.local:8080/keycloak/realms/apisix/protocol/openid-connect/token/introspect
+          introspection_endpoint_auth_method: client_secret_post
+          logout_path: /httpbin/logout
+          # post_logout_redirect_uri: http://localhost:30080/httpbin/
+          # post_logout_redirect_uri: /httpbin/
+          # post_logout_redirect_uri: /httpbin/login
+          # post_logout_redirect_uri: /login
+          post_logout_redirect_uri: https://10.0.0.2/httpbin/
+          # redirect_uri: http://localhost:30080/httpbin/callback
+          # redirect_uri: /httpbin/login
+          redirect_uri: https://10.0.0.2/httpbin/login
+          use_pkce: true
+          # set_id_token_header: true
+      # - name: authz-keycloak
+      #   enable: true
+      #   config:
+      #     client_id: apisix
+      #     client_secret: <secret>
+      #     discovery: http://localhost:9080/keycloak/realms/apisix_test_realm/.well-known/openid-configuration
+      #     token_endpoint: http://localhost:9080/keycloak/realms/apisix_test_realm/protocol/openid-connect/token
+      # - name: serverless-post-function
+      #   enable: true
+      #   config:
+      #     phase: rewrite
+      #     functions:
+            # - return function(conf, ctx) ngx.var.var_x_forwarded_for = ngx.var.var_remote_addr end
+            # - return function(conf, ctx) 
+            #     local core = require("apisix.core");
+            #     if core.request.header(ctx, "X-Request-Id")
+            #       then 
+            #         core.request.set_header(ctx, "X-Request-Id", core.request.header(ctx, "X-Request-Id"):gsub("-",""));
+            #         core.request.set_header(ctx, "X-B3-Traceid", core.request.header(ctx, "X-Request-Id"):gsub("-",""));
+            #     end; 
+            #   end
+            # - return function(conf, ctx) 
+            #     local core = require("apisix.core");
+            #     if ngx.var.request_id
+            #       then 
+            #         core.request.set_header(ctx, "X-Request-Id", ngx.var.request_id);
+            #         core.request.set_header(ctx, "X-B3-Traceid", ngx.var.request_id);
+            #     end; 
+            #   end
+            # - return function(conf, ctx) 
+            #     local core = require("apisix.core");
+            #     local trace_id = core.request.headers()["x-request-id"] or ngx.var.request_id
+            #     if trace_id
+            #       then 
+            #         core.request.set_header(ctx, "X-Client-Trace-Id", trace_id);
+            #     end; 
+            #   end
+            # - return function(conf, ctx) 
+            #     local core = require("apisix.core");
+            #     if core.request.header(ctx, "X-B3-Traceid")
+            #       then 
+            #         core.request.set_header(ctx, "X-Client-Trace-Id", core.request.header(ctx, "X-B3-Traceid"));
+            #     end; 
+            #   end
+      # - name: response-rewrite
+      #   enable: true
+      #   config:
+      #     status_code: 302
+      #     headers:
+      #       Location: https://10.0.0.2/httpbin/logout
+      #     vars:
+      #       - ["status","==",500]
+      - name: real-ip
+        enable: true
+        config:
+          source: X-Forwarded-For
+          trusted_addresses:
+            - "10.0.0.0/24"
+          recursive: true

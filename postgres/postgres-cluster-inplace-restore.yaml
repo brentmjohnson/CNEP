@@ -1,0 +1,23 @@
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: postgres-cluster
+  namespace: postgres
+spec:
+  teamId: "postgres"
+  volume:
+    size: 1Gi
+  numberOfInstances: 2
+  users:
+    keycloak:  # database owner
+    - superuser
+    - createdb
+  databases:
+    keycloak: keycloak  # dbname: owner
+  preparedDatabases:
+    keycloak: {}
+  postgresql:
+    version: "14"
+  clone:
+    cluster: "postgres-cluster"  # Inplace restore when having the same cluster name as the source
+    timestamp: "2022-09-26T12:00:00+00:00"  # timezone required (offset relative to UTC, see RFC 3339 section 5.6)

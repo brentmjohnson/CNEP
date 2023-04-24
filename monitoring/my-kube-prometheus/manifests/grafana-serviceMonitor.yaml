@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 9.3.2
+  name: grafana
+  namespace: monitoring
+spec:
+  endpoints:
+  - interval: 15s
+    port: http
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana

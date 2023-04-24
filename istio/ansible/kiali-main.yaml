@@ -1,0 +1,2 @@
+- import_playbook: kiali-operator.yaml
+- import_playbook: kiali.yaml

@@ -1,0 +1,283 @@
+- name: Install keycloak
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+    # - debug: var=credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              keycloak_postgres:
+                password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.keycloak_postgres.password is not defined or
+        credentials.keycloak_postgres.password == None or
+        credentials.keycloak_postgres.password | length == 0"
+    
+    # REVOKE CONNECT ON DATABASE keycloak FROM public;
+
+    # SELECT pid, pg_terminate_backend(pid) 
+    # FROM pg_stat_activity 
+    # WHERE datname = 'keycloak' AND pid <> pg_backend_pid();
+
+    # DROP SCHEMA keycloak;
+
+    # DROP DATABASE keycloak;
+
+    # DROP USER "keycloak-admin";
+ 
+    - name: Check keycloak credentials
+      ansible.builtin.shell:
+        cmd: |
+          kubectl exec -it -n postgres $(kubectl get pod -n postgres -l cluster-name=postgres-cluster,spilo-role=master -o jsonpath='{.items[0].metadata.name}') -- sh -c '\
+          {
+          psql \
+          postgresql://{{ credentials.postgres_cluster.username }}:{{ credentials.postgres_cluster.password }}@127.0.0.1:5432 \
+          <<SQL
+          SELECT grantor, tor.rolname, grantee, tee.rolname, privilege_type, is_grantable
+          FROM aclexplode((SELECT datacl FROM pg_database WHERE datname = '\''keycloak'\'')) AS acl
+          JOIN ( SELECT * FROM pg_authid WHERE rolname = '\''{{ credentials.keycloak_postgres.username }}'\'') AS tee ON grantee = tee.oid
+          JOIN pg_authid AS tor ON grantor = tor.oid;
+          SQL
+          } \
+          | awk -F\, '\''NR>2'\'' \
+          | head -n -2
+          '
+      register: keycloak_admin_role
+    # - debug: var=keycloak_admin_role
+
+    - block:
+      - name: Create keycloak database
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n postgres $(kubectl get pod -n postgres -l cluster-name=postgres-cluster,spilo-role=master -o jsonpath='{.items[0].metadata.name}') -- sh -c '\
+            psql \
+            postgresql://{{ credentials.postgres_cluster.username }}:{{ credentials.postgres_cluster.password }}@127.0.0.1:5432 \
+            <<SQL
+            CREATE DATABASE keycloak;
+            SQL
+            '
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Create keycloak-admin role
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n postgres $(kubectl get pod -n postgres -l cluster-name=postgres-cluster,spilo-role=master -o jsonpath='{.items[0].metadata.name}') -- sh -c '\
+            psql -e \
+            postgresql://{{ credentials.postgres_cluster.username }}:{{ credentials.postgres_cluster.password }}@127.0.0.1:5432 \
+            <<SQL
+            CREATE USER "{{ credentials.keycloak_postgres.username }}" WITH PASSWORD '\''{{ credentials.keycloak_postgres.password }}'\'';
+            SQL
+            '
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Create keycloak-admin database privilege grants
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n postgres $(kubectl get pod -n postgres -l cluster-name=postgres-cluster,spilo-role=master -o jsonpath='{.items[0].metadata.name}') -- sh -c '\
+            psql \
+            postgresql://{{ credentials.postgres_cluster.username }}:{{ credentials.postgres_cluster.password }}@127.0.0.1:5432 \
+            <<SQL
+            GRANT ALL PRIVILEGES ON DATABASE keycloak TO "{{ credentials.keycloak_postgres.username }}";
+            SQL
+            '
+        register: myoutput
+      # - debug: var=myoutput
+
+      - name: Create keycloak-admin schema privilege grants
+        ansible.builtin.shell:
+          cmd: |
+            kubectl exec -it -n postgres $(kubectl get pod -n postgres -l cluster-name=postgres-cluster,spilo-role=master -o jsonpath='{.items[0].metadata.name}') -- sh -c '\
+            psql \
+            postgresql://{{ credentials.postgres_cluster.username }}:{{ credentials.postgres_cluster.password }}@127.0.0.1:5432/keycloak \
+            <<SQL
+            GRANT ALL PRIVILEGES ON SCHEMA public TO "{{ credentials.keycloak_postgres.username }}";
+            SQL
+            '
+        register: myoutput
+      # - debug: var=myoutput
+
+      when: keycloak_admin_role.stdout | length == 0
+
+    - name: Setting kustomize keycloak base templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/keycloak/base/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/keycloak/base/templates/*.j2"
+
+    - name: Kustomize build keycloak manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/keycloak/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy keycloak resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/keycloak/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply keycloak manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/keycloak/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the keycloak statefulset
+      kubernetes.core.k8s_info:
+        kind: StatefulSet
+        wait: yes
+        name: keycloak
+        namespace: keycloak
+      register: myoutput
+
+    - name: Wait for keycloak statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl rollout status --watch --timeout=300s -n keycloak statefulset/keycloak \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+
+    # - name: Apply apisix-internal realm manifest to the cluster
+    #   kubernetes.core.k8s:
+    #     state: present
+    #     src: "{{ playbook_dir }}/../kustomize/keycloak/base/keycloak-apisix-internal-realm.yaml"
+    #     kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+    #     # apply: yes
+    #     # server_side_apply:
+    #     #   field_manager: ansible
+    #     # wait: true
+
+    - name: Wait for the apisix-internal realm job
+      kubernetes.core.k8s_info:
+        kind: Job
+        wait: yes
+        wait_condition:
+          type: Complete
+          status: "True"
+        name: apisix-internal
+        namespace: keycloak
+      register: myoutput
+
+    - name: Wait for the keycloak statefulset
+      kubernetes.core.k8s_info:
+        kind: StatefulSet
+        wait: yes
+        name: keycloak
+        namespace: keycloak
+      register: myoutput
+
+    - name: Wait for keycloak statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl rollout status --watch --timeout=300s -n keycloak statefulset/keycloak \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+
+    # - name: Apply apisix realm manifest to the cluster
+    #   kubernetes.core.k8s:
+    #     state: present
+    #     src: "{{ playbook_dir }}/../kustomize/keycloak/base/keycloak-apisix-realm.yaml"
+    #     kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+    #     # apply: yes
+    #     # server_side_apply:
+    #     #   field_manager: ansible
+    #     # wait: true
+
+    - name: Wait for the apisix realm job
+      kubernetes.core.k8s_info:
+        kind: Job
+        wait: yes
+        wait_condition:
+          type: Complete
+          status: "True"
+        name: apisix
+        namespace: keycloak
+      register: myoutput
+
+    - name: Wait for the keycloak statefulset
+      kubernetes.core.k8s_info:
+        kind: StatefulSet
+        wait: yes
+        name: keycloak
+        namespace: keycloak
+      register: myoutput
+
+    - name: Wait for keycloak statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl rollout status --watch --timeout=300s -n keycloak statefulset/keycloak \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+
+    - name: Get keycloak user password
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: keycloak-initial-admin
+        namespace: keycloak
+      register: keycloak_secret_data
+    # - debug: var=keycloak_secret_data.resources[0].data.elastic
+
+    - ansible.builtin.set_fact:
+        keycloak_admin: "{{ {} |
+          combine(dict(secret_keys | zip(decoded_secret_values))) 
+          }}"
+      vars:
+        secret_keys: "{{ keycloak_secret_data.resources[0].data.keys() | list }}"
+        secret_values: "{{ keycloak_secret_data.resources[0].data.values() | list }}"
+        decoded_secret_values: "{{ secret_values | map('b64decode') | list }}"
+    # - debug: var=keycloak_admin
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              keycloak:
+                username: "{{ keycloak_admin.username }}"
+                password: "{{ keycloak_admin.password }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.keycloak.password is not defined or
+        credentials.keycloak.password == None or
+        credentials.keycloak.password | length == 0 or
+        credentials.keycloak.password != keycloak_admin.password"

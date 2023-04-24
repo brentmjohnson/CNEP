@@ -1,0 +1,13 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: 10.0.0.2:6443
+    token: xkdh5h.1wkcs5y98fo8jueu
+    caCertHashes: 
+      - sha256:95a6e7af790c8a293fbb21b3f9f9881494bef12471ddc2b91f74355fe954fd96
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  kubeletExtraArgs:
+    feature-gates: APIServerTracing=true,NodeSwap=true
+    node-ip: 10.0.0.8,fd11:10:0:0::8

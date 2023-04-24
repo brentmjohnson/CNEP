@@ -1,0 +1,3 @@
+- import_playbook: ./redis-operator.yaml
+- import_playbook: ./redis-cluster.yaml
+- import_playbook: ./redis-insight.yaml

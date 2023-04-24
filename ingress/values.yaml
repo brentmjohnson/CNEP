@@ -1,0 +1,72 @@
+apisix:
+  image:
+    tag: 3.1.0-debian
+  podAnnotations:
+    traffic.sidecar.istio.io/excludeInboundPorts: 9080,9443,9042,9092
+    proxy.istio.io/config: |  # configure an env variable `OUTPUT_CERTS` to write certificates to the given folder
+        proxyMetadata:
+          OUTPUT_CERTS: /etc/istio-output-certs
+    sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]' # mount the shared volume at sidecar proxy
+    sidecar.istio.io/logLevel: 'dns:debug'
+  stream_proxy:
+    only: false
+gateway:
+  type: NodePort
+  http:
+    enabled: true
+    nodePort: 30080
+  tls:
+    enabled: true
+    # existingCASecret: etcd
+    # certCAFilename: ca.crt
+    nodePort: 30443
+  stream:
+    enabled: true
+    tcp:
+      - 9042
+      - 9092
+etcd:
+  enabled: false
+  host:
+    - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+  # auth:
+  #   tls:
+  #     enabled: true
+  #     existingSecret: etcd
+  #     certFilename: apiserver-etcd-client.crt
+  #     certKeyFilename: apiserver-etcd-client.key
+  #     sni: k8s-0-control-plane
+serviceMonitor:
+  enabled: true
+ingress-controller:
+  enabled: true
+  config:
+    apisix:
+      serviceNamespace: ingress-apisix
+    kubernetes:
+      apisixRouteVersion: apisix.apache.org/v2
+  serviceMonitor:
+    enabled: true
+    namespace: ingress-apisix
+dashboard:
+  enabled: true
+  image:
+    tag: 2.13-alpine
+  config:
+    conf:
+      etcd:
+        endpoints:
+          - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+        # mtls:
+        #   key_file: /etcd-ssl/apiserver-etcd-client.key
+        #   cert_file: /etcd-ssl/apiserver-etcd-client.crt
+        #   ca_file: /usr/local/apisix/conf/ssl/ca.crt
+  serviceMonitor:
+    enabled: true
+extraVolumes:
+  - name: istio-certs
+    emptyDir:
+      medium: Memory
+extraVolumeMounts:
+  - name: istio-certs
+    mountPath: /etc/prom-certs/

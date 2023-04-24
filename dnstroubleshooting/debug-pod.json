@@ -1,0 +1,41 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "annotations": {
+            "proxy.istio.io/config": "proxyMetadata:\n  OUTPUT_CERTS: /etc/istio-output-certs\n",
+            "sidecar.istio.io/userVolumeMount": "[{\"name\": \"istio-certs\", \"mountPath\": \"/etc/istio-output-certs\"}]"
+        },
+        "labels": {
+            "app": "debug",
+            "version": "latest"
+        },
+        "name": "debug"
+    },
+    "spec": {
+        "containers": [
+            {
+                "image": "alpine",
+                "name": "debug",
+                "command": [
+                    "/bin/sh"
+                ],
+                "volumeMounts": [
+                    {
+                        "name": "istio-certs",
+                        "mountPath": "/etc/prom-certs/"
+                    }
+                ]
+            }
+        ],
+        "restartPolicy": "Never",
+        "volumes": [
+            {
+                "name": "istio-certs",
+                "emptyDir": {
+                    "medium": "Memory"
+                }
+            }
+        ]
+    }
+}

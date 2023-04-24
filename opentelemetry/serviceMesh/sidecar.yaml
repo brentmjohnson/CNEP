@@ -1,0 +1,22 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: daemonset-collector-fluentforward
+  namespace: opentelemetry-operator-system
+spec:
+  workloadSelector:
+    labels:
+      app: opentelemetry-collector
+      app.kubernetes.io/component: opentelemetry-collector
+      app.kubernetes.io/instance: opentelemetry-operator-system.daemonset
+      app.kubernetes.io/managed-by: opentelemetry-operator
+      app.kubernetes.io/name: daemonset-collector
+      app.kubernetes.io/part-of: opentelemetry
+      app.kubernetes.io/version: 0.56.0
+      version: 0.56.0
+  ingress:
+  - port:
+      number: 8006
+      protocol: TCP
+      name: tcp
+    defaultEndpoint: 127.0.0.1:8006

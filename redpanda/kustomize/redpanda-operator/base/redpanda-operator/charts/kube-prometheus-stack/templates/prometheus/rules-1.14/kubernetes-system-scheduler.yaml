@@ -1,0 +1,26 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/prometheus/rules-1.14/kubernetes-system-scheduler.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: redpanda-operator-kube-pro-kubernetes-system-scheduler
+  namespace: redpanda-system
+  labels:
+    app: kube-prometheus-stack
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+spec:
+  groups:
+  - name: kubernetes-system-scheduler
+    rules:
+    - alert: KubeSchedulerDown
+      annotations:
+        description: KubeScheduler has disappeared from Prometheus target discovery.
+        runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubeschedulerdown
+        summary: Target disappeared from Prometheus target discovery.
+      expr: absent(up{job="kube-scheduler"} == 1)
+      for: 15m
+      labels:
+        severity: critical

@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ./base/cni/templates/clusterrole.yaml
+- ./base/cni/templates/clusterrolebinding.yaml
+- ./base/cni/templates/configmap-cni.yaml
+- ./base/cni/templates/daemonset.yaml
+- ./base/cni/templates/serviceaccount.yaml

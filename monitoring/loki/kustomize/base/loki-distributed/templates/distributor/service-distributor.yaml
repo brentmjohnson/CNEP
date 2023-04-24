@@ -1,0 +1,29 @@
+---
+# Source: loki-distributed/templates/distributor/service-distributor.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-loki-distributed-distributor
+  namespace: monitoring
+  labels:
+    helm.sh/chart: loki-distributed-0.69.9
+    app.kubernetes.io/name: loki-distributed
+    app.kubernetes.io/instance: loki
+    app.kubernetes.io/version: "2.7.4"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: distributor
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki-distributed
+    app.kubernetes.io/instance: loki
+    app.kubernetes.io/component: distributor

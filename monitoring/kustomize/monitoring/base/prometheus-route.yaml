@@ -1,0 +1,38 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: prometheus-k8s-route
+  namespace: monitoring
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+        - internal.example.com
+      paths:
+      - /prometheus/*
+    backends:
+       - serviceName: prometheus-k8s
+         servicePort: 9090
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: prometheus-k8s.monitoring.svc.cluster.local
+          regex_uri:
+            - "^/prometheus/(.*)"
+            - "/$1"

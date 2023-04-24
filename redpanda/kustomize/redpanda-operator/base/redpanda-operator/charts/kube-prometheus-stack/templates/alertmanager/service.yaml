@@ -1,0 +1,24 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/alertmanager/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-operator-kube-pro-alertmanager
+  namespace: redpanda-system
+  labels:
+    app: kube-prometheus-stack-alertmanager
+    self-monitor: "true"
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+spec:
+  ports:
+  - name: web
+    port: 9093
+    targetPort: 9093
+    protocol: TCP
+  selector:
+    app: alertmanager
+    alertmanager: redpanda-operator-kube-pro-alertmanager
+  type: "ClusterIP"

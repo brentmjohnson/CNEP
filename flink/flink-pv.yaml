@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: flink-artifacts
+  namespace: flink
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 1Gi
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: flink-data
+#   namespace: flink
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   volumeMode: Filesystem
+#   resources:
+#     requests:
+#       storage: 1Gi

@@ -1,0 +1,67 @@
+- name: Install fluent-operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    # - name: Add fluent-operator chart repo
+    #   kubernetes.core.helm_repository:
+    #     name: fluent-operator
+    #     repo_url: "https://github.com/fluent/fluent-operator/releases/download/v1.7.0/fluent-operator.tgz"
+
+    # - name: Separately update the fluent-operator cache
+    #   kubernetes.core.helm:
+    #     release_state: absent
+    #     chart_ref: fluent-operator
+    #     update_repo_cache: yes
+    #     release_name: undefined
+    #     release_namespace: undefined
+
+    - name: Helm template fluent-operator chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --namespace=fluent
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/fluent-operator-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/fluent-operator/base
+          fluent-operator https://github.com/fluent/fluent-operator/releases/download/v2.1.0/fluent-operator.tgz
+
+    - name: Add fluent-operator resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/fluent-operator/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/fluent-operator/"
+
+    - name: Kustomize build fluent-operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/fluent-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy fluent-operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/fluent-operator/resources/resources.yaml"
+        mode: "0644"
+
+    - name: kubectl apply crds first
+      ansible.builtin.shell:
+        cmd: "kubectl apply --server-side -f {{ playbook_dir }}/../kustomize/fluent-operator/base/fluent-operator/crds"
+
+    - name: Apply fluent-operator manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/fluent-operator/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the fluent-operator deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: fluent-operator
+        namespace: fluent
+      register: myoutput

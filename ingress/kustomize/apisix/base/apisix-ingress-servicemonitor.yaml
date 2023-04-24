@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+spec:
+  endpoints:
+  - targetPort: http
+    interval: 15s
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      keyFile: /etc/prom-certs/key.pem
+      insecureSkipVerify: true  # Prometheus does not support Istio security naming, thus skip verifying target pod certificate
+  namespaceSelector:
+    matchNames:
+    - ingress-apisix
+  selector:
+    matchLabels:
+      helm.sh/chart: ingress-controller-0.11.3
+      app.kubernetes.io/name: ingress-controller
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/version: "1.6.0"
+      app.kubernetes.io/managed-by: Helm

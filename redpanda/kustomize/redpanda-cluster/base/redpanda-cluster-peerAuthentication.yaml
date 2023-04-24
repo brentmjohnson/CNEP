@@ -1,0 +1,22 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: redpanda-cluster-peerauthentication
+  namespace: redpanda
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: redpanda
+      app.kubernetes.io/instance: redpanda
+      app.kubernetes.io/name: redpanda
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "33145":
+      mode: DISABLE
+    "9644":
+      mode: DISABLE
+    "9092":
+      mode: DISABLE
+    "8082":
+      mode: DISABLE

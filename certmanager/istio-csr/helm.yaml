@@ -1,0 +1,364 @@
+Release "cert-manager-istio-csr" does not exist. Installing it now.
+NAME: cert-manager-istio-csr
+LAST DEPLOYED: Wed Dec 14 12:04:54 2022
+NAMESPACE: cert-manager
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+app:
+  certmanager:
+    issuer:
+      name: vault-issuer
+  tls:
+    certificateDNSNames:
+    - cert-manager-istio-csr.cert-manager.svc.cluster.local
+    rootCAFile: /var/run/secrets/istio-csr/ca.cert.pem
+volumeMounts:
+- mountPath: /var/run/secrets/istio-csr
+  name: root-ca
+volumes:
+- name: root-ca
+  secret:
+    secretName: istio-root-ca
+
+COMPUTED VALUES:
+affinity: {}
+app:
+  certmanager:
+    issuer:
+      group: cert-manager.io
+      kind: Issuer
+      name: vault-issuer
+    namespace: istio-system
+    preserveCertificateRequests: false
+  controller:
+    leaderElectionNamespace: istio-system
+  istio:
+    revisions:
+    - default
+  logLevel: 1
+  metrics:
+    port: 9402
+    service:
+      enabled: true
+      servicemonitor:
+        enabled: false
+        interval: 10s
+        labels: {}
+        prometheusInstance: default
+        scrapeTimeout: 5s
+      type: ClusterIP
+  readinessProbe:
+    path: /readyz
+    port: 6060
+  server:
+    clusterID: Kubernetes
+    maxCertificateDuration: 1h
+    serving:
+      address: 0.0.0.0
+      certificateKeySize: 2048
+      port: 6443
+  tls:
+    certificateDNSNames:
+    - cert-manager-istio-csr.cert-manager.svc.cluster.local
+    certificateDuration: 1h
+    istiodCertificateDuration: 1h
+    istiodCertificateEnable: true
+    istiodCertificateRenewBefore: 30m
+    istiodPrivateKeySize: 2048
+    rootCAFile: /var/run/secrets/istio-csr/ca.cert.pem
+    trustDomain: cluster.local
+image:
+  pullPolicy: IfNotPresent
+  repository: quay.io/jetstack/cert-manager-istio-csr
+  tag: v0.5.0
+imagePullSecrets: []
+nodeSelector: {}
+replicaCount: 1
+resources: {}
+service:
+  port: 443
+  type: ClusterIP
+tolerations: []
+volumeMounts:
+- mountPath: /var/run/secrets/istio-csr
+  name: root-ca
+volumes:
+- name: root-ca
+  secret:
+    secretName: istio-root-ca
+
+HOOKS:
+MANIFEST:
+---
+# Source: cert-manager-istio-csr/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+imagePullSecrets:
+  - name: 
+metadata:
+  labels:
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.5.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.5.0"
+    app.kubernetes.io/managed-by: Helm
+  name: cert-manager-istio-csr
+---
+# Source: cert-manager-istio-csr/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.5.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.5.0"
+    app.kubernetes.io/managed-by: Helm
+  name: cert-manager-istio-csr
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "configmaps"
+  verbs: ["get", "list", "create", "update", "watch"]
+- apiGroups:
+  - ""
+  resources:
+  - "namespaces"
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - "authentication.k8s.io"
+  resources:
+  - "tokenreviews"
+  verbs:
+  - "create"
+---
+# Source: cert-manager-istio-csr/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.5.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.5.0"
+    app.kubernetes.io/managed-by: Helm
+  name: cert-manager-istio-csr
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cert-manager-istio-csr
+subjects:
+- kind: ServiceAccount
+  name: cert-manager-istio-csr
+  namespace: cert-manager
+---
+# Source: cert-manager-istio-csr/templates/role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.5.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.5.0"
+    app.kubernetes.io/managed-by: Helm
+  name: cert-manager-istio-csr
+  namespace: istio-system
+rules:
+- apiGroups:
+  - "cert-manager.io"
+  resources:
+  - "certificaterequests"
+  verbs:
+  - "get"
+  - "list"
+  - "create"
+  - "update"
+  - "delete"
+  - "watch"
+- apiGroups:
+  - "coordination.k8s.io"
+  resources:
+  - "leases"
+  verbs:
+  - "get"
+  - "create"
+  - "update"
+  - "watch"
+  - "list"
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create"]
+---
+# Source: cert-manager-istio-csr/templates/rolebinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cert-manager-istio-csr
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.5.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.5.0"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-manager-istio-csr
+subjects:
+- kind: ServiceAccount
+  name: cert-manager-istio-csr
+  namespace: cert-manager
+---
+# Source: cert-manager-istio-csr/templates/metrics-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cert-manager-istio-csr-metrics
+  labels:
+    app: cert-manager-istio-csr
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.5.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9402
+      targetPort: 9402
+      protocol: TCP
+      name: metrics
+  selector:
+    app: cert-manager-istio-csr
+---
+# Source: cert-manager-istio-csr/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cert-manager-istio-csr
+  labels:
+    app: cert-manager-istio-csr
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.5.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: 6443
+      protocol: TCP
+      name: web
+  selector:
+    app: cert-manager-istio-csr
+---
+# Source: cert-manager-istio-csr/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-manager-istio-csr
+  labels:
+    app.kubernetes.io/name: cert-manager-istio-csr
+    helm.sh/chart: cert-manager-istio-csr-v0.5.0
+    app.kubernetes.io/instance: cert-manager-istio-csr
+    app.kubernetes.io/version: "v0.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cert-manager-istio-csr
+  template:
+    metadata:
+      labels:
+        app: cert-manager-istio-csr
+    spec:
+      serviceAccountName: cert-manager-istio-csr
+      containers:
+      - name: cert-manager-istio-csr
+        image: "quay.io/jetstack/cert-manager-istio-csr:v0.5.0"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6443
+        - containerPort: 9402
+        readinessProbe:
+          httpGet:
+            port: 6060
+            path: /readyz
+          initialDelaySeconds: 3
+          periodSeconds: 7
+        command: ["cert-manager-istio-csr"]
+        args:
+          - "--log-level=1"
+          - "--metrics-port=9402"
+          - "--readiness-probe-port=6060"
+          - "--readiness-probe-path=/readyz"
+
+            # cert-manager
+          - "--certificate-namespace=istio-system"
+          - "--issuer-name=vault-issuer"
+          - "--issuer-kind=Issuer"
+          - "--issuer-group=cert-manager.io"
+          - "--preserve-certificate-requests=false"
+
+            # tls
+          - "--root-ca-file=/var/run/secrets/istio-csr/ca.cert.pem"
+          - "--serving-certificate-dns-names=cert-manager-istio-csr.cert-manager.svc.cluster.local"
+          - "--serving-certificate-duration=1h"
+          - "--trust-domain=cluster.local"
+
+          # server
+          - "--cluster-id=Kubernetes"
+          - "--max-client-certificate-duration=1h"
+          - "--serving-address=0.0.0.0:6443"
+          - "--serving-certificate-key-size=2048"
+
+          # controller
+          - "--leader-election-namespace=istio-system"
+        volumeMounts:
+          - mountPath: /var/run/secrets/istio-csr
+            name: root-ca
+
+        resources:
+            {}
+      volumes:
+      - name: root-ca
+        secret:
+          secretName: istio-root-ca
+---
+# Source: cert-manager-istio-csr/templates/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: istiod
+  namespace: istio-system
+spec:
+  commonName: istiod.istio-system.svc
+  dnsNames:
+  - istiod.istio-system.svc
+  uris:
+  - spiffe://cluster.local/ns/istio-system/sa/istiod-service-account
+  secretName: istiod-tls
+  # Here we use a duration of 1 hour by default based on NIST 800-204A
+  # recommendations (SM-DR13).
+  # https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-204A.pdf
+  # Warning: cert-manager does not allow a duration on Certificates of less
+  # than 1 hour.
+  duration: 1h
+  renewBefore: 30m
+  privateKey:
+    rotationPolicy: Always
+    algorithm: RSA
+    size: 2048
+  revisionHistoryLimit: 1
+  issuerRef:
+    name: vault-issuer
+    kind: Issuer
+    group: cert-manager.io
+

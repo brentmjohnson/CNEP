@@ -1,0 +1,11 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: grafana-tls
+  namespace: monitoring
+spec:
+  hosts:
+  - grafana.example.com
+  secret:
+    name: grafana-letsencrypt-cert
+    namespace: monitoring

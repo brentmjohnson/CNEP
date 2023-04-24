@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/flink-jobManager.yaml
+- ./base/flink-operator-service-headless.yaml
+- ./base/flink-jobmanager-service-headless.yaml
+- ./base/flink-taskmanager-service-headless.yaml
+- ./base/flink-route.yaml
+
+patches:
+# - path: ./patches/flink-rest-service-patch.yaml

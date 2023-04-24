@@ -1,0 +1,26 @@
+---
+# Source: loki-distributed/templates/service-memberlist.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-loki-distributed-memberlist
+  namespace: monitoring
+  labels:
+    helm.sh/chart: loki-distributed-0.69.9
+    app.kubernetes.io/name: loki-distributed
+    app.kubernetes.io/instance: loki
+    app.kubernetes.io/version: "2.7.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp
+      port: 7946
+      targetPort: http-memberlist
+      protocol: TCP
+      appProtocol: tcp
+  selector:
+    app.kubernetes.io/name: loki-distributed
+    app.kubernetes.io/instance: loki
+    app.kubernetes.io/part-of: memberlist

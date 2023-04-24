@@ -1,0 +1,25 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/charts/prometheus-node-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-operator-prometheus-node-exporter
+  namespace: redpanda-system
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:     
+    app: prometheus-node-exporter
+    heritage: Helm
+    release: redpanda-operator
+    chart: prometheus-node-exporter-1.14.2
+    jobLabel: node-exporter
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9100
+      targetPort: 9100
+      protocol: TCP
+      name: metrics
+  selector:
+    app: prometheus-node-exporter
+    release: redpanda-operator

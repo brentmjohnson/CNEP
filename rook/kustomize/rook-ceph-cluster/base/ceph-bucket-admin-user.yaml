@@ -1,0 +1,14 @@
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: ceph-bucket-admin-user
+  namespace: rook-ceph
+spec:
+  store: my-store
+  displayName: ceph-bucket-admin-user
+  # capabilities:
+  #   bucket: "*"
+  #   metadata: read
+  #   usage: read
+  #   user: "*"
+  #   zone: read

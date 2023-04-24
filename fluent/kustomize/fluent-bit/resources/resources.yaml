@@ -1,0 +1,90 @@
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterFilter
+metadata:
+  labels:
+    fluentbit.fluent.io/component: logging
+    fluentbit.fluent.io/enabled: "true"
+  name: kubernetes
+spec:
+  filters:
+  - kubernetes:
+      annotations: false
+      bufferSize: 64KB
+      kubeCAFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      kubeTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      kubeURL: https://kubernetes.default.svc:443
+      labels: false
+  - nest:
+      addPrefix: kubernetes_
+      nestedUnder: kubernetes
+      operation: lift
+  - modify:
+      rules:
+      - remove: stream
+      - remove: kubernetes_pod_id
+      - remove: kubernetes_host
+      - remove: kubernetes_container_hash
+  - modify:
+      rules:
+      - add:
+          node_name: ${NODE_NAME}
+      - rename:
+          kubernetes_container_name: container_name
+          kubernetes_namespace_name: namespace_name
+          kubernetes_pod_name: pod_name
+  - nest:
+      nestUnder: kubernetes
+      operation: nest
+      removePrefix: kubernetes_
+      wildcard:
+      - kubernetes_*
+  - modify:
+      rules:
+      - set:
+          log_name: fluentbit
+  match: kube.*
+---
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterInput
+metadata:
+  labels:
+    fluentbit.fluent.io/component: logging
+    fluentbit.fluent.io/enabled: "true"
+  name: tail
+spec:
+  tail:
+    db: /fluent-bit/tail/pos.db
+    dbSync: Normal
+    memBufLimit: 5MB
+    parser: cri
+    path: /var/log/containers/*.log
+    refreshIntervalSeconds: 10
+    skipLongLines: true
+    tag: kube.*
+---
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterOutput
+metadata:
+  labels:
+    fluentbit.fluent.io/component: logging
+    fluentbit.fluent.io/enabled: "true"
+  name: fluentd
+  namespace: fluent
+spec:
+  forward:
+    host: ${HOST_IP}
+    port: 8006
+  matchRegex: (?:kube|service)\.(.*)
+---
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterParser
+metadata:
+  labels:
+    fluentbit.fluent.io/component: logging
+    fluentbit.fluent.io/enabled: "true"
+  name: cri
+spec:
+  regex:
+    regex: ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<message>.*)$
+    timeFormat: '%Y-%m-%dT%H:%M:%S.%L%z'
+    timeKey: time

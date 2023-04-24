@@ -1,0 +1,17 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: scylla-peerauthentication
+  namespace: scylla
+spec:
+  selector:
+    matchLabels:
+      app: scylla
+      app.kubernetes.io/managed-by: scylla-operator
+      app.kubernetes.io/name: scylla
+      scylla/cluster: scylla
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "7000":
+      mode: DISABLE

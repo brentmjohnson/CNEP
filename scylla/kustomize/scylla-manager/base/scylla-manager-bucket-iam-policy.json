@@ -1,0 +1,31 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {"AWS": ["arn:aws:iam:::user/scylla-manager-bucket-user"]},
+            "Action": [
+                "s3:GetBucketLocation",
+                "s3:ListBucket",
+                "s3:ListBucketMultipartUploads"
+            ],
+            "Resource": [
+                "arn:aws:s3:::scylla-manager-bucket-28689fd1-dd1b-4f20-a673-d00550f10125"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {"AWS": ["arn:aws:iam:::user/scylla-manager-bucket-user"]},
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject",
+                "s3:AbortMultipartUpload",
+                "s3:ListMultipartUploadParts"
+            ],
+            "Resource": [
+                "arn:aws:s3:::scylla-manager-bucket-28689fd1-dd1b-4f20-a673-d00550f10125/*"
+            ]
+        }
+    ]
+}

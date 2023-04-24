@@ -1,0 +1,42 @@
+---
+- name: Create lets encrypt issuer
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Kustomize build lets encrypt issuer manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/cert-manager-letsencrypt-issuer/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy lets encrypt issuer resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/cert-manager-letsencrypt-issuer/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply lets encrypt issuer manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/cert-manager-letsencrypt-issuer/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+- name: Flush internal DNS to prepare for lets encrypt challenges
+  hosts: loadbalancer
+  # become: true
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Issue rndc flush command.
+      ansible.builtin.shell:
+        cmd: rndc -V flush
+      register: myoutput
+    # - debug: var=myoutput.stdout

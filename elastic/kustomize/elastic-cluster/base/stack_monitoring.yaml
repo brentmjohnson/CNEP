@@ -1,0 +1,237 @@
+# metricbeat resources
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: metricbeat
+  namespace: elastic
+spec:
+  type: metricbeat
+  version: 8.6.2
+  elasticsearchRef:
+    name: elasticsearch
+  config:
+    metricbeat:
+      autodiscover:
+        providers:
+          - type: kubernetes
+            scope: cluster
+            hints.enabled: true
+            templates:
+              - condition:
+                  contains:
+                    kubernetes.labels.scrape: es
+                config:
+                  - module: elasticsearch
+                    metricsets:
+                      - ccr
+                      - cluster_stats
+                      - enrich
+                      - index
+                      - index_recovery
+                      - index_summary
+                      - ml_job
+                      - node_stats
+                      - shard
+                    period: 10s
+                    # hosts: "http://${data.host}:${data.ports.http}"
+                    hosts: "http://${data.kubernetes.pod.name}.elasticsearch-es-default.${data.kubernetes.namespace}.svc.cluster.local:${data.ports.http}"
+                    username: ${MONITORED_ES_USERNAME}
+                    password: ${MONITORED_ES_PASSWORD}
+                    # WARNING: disables TLS as the default certificate is not valid for the pod FQDN
+                    # TODO: switch this to "certificate" when available: https://github.com/elastic/beats/issues/8164
+                    ssl.verification_mode: "none"
+                    ssl.enabled: false
+                    xpack.enabled: true
+              - condition:
+                  contains:
+                    kubernetes.labels.scrape: kb
+                config:
+                  - module: kibana
+                    metricsets:
+                      - stats
+                    period: 10s
+                    # hosts: "http://${data.host}:${data.ports.http}"
+                    hosts: "http://${data.kubernetes.pod.name}.kibana-kb-default.${data.kubernetes.namespace}.svc.cluster.local:${data.ports.http}"
+                    # basepath: "/kibana"
+                    username: ${MONITORED_ES_USERNAME}
+                    password: ${MONITORED_ES_PASSWORD}
+                    # WARNING: disables TLS as the default certificate is not valid for the pod FQDN
+                    # TODO: switch this to "certificate" when available: https://github.com/elastic/beats/issues/8164
+                    ssl.verification_mode: "none"
+                    ssl.enabled: false
+                    xpack.enabled: true
+    processors:
+    - add_cloud_metadata: {}
+    logging.json: true
+    output.elasticsearch:
+      ssl:
+        certificate_authorities: []
+        enabled: false
+        verification_mode: none
+  deployment:
+    podTemplate:
+      # metadata:
+      #   annotations:
+      #     proxy.istio.io/config: |
+      #       proxyMetadata:
+      #         OUTPUT_CERTS: /etc/istio-output-certs
+      #     sidecar.istio.io/userVolume: '[{"name": "istio-certs", "emptyDir": {"medium":
+      #       "Memory"}}]'
+      #     sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+      spec:
+        serviceAccountName: metricbeat
+        automountServiceAccountToken: true
+        # required to read /etc/beat.yml
+        securityContext:
+          runAsUser: 0
+        containers:
+        - name: metricbeat
+          env:
+          - name: MONITORED_ES_USERNAME
+            value: elastic
+          - name: MONITORED_ES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: elastic
+                name: elasticsearch-es-elastic-user
+        #   volumeMounts:
+        #   - name: istio-certs
+        #     mountPath: /etc/istio-output-certs
+        # volumes:
+        # - name: istio-certs
+        #   emptyDir:
+        #     medium: Memory
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: metricbeat
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources:
+  - namespaces
+  - pods
+  - nodes
+  verbs:
+  - get
+  - watch
+  - list
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metricbeat
+  namespace: elastic
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: metricbeat
+subjects:
+- kind: ServiceAccount
+  name: metricbeat
+  namespace: elastic
+roleRef:
+  kind: ClusterRole
+  name: metricbeat
+  apiGroup: rbac.authorization.k8s.io
+# ---
+# # filebeat resources
+# apiVersion: beat.k8s.elastic.co/v1beta1
+# kind: Beat
+# metadata:
+#   name: filebeat
+#   namespace: elastic
+# spec:
+#   type: filebeat
+#   version: 8.6.1
+#   elasticsearchRef:
+#     name: elasticsearch
+#   kibanaRef:
+#     name: kibana
+#   config:
+#     filebeat:
+#       autodiscover:
+#         providers:
+#         - type: kubernetes
+#           node: ${NODE_NAME}
+#           hints:
+#             enabled: true
+#             default_config:
+#               type: container
+#               paths:
+#               - /var/log/containers/*${data.kubernetes.container.id}.log
+#     processors:
+#     - add_cloud_metadata: {}
+#     - add_host_metadata: {}
+#     logging.json: true
+#   daemonSet:
+#     podTemplate:
+#       spec:
+#         serviceAccountName: filebeat
+#         automountServiceAccountToken: true
+#         terminationGracePeriodSeconds: 30
+#         dnsPolicy: ClusterFirstWithHostNet
+#         hostNetwork: true # Allows to provide richer host metadata
+#         securityContext:
+#           runAsUser: 0
+#           # If using Red Hat OpenShift uncomment this:
+#           #privileged: true
+#         containers:
+#         - name: filebeat
+#           volumeMounts:
+#           - name: varlogcontainers
+#             mountPath: /var/log/containers
+#           - name: varlogpods
+#             mountPath: /var/log/pods
+#           - name: varlibdockercontainers
+#             mountPath: /var/lib/docker/containers
+#           env:
+#             - name: NODE_NAME
+#               valueFrom:
+#                 fieldRef:
+#                   fieldPath: spec.nodeName
+#         volumes:
+#         - name: varlogcontainers
+#           hostPath:
+#             path: /var/log/containers
+#         - name: varlogpods
+#           hostPath:
+#             path: /var/log/pods
+#         - name: varlibdockercontainers
+#           hostPath:
+#             path: /var/lib/docker/containers
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRole
+# metadata:
+#   name: filebeat
+# rules:
+# - apiGroups: [""] # "" indicates the core API group
+#   resources:
+#   - namespaces
+#   - pods
+#   - nodes
+#   verbs:
+#   - get
+#   - watch
+#   - list
+# ---
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   name: filebeat
+#   namespace: elastic
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: filebeat
+# subjects:
+# - kind: ServiceAccount
+#   name: filebeat
+#   namespace: elastic
+# roleRef:
+#   kind: ClusterRole
+#   name: filebeat
+#   apiGroup: rbac.authorization.k8s.io

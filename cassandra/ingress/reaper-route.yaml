@@ -1,0 +1,36 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: reaper-route
+  namespace: k8ssandra-operator
+spec:
+  http:
+  - name: rule1
+    match:
+      paths:
+      - /reaper/*
+    backends:
+       - serviceName: cassandra-dc1-reaper-service
+         servicePort: 8080
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      - name: opentelemetry
+        enable: true
+        config:
+          sampler:
+            name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: cassandra-dc1-reaper-service.k8ssandra-operator.svc.cluster.local
+          regex_uri:
+            - "^/reaper/(.*)"
+            - "/$1"

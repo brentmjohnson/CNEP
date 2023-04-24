@@ -1,0 +1,31 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/charts/grafana/templates/tests/test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redpanda-operator-grafana-test
+  labels:
+    helm.sh/chart: grafana-6.4.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: redpanda-operator
+    app.kubernetes.io/version: "7.4.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+  namespace: redpanda-system
+spec:
+  serviceAccountName: redpanda-operator-grafana-test
+  containers:
+    - name: redpanda-operator-test
+      image: "bats/bats:v1.1.0"
+      imagePullPolicy: "IfNotPresent"
+      command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+        - mountPath: /tests
+          name: tests
+          readOnly: true
+  volumes:
+  - name: tests
+    configMap:
+      name: redpanda-operator-grafana-test
+  restartPolicy: Never

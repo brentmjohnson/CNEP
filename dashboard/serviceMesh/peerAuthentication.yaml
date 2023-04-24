@@ -1,0 +1,14 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: dashboard-metrics-scraper
+  namespace: kubernetes-dashboard
+spec:
+  selector:
+    matchLabels:
+      k8s-app: dashboard-metrics-scraper
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    8000:
+      mode: PERMISSIVE

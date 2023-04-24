@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: calico-apiserver
+  labels:
+    istio-injection: disabled
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: calico-system
+  labels:
+    istio-injection: disabled

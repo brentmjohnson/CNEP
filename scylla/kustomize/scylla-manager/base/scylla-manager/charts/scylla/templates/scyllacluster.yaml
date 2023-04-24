@@ -1,0 +1,48 @@
+---
+# Source: scylla-manager/charts/scylla/templates/scyllacluster.yaml
+apiVersion: scylla.scylladb.com/v1
+kind: ScyllaCluster
+metadata:
+  name: scylla-manager
+  namespace: scylla-manager
+spec:
+  version: 5.1.6
+  agentVersion: 3.0.2
+  repository: scylladb/scylla
+  agentRepository: scylladb/scylla-manager-agent
+  developerMode: true
+  backups:
+    - interval: 1d
+      location:
+      - s3:scylla-manager-bucket-64526f52-b2b5-4363-b451-365c5d820dfc
+      name: Daily Backup
+      rateLimit:
+      - "0"
+      retention: 7
+  repairs:
+    - intensity: "0"
+      interval: 1d
+      name: Daily Repair
+  datacenter:
+    name: dc
+    racks:
+    - name: default
+      scyllaConfig: scylla-config
+      scyllaAgentConfig: scylla-agent-config
+      members: 1
+      storage:
+        capacity: 2Gi
+      resources:
+        limits:
+          cpu: 1
+          memory: 200Mi
+        requests:
+          cpu: 100m
+          memory: 200Mi
+      placement:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: cloudflared
+            topologyKey: kubernetes.io/hostname

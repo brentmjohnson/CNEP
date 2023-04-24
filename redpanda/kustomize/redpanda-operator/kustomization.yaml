@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: redpanda-system
+
+# kustomize openapi fetch | jq '.definitions | { definitions: with_entries(select(.key | in({"com.coreos.monitoring.v1.ServiceMonitor":1}))) }' > ./openapi-schema.json
+openapi:
+  path: schemas/com.coreos.monitoring.v1.ServiceMonitor.json
+
+resources:
+- ./base/redpanda-system-namespace.yaml
+- ./base/redpanda-operator-peerAuthentication.yaml
+- ./base/redpanda-operator/templates/certificate.yaml
+- ./base/redpanda-operator/templates/clusterrole.yaml
+- ./base/redpanda-operator/templates/clusterrole_binding.yaml
+- ./base/redpanda-operator/templates/clusterrole_metrics.yaml
+- ./base/redpanda-operator/templates/clusterrole_proxy.yaml
+- ./base/redpanda-operator/templates/clusterrole_proxy_binding.yaml
+- ./base/redpanda-operator/templates/configmap.yaml
+- ./base/redpanda-operator/templates/deployment.yaml
+- ./base/redpanda-operator/templates/issuer.yaml
+- ./base/redpanda-operator/templates/mutating_webhook.yaml
+- ./base/redpanda-operator/templates/role.yaml
+- ./base/redpanda-operator/templates/role_binding.yaml
+- ./base/redpanda-operator/templates/service_account.yaml
+- ./base/redpanda-operator/templates/service_metrics.yaml
+- ./base/redpanda-operator/templates/service_webhook.yaml
+- ./base/redpanda-operator/templates/validating_webhook.yaml
+- ./base/redpanda-operator/crds/resources.yaml
+- ./base/redpanda-operator/templates/servicemonitor.yaml

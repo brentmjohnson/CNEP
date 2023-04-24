@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix-dashboard
+  namespace: ingress-apisix
+spec:
+  template:
+    spec:
+      containers:
+      - name: dashboard
+        volumeMounts:
+        - name: ssl
+          mountPath: /usr/local/apisix/conf/ssl/ca.crt
+          subPath: ca.crt
+        - name: etcd-ssl
+          mountPath: /etcd-ssl
+      volumes:
+      - name: ssl
+        secret:
+          secretName: etcd
+          defaultMode: 420
+      - name: etcd-ssl
+        secret:
+          secretName: etcd
+          defaultMode: 420

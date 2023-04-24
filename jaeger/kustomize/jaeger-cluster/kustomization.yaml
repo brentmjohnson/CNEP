@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/jaeger-cluster.yaml
+- ./base/jaeger-scylla-secret.yaml
+- ./base/jaeger-redpanda-secret.yaml
+- ./base/jaeger-collector-peerAuthentication.yaml
+- ./base/jaeger-route.yaml

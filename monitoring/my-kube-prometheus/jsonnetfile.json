@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "dependencies": [
+    {
+      "source": {
+        "git": {
+          "remote": "https://github.com/ceph/ceph.git",
+          "subdir": "monitoring/ceph-mixin"
+        }
+      },
+      "version": "v17.2.5"
+    },
+    {
+      "source": {
+        "git": {
+          "remote": "https://github.com/jaegertracing/jaeger.git",
+          "subdir": "monitoring/jaeger-mixin"
+        }
+      },
+      "version": "v1.41.0"
+    },
+    {
+      "source": {
+        "git": {
+          "remote": "https://github.com/prometheus-operator/kube-prometheus.git",
+          "subdir": "jsonnet/kube-prometheus"
+        }
+      },
+      "version": "v0.12.0"
+    },
+    {
+      "source": {
+        "git": {
+          "remote": "https://gitlab.com/uneeq-oss/cert-manager-mixin.git",
+          "subdir": ""
+        }
+      },
+      "version": "master"
+    }
+  ],
+  "legacyImports": true
+}

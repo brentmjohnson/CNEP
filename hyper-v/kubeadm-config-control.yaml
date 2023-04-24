@@ -1,0 +1,68 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  kubeletExtraArgs:
+    feature-gates: APIServerTracing=true,NodeSwap=true
+    node-ip: 10.0.0.3,fd11::10:0:0:3
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+apiServer:
+  extraArgs:
+    feature-gates: APIServerTracing=true,NodeSwap=true
+    tracing-config-file: /etc/kubernetes/tracing/tracing-config.yaml
+  extraVolumes:
+    - name: k8s-tracing
+      hostPath: /etc/kubernetes/tracing
+      mountPath: /etc/kubernetes/tracing
+      readOnly: true
+      pathType: DirectoryOrCreate
+clusterName: k8s-0
+controllerManager:
+  extraArgs:
+    bind-address: 0.0.0.0
+    feature-gates: APIServerTracing=true,NodeSwap=true
+controlPlaneEndpoint: 10.0.0.2:6443
+etcd:
+  local:
+    extraArgs:
+      experimental-enable-distributed-tracing: "true"
+      experimental-distributed-tracing-address: 0.0.0.0:4317
+      experimental-distributed-tracing-service-name: etcd
+kubernetesVersion: v1.24.4
+networking:
+  podSubnet: 10.244.0.0/12,fd00::10:244:0:0/108
+  serviceSubnet: 10.96.0.0/12,fd00::10:96:0:0/108
+scheduler:
+  extraArgs:
+    bind-address: 0.0.0.0
+    feature-gates: APIServerTracing=true,NodeSwap=true
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd
+failSwapOn: false
+memorySwap:
+  swapBehavior: UnlimitedSwap
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+metricsBindAddress: 0.0.0.0
+mode: ipvs
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+controlPlane:
+  certificateKey: e60d923350f5dea978f82865aaa5847d4519426e4b48de482423e8d440a5616e
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: 10.0.0.2:6443
+    token: xkdh5h.1wkcs5y98fo8jueu
+    caCertHashes: 
+      - sha256:95a6e7af790c8a293fbb21b3f9f9881494bef12471ddc2b91f74355fe954fd96
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  kubeletExtraArgs:
+    feature-gates: APIServerTracing=true,NodeSwap=true
+    node-ip: 10.0.0.5,fd11:10:0:0::5

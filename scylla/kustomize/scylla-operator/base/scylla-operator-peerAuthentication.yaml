@@ -1,0 +1,15 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: scylla-operator-webhook
+  namespace: scylla-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: webhook-server
+      app.kubernetes.io/name: webhook-server
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "5000":
+      mode: PERMISSIVE

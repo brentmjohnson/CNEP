@@ -1,0 +1,10 @@
+apiVersion: projectcalico.org/v3
+kind: IPPool
+metadata:
+  name: default-ipv6-ippool-disabled
+spec:
+  cidr: ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128
+  # cidr: 2002:0:0:0:0:0:0:0/128
+  vxlanMode: Always
+  natOutgoing: true
+  # disabled: true

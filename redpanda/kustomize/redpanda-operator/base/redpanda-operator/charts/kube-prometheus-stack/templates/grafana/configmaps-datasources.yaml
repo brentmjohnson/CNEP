@@ -1,0 +1,25 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/grafana/configmaps-datasources.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redpanda-operator-kube-pro-grafana-datasource
+  namespace: redpanda-system
+  labels:
+    grafana_datasource: "1"
+    app: kube-prometheus-stack-grafana
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+data:
+  datasource.yaml: |-
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://redpanda-operator-kube-pro-prometheus:9090/
+      access: proxy
+      isDefault: true
+      jsonData:
+        timeInterval: 30s

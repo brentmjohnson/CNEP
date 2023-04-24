@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kubernetes-dashboard
+
+resources:
+- ./base/dashboard-namespace.yaml
+- ./base/dashboard-route.yaml
+- ./base/kubernetes-admin-serviceaccount.yaml
+- ./base/kubernetes-admin-clusterrolebinding.yaml
+- ./base/kubernetes-admin-secret.yaml
+- ./base/kubernetes-dashboard/templates/clusterrole-metrics.yaml
+- ./base/kubernetes-dashboard/templates/clusterrole-readonly.yaml
+- ./base/kubernetes-dashboard/templates/clusterrolebinding-metrics.yaml
+- ./base/kubernetes-dashboard/templates/clusterrolebinding-readonly.yaml
+- ./base/kubernetes-dashboard/templates/configmap.yaml
+- ./base/kubernetes-dashboard/templates/deployment.yaml
+- ./base/kubernetes-dashboard/templates/extra-manifests.yaml
+- ./base/kubernetes-dashboard/templates/ingress.yaml
+- ./base/kubernetes-dashboard/templates/networkpolicy.yaml
+- ./base/kubernetes-dashboard/templates/pdb.yaml
+- ./base/kubernetes-dashboard/templates/psp.yaml
+- ./base/kubernetes-dashboard/templates/role.yaml
+- ./base/kubernetes-dashboard/templates/rolebinding.yaml
+- ./base/kubernetes-dashboard/templates/secret.yaml
+- ./base/kubernetes-dashboard/templates/service.yaml
+- ./base/kubernetes-dashboard/templates/serviceaccount.yaml
+- ./base/kubernetes-dashboard/templates/servicemonitor.yaml
+
+patches:
+- path: patches/kubernetes-dashboard-service-patch.yaml

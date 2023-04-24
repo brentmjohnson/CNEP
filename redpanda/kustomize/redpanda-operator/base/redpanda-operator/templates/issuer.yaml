@@ -1,0 +1,14 @@
+---
+# Source: redpanda-operator/templates/issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: redpanda-operator-selfsigned-issuer
+  labels:
+    app.kubernetes.io/name: redpanda-operator
+    helm.sh/chart: redpanda-operator-v23.1.2
+    app.kubernetes.io/instance: redpanda-operator
+    app.kubernetes.io/version: "v23.1.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selfSigned: {}

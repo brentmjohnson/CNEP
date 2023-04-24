@@ -1,0 +1,7 @@
+manager:
+  serviceMonitor:
+    enabled: true
+  prometheusRule:
+    enabled: true
+    defaultRules:
+      enabled: true

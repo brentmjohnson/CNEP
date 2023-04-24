@@ -1,0 +1,10 @@
+- op: add
+  path: /rules/-
+  value: 
+    apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - list
+      - watch

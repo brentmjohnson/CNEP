@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/cloudflare-apitoken-secret.yaml
+- ./base/letsencrypt-clusterissuer.yaml
+- ./base/letsencrypt-staging-clusterissuer.yaml
+- ./base/letsencrypt-example-account-key.yaml
+- ./base/letsencrypt-staging-example-account-key.yaml
+- ./cache/namespaces.yaml
+- ./cache/secrets.yaml
+- ./cache/certificates.yaml

@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# kustomize openapi fetch | jq '.definitions | { definitions: with_entries(select(.key | in({"com.coreos.monitoring.v1.ServiceMonitor":1}))) }' > ./openapi-schema.json
+openapi:
+  path: schemas/com.coreos.monitoring.v1.ServiceMonitor.json
+
+resources:
+- ./base/scylla-manager-namespace.yaml
+- ./base/scylla-manager-bucket.yaml
+- ./base/scylla-config-configmap.yaml
+- ./base/scylla-agent-config-secret.yaml
+- ./base/scylla-manager/templates/controller_clusterrole.yaml
+- ./base/scylla-manager/templates/controller_clusterrole_def.yaml
+- ./base/scylla-manager/templates/controller_clusterrolebinding.yaml
+- ./base/scylla-manager/templates/controller_deployment.yaml
+- ./base/scylla-manager/templates/controller_pdb.yaml
+- ./base/scylla-manager/templates/controller_serviceaccount.yaml
+- ./base/scylla-manager/templates/manager_configmap.yaml
+- ./base/scylla-manager/templates/manager_deployment.yaml
+- ./base/scylla-manager/templates/manager_service.yaml
+- ./base/scylla-manager/templates/manager_serviceaccount.yaml
+- ./base/scylla-manager/charts/scylla/templates/scyllacluster.yaml
+- ./base/scylla-manager/templates/manager_servicemonitor.yaml
+- ./base/scylla-manager/charts/scylla/templates/servicemonitor.yaml
+
+patches:
+- path: ./patches/scylla-manager-controller-deployment-patch.yaml
+- path: ./patches/scylla-manager-config-configmap-patch.yaml
+- path: ./patches/scylla-manager-controller-poddisruptionbudget-patch.yaml
+- path: ./patches/scylla-manager-servicemonitor-patch.yaml
+- path: ./patches/scylla-manager-service-monitor-servicemonitor-patch.yaml
+- path: ./patches/scylla-manager-service-patch.yaml

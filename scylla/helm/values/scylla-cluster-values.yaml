@@ -1,0 +1,59 @@
+# Version information
+scyllaImage:
+  tag: 5.1.6
+agentImage:
+  tag: 3.0.2
+
+# Cluster information
+developerMode: true
+repairs:
+  - name: "Daily Repair"
+    intensity: "0"
+    interval: "1d"
+backups:
+  - name: "Daily Backup"
+    rateLimit:
+      - "0"
+    location: 
+      - s3:scylla-bucket-085935d2-1a10-41cd-a171-d973260d1088
+    retention: 7
+    interval: "1d"
+  # - name: "Weekly Backup"
+  #   rateLimit:
+  #     - "0"
+  #   location:
+  #     - s3:scylla-bucket-085935d2-1a10-41cd-a171-d973260d1088
+  #   retention: 3
+  #   interval: "7d"
+datacenter: dc
+racks:
+- name: default
+  scyllaConfig: scylla-config
+  scyllaAgentConfig: scylla-agent-config
+  members: 3
+  storage:
+    # https://github.com/scylladb/scylla-operator/pull/1053
+    # kubectl delete scyllacluster -n scylla scylla --cascade='orphan'
+    # kubectl delete statefulset -n scylla --selector scylla/cluster=scylla --cascade='orphan'
+    capacity: 8Gi
+  resources:
+    limits:
+      cpu: 2
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 200Mi
+  placement:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app: scylla
+              app.kubernetes.io/managed-by: scylla-operator
+              app.kubernetes.io/name: scylla
+              scylla/cluster: scylla
+          topologyKey: kubernetes.io/hostname
+
+# Whether to create Prometheus ServiceMonitor
+serviceMonitor:
+  create: true

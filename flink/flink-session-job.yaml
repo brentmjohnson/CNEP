@@ -1,0 +1,12 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkSessionJob
+metadata:
+  namespace: flink
+  name: basic-session-job
+spec:
+  deploymentName: flink
+  job:
+    jarURI: file:///opt/flink/artifacts/StateMachineExample.jar
+    parallelism: 1
+    upgradeMode: stateless
+    entryClass: org.apache.flink.streaming.examples.statemachine.StateMachineExample

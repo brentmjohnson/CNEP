@@ -1,0 +1,22 @@
+---
+# Source: loki-distributed/templates/query-frontend/servicemonitor-query-frontend.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: loki-loki-distributed-query-frontend
+  labels:
+    helm.sh/chart: loki-distributed-0.69.9
+    app.kubernetes.io/name: loki-distributed
+    app.kubernetes.io/instance: loki
+    app.kubernetes.io/version: "2.7.4"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: query-frontend
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki-distributed
+      app.kubernetes.io/instance: loki
+      app.kubernetes.io/component: query-frontend
+  endpoints:
+    - port: http
+      scheme: http

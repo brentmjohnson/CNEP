@@ -1,0 +1,69 @@
+- name: Install Kiali
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add kiali chart repo
+      kubernetes.core.helm_repository:
+        name: kiali
+        repo_url: "https://kiali.org/helm-charts"
+
+    - name: Separately update the kiali cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: kiali
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template kiali operator chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=1.65.0
+          --namespace=istio-system
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/kiali-operator-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/kiali-operator/base
+          kiali-operator kiali/kiali-operator
+
+    - name: Add kiali operator CRDs to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/kiali-operator/crds/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/kiali-operator/"
+
+    - name: Add kiali operator resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/kiali-operator/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/kiali-operator/"
+
+    - name: Kustomize build kiali operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/kiali-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy kiali operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/kiali-operator/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply kiali operator manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/kiali-operator/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the kiali operator deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: kiali-operator
+        namespace: istio-system
+      register: myoutput

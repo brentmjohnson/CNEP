@@ -1,0 +1,31 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: apisix-gateway-headless
+  namespace: ingress-apisix
+spec:
+  ports:
+    - name: apisix-gateway
+      protocol: TCP
+      appProtocol: http
+      port: 80
+      targetPort: 9080
+    - name: apisix-gateway-tls
+      protocol: TCP
+      appProtocol: tls
+      port: 443
+      targetPort: 9443
+    - name: proxy-tcp-0
+      protocol: TCP
+      appProtocol: tcp
+      port: 9042
+      targetPort: 9042
+    - name: proxy-tcp-1
+      protocol: TCP
+      appProtocol: tcp
+      port: 9092
+      targetPort: 9092
+  selector:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/name: apisix
+  clusterIP: None

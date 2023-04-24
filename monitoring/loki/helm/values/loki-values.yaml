@@ -1,0 +1,172 @@
+
+tableManager:
+  enabled: true
+  # extraVolumes:
+  #   - name: data
+  #     emptyDir: {}
+  # extraVolumeMounts:
+  #   - name: data
+  #     mountPath: /var/loki
+# compactor:
+#   enabled: true
+gateway:
+  enabled: false
+loki:
+  schemaConfig:
+    configs:
+      - from: 2023-02-15
+        store: cassandra
+        # object_store: cassandra
+        object_store: s3
+        schema: v11
+        index:
+          prefix: index_
+          period: 24h
+        chunks:
+          prefix: chunk_
+          period: 24h
+  storageConfig:
+    cassandra:
+      addresses: scylla-client.scylla
+      disable_initial_host_lookup: true
+      replication_factor: 1
+      consistency: LOCAL_ONE
+      keyspace: loki
+      auth: true
+      username: <user>
+      password: <password>
+      # timeout: 60s
+    aws:
+      bucketnames: loki-bucket-65cf600a-0fe2-498f-ba83-fbba8370392a
+      endpoint: rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:80
+      access_key_id: <secret>
+      secret_access_key: <secret>
+      insecure: true
+      s3forcepathstyle: true
+  # config: |
+  #   auth_enabled: false
+  #   chunk_store_config:
+  #     max_look_back_period: 168h
+  #   # common:
+  #   #   compactor_address: http://loki-loki-distributed-compactor:3100
+  #   # compactor:
+  #   #   compaction_interval: 5m
+  #   #   shared_store: s3
+  #   #   working_directory: /data/compactor
+  #   distributor:
+  #     ring:
+  #       kvstore:
+  #         store: memberlist
+  #   frontend:
+  #     compress_responses: true
+  #     log_queries_longer_than: 5s
+  #     tail_proxy_url: http://loki-loki-distributed-querier:3100
+  #   frontend_worker:
+  #     frontend_address: loki-loki-distributed-query-frontend:9095
+  #   ingester:
+  #     chunk_block_size: 262144
+  #     # fastest decompression speed lz4
+  #     chunk_encoding: lz4
+  #     chunk_idle_period: 2h
+  #     chunk_retain_period: 1m
+  #     # 2^21 + 2^20
+  #     chunk_target_size: 1048576
+  #     lifecycler:
+  #       ring:
+  #         kvstore:
+  #           store: memberlist
+  #         replication_factor: 1
+  #     max_chunk_age: 24h
+  #     max_transfer_retries: 0
+  #     wal:
+  #       dir: /var/loki/wal
+  #   ingester_client:
+  #     grpc_client_config:
+  #       max_send_msg_size: 8388608
+  #   limits_config:
+  #     enforce_metric_name: false
+  #     max_cache_freshness_per_query: 10m
+  #     max_query_lookback: 168h
+  #     reject_old_samples: true
+  #     reject_old_samples_max_age: 168h
+  #     split_queries_by_interval: 15m
+  #   memberlist:
+  #     join_members:
+  #     - loki-loki-distributed-memberlist
+  #   query_range:
+  #     align_queries_with_step: true
+  #     cache_results: true
+  #     max_retries: 5
+  #     results_cache:
+  #       cache:
+  #         embedded_cache:
+  #           enabled: true
+  #           ttl: 24h
+  #   # ruler:
+  #   #   alertmanager_url: https://alertmanager.xx
+  #   #   external_url: https://alertmanager.xx
+  #   #   ring:
+  #   #     kvstore:
+  #   #       store: memberlist
+  #   #   rule_path: /tmp/loki/scratch
+  #   #   storage:
+  #   #     local:
+  #   #       directory: /etc/loki/rules
+  #   #     type: local
+  #   runtime_config:
+  #     file: /var/loki-distributed-runtime/runtime.yaml
+  #   schema_config:
+  #     configs:
+  #     - chunks:
+  #         period: 24h
+  #         prefix: chunk_
+  #       from: '2023-01-28'
+  #       index:
+  #         period: 24h
+  #         prefix: index_
+  #       object_store: cassandra
+  #       schema: v11
+  #       store: cassandra
+  #   server:
+  #     grpc_server_max_recv_msg_size: 8388608
+  #     http_listen_port: 3100
+  #   storage_config:
+  #     # aws:
+  #     #   access_key_id: 95HD48LDWNWVQ0I3NSTT
+  #     #   bucketnames: loki-bucket-0a3ccfd7-6f92-46e8-8738-0e02ed8c5716
+  #     #   endpoint: rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local:80
+  #     #   insecure: true
+  #     #   s3forcepathstyle: true
+  #     #   secret_access_key: yhy0CX3dpeQIEUWXSzh5Domn8h20MkAtTweEAk5z
+  #     # boltdb_shipper:
+  #     #   active_index_directory: /var/loki/index
+  #     #   cache_location: /var/loki/cache
+  #     #   cache_ttl: 168h
+  #     #   shared_store: filesystem
+  #     cassandra:
+  #       addresses: scylla-client.scylla
+  #       auth: true
+  #       consistency: LOCAL_ONE
+  #       disable_initial_host_lookup: true
+  #       keyspace: loki
+  #       password: jUr5ygU12a0uafbeeQIB
+  #       replication_factor: 1
+  #       username: cassandra-superuser
+  #     # filesystem:
+  #     #   directory: /var/loki/chunks
+  #   table_manager:
+  #     retention_deletes_enabled: true
+  #     retention_period: 168h
+  appProtocol: "tcp"
+serviceMonitor:
+  enabled: true
+prometheusRule:
+  enabled: true
+# distributor:
+#   podAnnotations:
+#     traffic.sidecar.istio.io/excludeInboundPorts: "3100"
+ingester:
+  persistence:
+    enabled: true
+    # kubectl delete statefulset -n monitoring --selector app.kubernetes.io/component=ingester --cascade='orphan'
+    size: 5Gi

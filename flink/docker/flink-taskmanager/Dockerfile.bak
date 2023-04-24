@@ -1,0 +1,64 @@
+# https://github.com/moby/buildkit/issues/2680#issuecomment-1056060647
+# https://github.com/rootless-containers/rootlesskit/blob/master/Dockerfile
+# idmap runnable without --privileged (but still requires seccomp=unconfined apparmor=unconfined)
+FROM ubuntu:22.04 AS idmap
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y automake autopoint bison gettext git gcc libcap-dev libtool make
+RUN git clone https://github.com/shadow-maint/shadow.git /shadow
+WORKDIR /shadow
+RUN git pull && git checkout 4.12.3
+RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux --without-acl --without-attr --without-tcb --without-nscd && \
+  make && \
+  cp src/newuidmap src/newgidmap /usr/bin
+
+FROM apache/flink:1.15.4
+COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
+COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
+
+RUN apt-get update && \
+  apt-get install \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release -y
+
+RUN mkdir -m 0755 -p /etc/apt/keyrings && \
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+RUN echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+RUN apt-get update && \
+  apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+COPY docker ./bin/docker
+RUN chmod 755 ./bin/docker && \
+  chown flink:flink ./bin/docker
+
+RUN sh -eux <<EOF
+  # Install newuidmap & newgidmap binaries
+  apt-get install -y uidmap
+  # Add subuid entry for flink
+  echo "flink:100000:65536" >> /etc/subuid
+  # Add subgid entry for flink
+  echo "flink:100000:65536" >> /etc/subgid
+EOF
+
+RUN su flink -c 'dockerd-rootless-setuptool.sh install --skip-iptables'
+
+# docker pull apache/flink:1.15.4
+# docker build . --no-cache --progress=plain --tag=k8s-lb:5000/apache/flink:1.15.4.1
+# docker push k8s-lb:5000/apache/flink:1.15.4.1
+# sudo crictl rmi --prune
+
+#22 0.675 # WARNING: systemd not found. You have to remove XDG_RUNTIME_DIR manually on every logout.
+#22 0.675 export XDG_RUNTIME_DIR=/opt/flink/.docker/run
+#22 0.675 export PATH=/usr/bin:$PATH
+#22 0.675 Some applications may require the following environment variable too:
+#22 0.675 export DOCKER_HOST=unix:///opt/flink/.docker/run/docker.sock
+
+su flink -c 'export XDG_RUNTIME_DIR=$HOME/.docker/xrd
+rm -rf $XDG_RUNTIME_DIR
+mkdir -p $XDG_RUNTIME_DIR
+dockerd-rootless.sh'

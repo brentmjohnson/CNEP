@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elastic
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metricbeat
+  namespace: elastic
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: metricbeat
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - pods
+  - nodes
+  verbs:
+  - get
+  - watch
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: metricbeat
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: metricbeat
+subjects:
+- kind: ServiceAccount
+  name: metricbeat
+  namespace: elastic
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    common.k8s.elastic.co/type: kibana
+    kibana.k8s.elastic.co/name: kibana
+  name: kibana-kb-default
+  namespace: elastic
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: 5601
+    protocol: TCP
+    targetPort: 5601
+  selector:
+    common.k8s.elastic.co/type: kibana
+    kibana.k8s.elastic.co/name: kibana
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: kibana-route
+  namespace: elastic
+spec:
+  http:
+  - backends:
+    - serviceName: kibana-kb-http
+      servicePort: 5601
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /kibana/*
+    name: rule1
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: kibana-kb-http.elastic.svc.cluster.local
+        regex_uri:
+        - ^/kibana/(.*)
+        - /$1
+      enable: true
+      name: proxy-rewrite
+---
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: metricbeat
+  namespace: elastic
+spec:
+  config:
+    logging.json: true
+    metricbeat:
+      autodiscover:
+        providers:
+        - hints.enabled: true
+          scope: cluster
+          templates:
+          - condition:
+              contains:
+                kubernetes.labels.scrape: es
+            config:
+            - hosts: http://${data.kubernetes.pod.name}.elasticsearch-es-default.${data.kubernetes.namespace}.svc.cluster.local:${data.ports.http}
+              metricsets:
+              - ccr
+              - cluster_stats
+              - enrich
+              - index
+              - index_recovery
+              - index_summary
+              - ml_job
+              - node_stats
+              - shard
+              module: elasticsearch
+              password: ${MONITORED_ES_PASSWORD}
+              period: 10s
+              ssl.enabled: false
+              ssl.verification_mode: none
+              username: ${MONITORED_ES_USERNAME}
+              xpack.enabled: true
+          - condition:
+              contains:
+                kubernetes.labels.scrape: kb
+            config:
+            - hosts: http://${data.kubernetes.pod.name}.kibana-kb-default.${data.kubernetes.namespace}.svc.cluster.local:${data.ports.http}
+              metricsets:
+              - stats
+              module: kibana
+              password: ${MONITORED_ES_PASSWORD}
+              period: 10s
+              ssl.enabled: false
+              ssl.verification_mode: none
+              username: ${MONITORED_ES_USERNAME}
+              xpack.enabled: true
+          type: kubernetes
+    output.elasticsearch:
+      ssl:
+        certificate_authorities: []
+        enabled: false
+        verification_mode: none
+    processors:
+    - add_cloud_metadata: {}
+  deployment:
+    podTemplate:
+      spec:
+        automountServiceAccountToken: true
+        containers:
+        - env:
+          - name: MONITORED_ES_USERNAME
+            value: elastic
+          - name: MONITORED_ES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: elastic
+                name: elasticsearch-es-elastic-user
+          name: metricbeat
+        securityContext:
+          runAsUser: 0
+        serviceAccountName: metricbeat
+  elasticsearchRef:
+    name: elasticsearch
+  type: metricbeat
+  version: 8.6.2
+---
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch
+  namespace: elastic
+spec:
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  nodeSets:
+  - config:
+      xpack.monitoring.elasticsearch.collection.enabled: false
+    count: 3
+    name: default
+    podTemplate:
+      metadata:
+        labels:
+          scrape: es
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            limits:
+              memory: 500Mi
+            requests:
+              memory: 256Mi
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+  version: 8.6.2
+---
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: kibana
+  namespace: elastic
+spec:
+  config:
+    monitoring.kibana.collection.enabled: false
+    monitoring.ui.container.elasticsearch.enabled: true
+    server:
+      basePath: /kibana
+      publicBaseUrl: https://internal.example.com/kibana
+      rewriteBasePath: false
+    telemetry:
+      optIn: false
+  count: 1
+  elasticsearchRef:
+    name: elasticsearch
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  podTemplate:
+    metadata:
+      labels:
+        scrape: kb
+    spec:
+      subdomain: kibana-kb-default
+  version: 8.6.2

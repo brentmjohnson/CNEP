@@ -1,0 +1,43 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: ceph-s3-route
+  namespace: rook-ceph
+spec:
+  http:
+  - name: rule1
+    match:
+      paths:
+      - /s3*
+    backends:
+       - serviceName: rook-ceph-rgw-my-store
+         servicePort: 80
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      - name: opentelemetry
+        enable: true
+        config:
+          sampler:
+            name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+          # host: 10.0.0.3/s3
+          regex_uri:
+            - "^/s3(.*)"
+            - "$1"
+      # - name: serverless-pre-function
+      #   enable: true
+      #   config:
+      #     phase: rewrite
+      #     functions:
+      #       - return function(conf, ctx) ngx.var.var_x_forwarded_port = 80 end

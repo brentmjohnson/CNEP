@@ -1,0 +1,14 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: flink-operator-webhook-service
+  namespace: flink
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flink-kubernetes-operator
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    9443:
+      mode: PERMISSIVE

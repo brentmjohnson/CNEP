@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: daemonset-collector-localhost
+  namespace: opentelemetry-operator-system
+spec:
+  hosts:
+  - "daemonset-collector.local"
+  # addresses:
+  # - 10.244.0.0/12 # VIPs
+  location: MESH_EXTERNAL
+  ports:
+  - name: fluentforward
+    number: 8006
+    protocol: TCP
+  resolution: STATIC
+  endpoints:
+  - address: 127.0.0.1

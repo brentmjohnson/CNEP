@@ -1,0 +1,232 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager-service-headless
+  namespace: flink
+spec:
+  clusterIP: None
+  ports:
+  - appProtocol: tcp
+    name: jobmanager-rpc
+    port: 6123
+    protocol: TCP
+    targetPort: 6123
+  - appProtocol: tcp
+    name: blobserver
+    port: 6124
+    protocol: TCP
+    targetPort: 6124
+  - appProtocol: tcp
+    name: metrics
+    port: 9999
+    protocol: TCP
+    targetPort: 9999
+  selector:
+    app: flink
+    component: jobmanager
+    type: flink-native-kubernetes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-operator-service-headless
+  namespace: flink
+spec:
+  clusterIP: None
+  ports:
+  - appProtocol: tcp
+    name: metrics
+    port: 9999
+    protocol: TCP
+    targetPort: 9999
+  selector:
+    app.kubernetes.io/name: flink-kubernetes-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-taskmanager-service-headless
+  namespace: flink
+spec:
+  clusterIP: None
+  ports:
+  - appProtocol: tcp
+    name: internal-metrics
+    port: 50100
+    protocol: TCP
+    targetPort: 50100
+  - appProtocol: tcp
+    name: metrics
+    port: 9999
+    protocol: TCP
+    targetPort: 9999
+  - appProtocol: tcp
+    name: taskmanager-rpc
+    port: 6122
+    protocol: TCP
+    targetPort: 6122
+  selector:
+    app: flink
+    component: taskmanager
+    type: flink-native-kubernetes
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: flink-rest-route
+  namespace: flink
+spec:
+  http:
+  - backends:
+    - serviceName: flink-rest
+      servicePort: 8081
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /flink/*
+    name: rule1
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: flink-rest.flink.svc.cluster.local
+        regex_uri:
+        - ^/flink/(.*)
+        - /$1
+      enable: true
+      name: proxy-rewrite
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: flink
+  namespace: flink
+spec:
+  flinkConfiguration:
+    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    high-availability.storageDir: s3p://flink-bucket-a858f464-a466-4686-8597-fa6f20e4eed1/recovery
+    jobmanager.memory.flink.size: 512mb
+    metrics.internal.query-service.port: "50100"
+    metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+    metrics.reporter.prom.port: "9999"
+    parallelism.default: "1"
+    rest.flamegraph.enabled: "true"
+    s3.access-key: A7Q0CYCFS05S2M8BP8Y2
+    s3.endpoint: http://rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local
+    s3.path.style.access: "true"
+    s3.secret-key: O6agEoyeY8mTJUrf40ugJlumd8NT9naO4dF1bqBE
+    state.backend: org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory
+    state.backend.incremental: "true"
+    state.checkpoints.dir: s3p://flink-bucket-a858f464-a466-4686-8597-fa6f20e4eed1/checkpoints
+    state.savepoints.dir: s3p://flink-bucket-a858f464-a466-4686-8597-fa6f20e4eed1/savepoints
+    taskmanager.memory.flink.size: 512mb
+    taskmanager.memory.managed.size: 192mb
+    taskmanager.numberOfTaskSlots: "1"
+    web.cancel.enable: "true"
+  flinkVersion: v1_15
+  jobManager:
+    podTemplate:
+      metadata:
+        labels:
+          app: flink-jobmanager
+          version: 1.15.4
+      spec:
+        containers:
+        - name: flink-main-container
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+    replicas: 1
+    resource:
+      cpu: 1
+      memory: 1024m
+  podTemplate:
+    spec:
+      containers:
+      - env:
+        - name: ENABLE_BUILT_IN_PLUGINS
+          value: flink-s3-fs-presto-1.15.4.jar; flink-s3-fs-hadoop-1.15.4.jar
+        image: flink:1.15.4
+        name: flink-main-container
+        ports:
+        - containerPort: 9999
+          name: metrics
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+      serviceAccount: flink
+  serviceAccount: flink
+  taskManager:
+    podTemplate:
+      metadata:
+        labels:
+          app: flink-taskmanager
+          version: 1.15.4
+      spec:
+        containers:
+        - env:
+          - name: ENABLE_BUILT_IN_PLUGINS
+            value: flink-s3-fs-presto-1.15.4.jar; flink-s3-fs-hadoop-1.15.4.jar
+          - name: DOCKER_HOST
+            value: unix:///opt/flink/.docker/run/docker.sock
+          image: k8s-lb:5000/apache/flink:1.15.4.1
+          name: flink-main-container
+          resources:
+            limits:
+              smarter-devices/dxg: 1
+            requests:
+              cpu: 100m
+              memory: 512Mi
+          volumeMounts:
+          - mountPath: /usr/lib/wsl
+            name: wsl-drivers
+            readOnly: true
+          - mountPath: /opt/flink/.docker/run
+            name: docker-socket
+        - args:
+          - --worker_pool
+          image: apache/beam_python3.10_sdk:2.46.0
+          livenessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            tcpSocket:
+              port: 50000
+          name: beam-worker-pool
+          ports:
+          - containerPort: 50000
+            name: pool
+        - args:
+          - --insecure-registry=k8s-lb:5000
+          image: docker:23.0.1-dind
+          name: dind
+          resources:
+            limits:
+              smarter-devices/dxg: 1
+          securityContext:
+            privileged: true
+            runAsGroup: 9999
+          volumeMounts:
+          - mountPath: /usr/lib/wsl
+            name: wsl-drivers
+            readOnly: true
+          - mountPath: /var/run
+            name: docker-socket
+        volumes:
+        - hostPath:
+            path: /usr/lib/wsl
+            type: Directory
+          name: wsl-drivers
+        - emptyDir: {}
+          name: docker-socket
+    resource:
+      cpu: 1
+      memory: 1024m

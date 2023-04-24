@@ -1,0 +1,139 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: keycloak-route
+  namespace: keycloak
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+        - internal.example.com
+      paths:
+      - /keycloak/*
+    backends:
+       - serviceName: keycloak-service
+         servicePort: 8080
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: keycloak-service.keycloak.svc.cluster.local
+          # headers:
+          #   X-Forwarded-Port: "30080"
+          # regex_uri:
+          #   - "^/keycloak/(.*)"
+          #   - "/$1"
+      # https://github.com/apache/apisix/issues/4942#issuecomment-1114798300
+      - name: serverless-pre-function
+        enable: true
+        config:
+          phase: rewrite
+          functions:
+            # - return function(conf, ctx) ngx.var.var_x_forwarded_port = 30080 end
+            - return function(conf, ctx) ngx.var.var_x_forwarded_proto = "https"; ngx.var.var_x_forwarded_port = 443 end
+  - name: rule2
+    match:
+      hosts:
+        - internal.example.com
+      paths:
+      - /keycloak-internal/*
+    backends:
+       - serviceName: keycloak-service
+         servicePort: 8080
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: keycloak-service.keycloak.svc.cluster.local
+          # headers:
+          #   X-Forwarded-Port: "8080"
+          regex_uri:
+            - "^/keycloak-internal/(.*)"
+            - "/$1"
+      # https://github.com/apache/apisix/issues/4942#issuecomment-1114798300
+      - name: serverless-pre-function
+        enable: true
+        config:
+          phase: rewrite
+          functions:
+            # - return function(conf, ctx) ngx.var.var_x_forwarded_port = 8080 end
+            - return function(conf, ctx) ngx.var.var_x_forwarded_proto = "http"; ngx.var.var_x_forwarded_port = 8080; ngx.var.var_x_forwarded_host = "keycloak-service.keycloak.svc.cluster.local" end
+  - name: rule3
+    match:
+      hosts:
+        - example.com
+      paths:
+        # - /keycloak/realms/*
+        - /keycloak/realms/apisix/protocol/openid-connect/auth
+        # Missing parameters: id_token_hint
+        # https://github.com/keycloak/keycloak/issues/10164#issuecomment-1494221704
+        - /keycloak/realms/apisix/protocol/openid-connect/logout
+        - /keycloak/realms/apisix/login-actions/authenticate
+        - /keycloak/realms/apisix/login-actions/first-broker-login
+        - /keycloak/realms/apisix/broker/apisix-internal/login
+        - /keycloak/realms/apisix/broker/apisix-internal/endpoint
+        - /keycloak/realms/apisix/broker/apisix-internal/endpoint/logout_response
+        - /keycloak/realms/apisix/broker/after-first-broker-login
+        - /keycloak/resources/*
+        - /keycloak/robots.txt
+    backends:
+       - serviceName: keycloak-service
+         servicePort: 8080
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      # - name: opentelemetry
+      #   enable: true
+      #   config:
+      #     sampler:
+      #       name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: keycloak-service.keycloak.svc.cluster.local
+          # headers:
+          #   X-Forwarded-Port: "30080"
+          # regex_uri:
+          #   - "^/keycloak/(.*)"
+          #   - "/$1"
+      # https://github.com/apache/apisix/issues/4942#issuecomment-1114798300
+      - name: serverless-pre-function
+        enable: true
+        config:
+          phase: rewrite
+          functions:
+            # - return function(conf, ctx) ngx.var.var_x_forwarded_port = 30080 end
+            - return function(conf, ctx) ngx.var.var_x_forwarded_proto = "https"; ngx.var.var_x_forwarded_port = 443 end

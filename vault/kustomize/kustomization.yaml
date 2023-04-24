@@ -1,0 +1,169 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: vault
+commonAnnotations:
+  meta.helm.sh/release-name: vault
+  meta.helm.sh/release-namespace: vault
+transformers:
+- ./transformers/helm-labeler.yaml
+- ./transformers/instance-labeler.yaml
+resources:
+- ./base/vault-namespace.yaml
+- ./base/vault-route.yaml
+- ./base/vault/templates/injector-clusterrole.yaml
+- ./base/vault/templates/injector-clusterrolebinding.yaml
+- ./base/vault/templates/injector-deployment.yaml
+- ./base/vault/templates/injector-mutating-webhook.yaml
+- ./base/vault/templates/injector-service.yaml
+- ./base/vault/templates/injector-serviceaccount.yaml
+- ./base/vault/templates/server-clusterrolebinding.yaml
+- ./base/vault/templates/server-config-configmap.yaml
+- ./base/vault/templates/server-discovery-role.yaml
+- ./base/vault/templates/server-discovery-rolebinding.yaml
+- ./base/vault/templates/server-disruptionbudget.yaml
+- ./base/vault/templates/server-ha-active-service.yaml
+- ./base/vault/templates/server-ha-standby-service.yaml
+- ./base/vault/templates/server-headless-service.yaml
+- ./base/vault/templates/server-service.yaml
+- ./base/vault/templates/server-serviceaccount.yaml
+- ./base/vault/templates/server-statefulset.yaml
+- ./base/vault/templates/prometheus-servicemonitor.yaml
+
+patches:
+- options:
+    allowNameChange: true
+  path: patches/vault-agent-injector-clusterrole-patch.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: release-name-vault-agent-injector-clusterrole
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-agent-injector-binding-patch.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRoleBinding
+    name: release-name-vault-agent-injector-binding
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-agent-injector-patch.yaml
+  target:
+    group: apps
+    kind: Deployment
+    name: release-name-vault-agent-injector
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-agent-injector-cfg-patch.yaml
+  target:
+    group: admissionregistration.k8s.io
+    kind: MutatingWebhookConfiguration
+    name: release-name-vault-agent-injector-cfg
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-agent-injector-svc-patch.yaml
+  target:
+    kind: Service
+    name: release-name-vault-agent-injector-svc
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-agent-injector-serviceaccount-patch.yaml
+  target:
+    kind: ServiceAccount
+    name: release-name-vault-agent-injector
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-server-binding-patch.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRoleBinding
+    name: release-name-vault-server-binding
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-config-patch.yaml
+  target:
+    kind: ConfigMap
+    name: release-name-vault-config
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-discovery-role-patch.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    kind: Role
+    name: release-name-vault-discovery-role
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-discovery-rolebinding-patch.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    kind: RoleBinding
+    name: release-name-vault-discovery-rolebinding
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-patch.yaml
+  target:
+    group: policy
+    kind: PodDisruptionBudget
+    name: release-name-vault
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-active-patch.yaml
+  target:
+    kind: Service
+    name: release-name-vault-active
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-standby-patch.yaml
+  target:
+    kind: Service
+    name: release-name-vault-standby
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-internal-patch.yaml
+  target:
+    kind: Service
+    name: release-name-vault-internal
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-service-patch.yaml
+  target:
+    kind: Service
+    name: release-name-vault
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-serviceaccount-patch.yaml
+  target:
+    kind: ServiceAccount
+    name: release-name-vault
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-statefulset-patch.yaml
+  target:
+    group: apps
+    kind: StatefulSet
+    name: release-name-vault
+    version: v1
+- options:
+    allowNameChange: true
+  path: patches/vault-servicemonitor-patch.yaml
+  target:
+    group: monitoring.coreos.com
+    kind: ServiceMonitor
+    name: release-name-vault
+    version: v1

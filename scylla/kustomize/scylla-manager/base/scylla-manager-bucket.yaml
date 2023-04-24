@@ -1,0 +1,8 @@
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: scylla-manager-bucket
+  namespace: scylla-manager
+spec:
+  generateBucketName: scylla-manager-bucket
+  storageClassName: ceph-bucket

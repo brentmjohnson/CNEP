@@ -1,0 +1,86 @@
+- name: This play provisions k8s VMs based on intial config
+  hosts: vm_host
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Add controls to given group
+      ansible.builtin.add_host:
+        hostname: '{{ k8s.cluster_name }}-control-{{ item }}'
+        # ansible_ssh_private_key_file: "{{ playbook_dir }}//id_rsa_{{ k8s.cluster_name }}"
+        # ansible_user: kube
+        ansible_sudo_pass: <password>
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        groups:
+          - "controls"
+        group_children: "k8s_nodes"
+      loop: "{{ range(0, k8s.control_plane.vms) | list }}"
+      delegate_to: localhost
+
+    - name: Add workers to given group
+      ansible.builtin.add_host:
+        hostname: '{{ k8s.cluster_name }}-worker-{{ item }}'
+        # ansible_ssh_private_key_file: "{{ playbook_dir }}//id_rsa_{{ k8s.cluster_name }}"
+        # ansible_user: kube
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        groups:
+          - "workers"
+        group_children: "k8s_nodes"
+      loop: "{{ range(0, k8s.worker_nodes.vms) | list }}"
+      delegate_to: localhost
+
+    - name: Add loadbalancer to inventory
+      ansible.builtin.add_host:
+        hostname: '{{ k8s.cluster_name }}-lb'
+        # ansible_ssh_private_key_file: "{{ playbook_dir }}//id_rsa_{{ k8s.cluster_name }}"
+        ansible_user: root
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        groups:
+          - "loadbalancer"
+        group_children: "loadbalancer"
+      delegate_to: localhost
+
+    # - name: Ensure to clean known_hosts
+    #   ansible.builtin.known_hosts:
+    #     host: "{{ item }}"
+    #     path: ~/.ssh/known_hosts
+    #     state: absent
+    #   loop: "{{ query('inventory_hostnames', 'all:!vm_host') }}"
+    #   delegate_to: localhost
+
+- name: Check connection and set facts
+  hosts: controls,workers,loadbalancer
+  gather_facts: false
+  tasks:
+    - name: Wait 900 seconds for target connection to become reachable/usable
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+        delay: 0
+
+    - name: Ping host to check status
+      ansible.builtin.ping:
+
+    - name: Add hosts to correct groups
+      ansible.builtin.group_by:
+        key: "{{ group_children }}"
+
+    - name: Extract facts from setup
+      ansible.builtin.setup:
+      register: machine_facts
+
+    - name: Set relevant facts for the host
+      ansible.builtin.set_fact:
+        host_ip: "{{ machine_facts.ansible_facts.ansible_default_ipv4.address }}"
+        host_ipv4: "{{ machine_facts.ansible_facts.ansible_default_ipv4.address }}"
+        host_ipv6: "{{ machine_facts.ansible_facts.ansible_default_ipv6.address }}"
+        host_interface: "{{ machine_facts.ansible_facts.ansible_default_ipv4.interface }}"
+        host_mac: "{{ machine_facts.ansible_facts.ansible_default_ipv4.macaddress }}"
+        host_fqdn: "{{ machine_facts.ansible_facts.ansible_fqdn }}"
+
+- name: Debug hostvars
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - local_action: 
+        module: copy 
+        content: "{{ hostvars }}"
+        dest: "{{ playbook_dir }}/hostvars.json"

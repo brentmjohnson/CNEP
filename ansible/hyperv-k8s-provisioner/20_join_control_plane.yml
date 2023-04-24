@@ -1,0 +1,33 @@
+---
+- name: Play to join control plane nodes in the cluster
+  hosts: controls[1:]
+  become: true
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Joining control plane nodes
+      block:
+        - name: Fire joinConfiguration template for control plane nodes
+          ansible.builtin.template:
+            src: templates/kubeadm-join-cp-config.yaml.j2
+            dest: /tmp/kubeadm-join.yaml
+            mode: 0755
+
+        - name: Create tracing directory if it does not exist
+          ansible.builtin.file:
+            path: /etc/kubernetes/tracing
+            state: directory
+
+        - name: Add tracing config for node
+          ansible.builtin.template:
+            src: templates/tracing-config.yaml.j2
+            dest: /etc/kubernetes/tracing/tracing-config.yaml
+
+        - name: Join control-plane nodes in cluster
+          ansible.builtin.command: kubeadm join --config /tmp/kubeadm-join.yaml --ignore-preflight-errors=Mem,Swap
+          become: true
+
+        - name: Mark node as joined
+          ansible.builtin.set_fact:
+            k8s_joined: true
+      when: k8s_joined is not defined

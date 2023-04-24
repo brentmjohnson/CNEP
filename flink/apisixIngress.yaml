@@ -1,0 +1,23 @@
+# httpbin-ingress.yaml
+# Note use apiVersion is networking.k8s.io/v1, so please make sure your
+# Kubernetes cluster version is v1.19.0 or higher.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flink-dashboard-ingress
+  namespace: flink
+spec:
+  # apisix-ingress-controller is only interested in Ingress
+  # resources with the matched ingressClass name, in our case,
+  # it's apisix.
+  ingressClassName: apisix
+  rules:
+  - http:
+      paths:
+      - path: /flink
+        pathType: Prefix
+        backend:
+          service:
+            name: basic-example-rest
+            port:
+              number: 8081

@@ -1,0 +1,26 @@
+data:
+  conf.yaml: |-
+    conf:
+      listen:
+        host: 0.0.0.0
+        port: 9000
+      etcd:
+        prefix: "/apisix"
+        endpoints:
+          - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+        # mtls:
+        #   key_file: /etcd-ssl/apiserver-etcd-client.key
+        #   cert_file: /etcd-ssl/apiserver-etcd-client.crt
+        #   ca_file: /usr/local/apisix/conf/ssl/ca.crt
+      log:
+        error_log:
+          level: warn
+          file_path: /dev/stderr
+        access_log:
+          file_path: /dev/stdout
+    authentication:
+      secert: secert
+      expire_time: 3600
+      users:
+        - username: <user>
+          password: <password>

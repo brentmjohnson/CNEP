@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-cluster-headless
+  namespace: postgres
+spec:
+  clusterIP: None
+  ports:
+  - appProtocol: tcp
+    name: postgresql
+    port: 5432
+    protocol: TCP
+    targetPort: 5432
+  - appProtocol: tcp
+    name: readiness
+    port: 8008
+    protocol: TCP
+    targetPort: 8008
+  selector:
+    application: spilo
+    cluster-name: postgres-cluster
+---
+apiVersion: acid.zalan.do/v1
+kind: postgresql
+metadata:
+  name: postgres-cluster
+  namespace: postgres
+spec:
+  numberOfInstances: 2
+  postgresql:
+    version: "15"
+  teamId: postgres
+  users:
+    postgres:
+    - superuser
+    - createdb
+  volume:
+    size: 1Gi

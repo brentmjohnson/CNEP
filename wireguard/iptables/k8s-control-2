@@ -1,0 +1,304 @@
+Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+ 393K  122M cali-INPUT  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Cz_u1IQiXIMmKD4c */
+ 423K  368M KUBE-NODE-PORT  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes health check rules */
+ 424K  369M KUBE-FIREWALL  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+  186 67723 cali-FORWARD  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:wUHhoiAYhphO9Mso */
+    0     0 KUBE-FORWARD  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes forwarding rules */
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:S93hcgKJrXEqnTfs */ /* Policy explicitly accepted packet. */ mark match 0x10000/0x10000
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:mp77cMpurHhyjLrM */ MARK or 0x10000
+
+Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+ 391K   61M cali-OUTPUT  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:tVnHkvAo15HuiPy0 */
+ 424K   75M KUBE-FIREWALL  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain KUBE-FIREWALL (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes firewall for dropping marked packets */ mark match 0x8000/0x8000
+    0     0 DROP       all  --  *      *      !127.0.0.0/8          127.0.0.0/8          /* block incoming localnet connections */ ! ctstate RELATED,ESTABLISHED,DNAT
+
+Chain KUBE-FORWARD (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes forwarding rules */ mark match 0x4000/0x4000
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes forwarding conntrack rule */ ctstate RELATED,ESTABLISHED
+
+Chain KUBE-KUBELET-CANARY (0 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain KUBE-NODE-PORT (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* Kubernetes health check node port */ match-set KUBE-HEALTH-CHECK-NODE-PORT dst
+
+Chain cali-FORWARD (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+  186 67723 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:vjrMJCRpqwy5oRoX */ MARK and 0xfff1ffff
+  186 67723 cali-from-hep-forward  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:A_sPAO0mcxbT9mOV */ mark match 0x0/0x10000
+    0     0 cali-from-wl-dispatch  all  --  cali+  *       0.0.0.0/0            0.0.0.0/0            /* cali:8ZoYfO5HKXWbB3pk */
+  186 67723 cali-to-wl-dispatch  all  --  *      cali+   0.0.0.0/0            0.0.0.0/0            /* cali:jdEuaPBe14V2hutn */
+    0     0 cali-to-hep-forward  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:12bc6HljsMKsmfr- */
+    0     0 cali-cidr-block  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:NOSxoaGx8OIstr1z */
+
+Chain cali-INPUT (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:MYAij0dXtIVCOZ-i */ /* Allow IPv4 VXLAN packets from whitelisted hosts */ multiport dports 4789 match-set cali40all-vxlan-net src ADDRTYPE match dst-type LOCAL
+    0     0 DROP       udp  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:c3JpWekSTKWcdGH0 */ /* Drop IPv4 VXLAN packets from non-whitelisted hosts */ multiport dports 4789 ADDRTYPE match dst-type LOCAL
+ 393K  122M MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:mHDD8dSS6YmtPQxf */ MARK and 0xfffff
+ 393K  122M cali-forward-check  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:T9GFCPXUWuBhq2ys */
+   58  4494 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:hrI_Is4FzAwuPdoV */ mark match ! 0x0/0xfff00000
+ 5679  455K cali-wl-to-host  all  --  cali+  *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:2fHTIAtaiF48Yl5c */
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:GRJdwXG8nvrobJFb */ mark match 0x10000/0x10000
+ 387K  121M MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:0FOK33f4pgpVULYk */ MARK and 0xfff0ffff
+ 387K  121M cali-from-host-endpoint  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:-LYy9k-f53RSIauc */
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:1I69kmII8ERfRsAh */ /* Host endpoint policy accepted packet. */ mark match 0x10000/0x10000
+
+Chain cali-OUTPUT (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Mq1_rAdXXH3YkrzW */ mark match 0x10000/0x10000
+    2   120 cali-forward-endpoint-mark  all  --  *      *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:5Z67OUUpTOM7Xa1a */ mark match ! 0x0/0xfff00000
+ 5712 1781K RETURN     all  --  *      cali+   0.0.0.0/0            0.0.0.0/0            /* cali:M2Wf0OehNdig8MHR */
+    0     0 ACCEPT     udp  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:yxeCxHCcHgKJrcbA */ /* Allow IPv4 VXLAN packets to other whitelisted hosts */ multiport dports 4789 ADDRTYPE match src-type LOCAL match-set cali40all-vxlan-net dst
+ 385K   60M MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:tSwTvqWPChtUBXwB */ MARK and 0xfff0ffff
+ 385K   60M cali-to-host-endpoint  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:7X1OhP068RShPUeD */ ! ctstate DNAT
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:sfBIIsPVnCpRlCwk */ /* Host endpoint policy accepted packet. */ mark match 0x10000/0x10000
+
+Chain cali-cidr-block (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain cali-forward-check (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+ 387K  121M RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Pbldlb4FaULvpdD8 */ ctstate RELATED,ESTABLISHED
+    0     0 cali-set-endpoint-mark  tcp  --  *      *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:ZD-6UxuUtGW-xtzg */ /* To kubernetes NodePort service */ multiport dports 30000:32767 match-set cali40this-host dst
+    0     0 cali-set-endpoint-mark  udp  --  *      *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:CbPfUajQ2bFVnDq4 */ /* To kubernetes NodePort service */ multiport dports 30000:32767 match-set cali40this-host dst
+   58  4494 cali-set-endpoint-mark  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:jmhU0ODogX-Zfe5g */ /* To kubernetes service */ ! match-set cali40this-host dst
+
+Chain cali-forward-endpoint-mark (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    2   120 cali-from-endpoint-mark  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:O0SmFDrnm7KggWqW */ mark match ! 0x100000/0xfff00000
+    0     0 cali-to-wl-dispatch  all  --  *      cali+   0.0.0.0/0            0.0.0.0/0            /* cali:aFl0WFKRxDqj8oA6 */
+    2   120 cali-to-hep-forward  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:AZKVrO3i_8cLai5f */
+    2   120 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:96HaP1sFtb-NYoYA */ MARK and 0xfffff
+    2   120 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:VxO6hyNWz62YEtul */ /* Policy explicitly accepted packet. */ mark match 0x10000/0x10000
+
+Chain cali-from-endpoint-mark (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 cali-fw-cali12dfed90682  all  --  *      *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:RQgXoaDFfZ2HuIRh */ mark match 0xa3500000/0xfff00000
+    0     0 cali-fw-cali18c56016a30  all  --  *      *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:NcECbbC9oDnChumN */ mark match 0xb7c00000/0xfff00000
+    0     0 cali-fw-cali79841005a6b  all  --  *      *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:5w52VRQrWg0gl0Y2 */ mark match 0xb700000/0xfff00000
+    0     0 cali-fw-cali8122045353c  all  --  *      *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:vqLIXuRbzxxblQJk */ mark match 0xffc00000/0xfff00000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:56aHD6KqKhEKRkpg */ /* Unknown interface */
+
+Chain cali-from-hep-forward (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain cali-from-host-endpoint (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain cali-from-wl-dispatch (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+ 2082  168K cali-from-wl-dispatch-1  all  --  cali1+ *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:aA7PbfJxlypkbHNq */
+ 1330 96062 cali-fw-cali79841005a6b  all  --  cali79841005a6b *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:N7KIP4gAOfG5JZJo */
+ 2054  166K cali-fw-cali8122045353c  all  --  cali8122045353c *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:x08FHyljLZbVvJ8u */
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:SvR19WrT15X4lp8Z */ /* Unknown interface */
+
+Chain cali-from-wl-dispatch-1 (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 cali-fw-cali12dfed90682  all  --  cali12dfed90682 *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:3czGGXlo-_G8h8iW */
+ 2122  172K cali-fw-cali18c56016a30  all  --  cali18c56016a30 *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:NEVokkp6XrYhceZu */
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:FyPeo-L-k_FJfqoG */ /* Unknown interface */
+
+Chain cali-fw-cali12dfed90682 (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:tfLv3BQN9uKthXVF */ ctstate RELATED,ESTABLISHED
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:cLFZ6jmoQEQVX87b */ ctstate INVALID
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:f06XAWkxoqPHZZLM */ MARK and 0xfffeffff
+    0     0 DROP       udp  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Avrp4FC2vztw2eDX */ /* Drop VXLAN encapped packets originating in workloads */ multiport dports 4789
+    0     0 DROP       4    --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:w2kri85vqPCu9LMy */ /* Drop IPinIP encapped packets originating in workloads */
+    0     0 cali-pro-kns.calico-system  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:kA6tjr6qdI-Zmx0l */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Yhb2x_wiLeQhGhkd */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 cali-pro-_ymJUz7yzI6NOKJhG2-  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:u2SeD8y7twZEka1t */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:EYZxgm9lEljAuGAe */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:NJlRnNAGflsI-tvO */ /* Drop if no profiles matched */
+
+Chain cali-fw-cali18c56016a30 (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+ 2122  172K ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:-JMY1VeekRrt883V */ ctstate RELATED,ESTABLISHED
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:VW2_WKcHcjG4DfBr */ ctstate INVALID
+    1    60 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:GT9BVYcMAMO4T7AS */ MARK and 0xfffeffff
+    0     0 DROP       udp  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:rBR05Srf-UIeYTbG */ /* Drop VXLAN encapped packets originating in workloads */ multiport dports 4789
+    0     0 DROP       4    --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:t2pkwI4xOoxnVLA4 */ /* Drop IPinIP encapped packets originating in workloads */
+    1    60 cali-pro-kns.kube-system  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:QNpGOAjudw9BJVBM */
+    1    60 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:90hf2M3IhoHIoNNW */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 cali-pro-_u2Tn2rSoAPffvE7JO6  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:3BelpkcbKx_UfyAl */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:etwIcQ_zu8DxpSRV */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:7V28bdyo9j7OyRka */ /* Drop if no profiles matched */
+
+Chain cali-fw-cali79841005a6b (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+ 1425  107K ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:ssnkVHUpndIO3q0C */ ctstate RELATED,ESTABLISHED
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:V-r90bz7AUtSN4ZB */ ctstate INVALID
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:U9q4QkQXvaF00GED */ MARK and 0xfffeffff
+    0     0 DROP       udp  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:dmGHiimkMJ9b8HdF */ /* Drop VXLAN encapped packets originating in workloads */ multiport dports 4789
+    0     0 DROP       4    --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:PpK4g_f2uA2q6Z2C */ /* Drop IPinIP encapped packets originating in workloads */
+    0     0 cali-pro-kns.calico-system  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:G1Po5YFgIojcoaqB */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:b_vL-O28v68sjuy5 */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 cali-pro-_nzzjLvInId1gPHmQz_  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:OSHTLGqP7aDElkwL */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:hK4cB0vYClnK-sPC */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:NtGxuApcIr1au585 */ /* Drop if no profiles matched */
+
+Chain cali-fw-cali8122045353c (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+ 2094  171K ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:U9YAMnHyg_zWjQJm */ ctstate RELATED,ESTABLISHED
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:wETHWF1jCX4QCK5_ */ ctstate INVALID
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:GX24n02JlFpDk00t */ MARK and 0xfffeffff
+    0     0 DROP       udp  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:hbgL2410ofkPXWZd */ /* Drop VXLAN encapped packets originating in workloads */ multiport dports 4789
+    0     0 DROP       4    --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:FVINlIz8g7T-oOYy */ /* Drop IPinIP encapped packets originating in workloads */
+    0     0 cali-pro-kns.kube-system  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:6qnG_QMiek2EIMsm */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:I6yVJ6O8S8ureHLZ */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 cali-pro-_u2Tn2rSoAPffvE7JO6  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:sK8Gu_1-6ROn9yiN */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Kc30BFomMhFeGZwO */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:ALkx3tBBNxhomrqK */ /* Drop if no profiles matched */
+
+Chain cali-pri-_nzzjLvInId1gPHmQz_ (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0            all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:UQoEf2WCdU0bPTCb */ /* Profile ksa.calico-system.calico-kube-controllers ingress */
+
+Chain cali-pri-_u2Tn2rSoAPffvE7JO6 (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0            all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:WqgznqAQ-uYV0oBx */ /* Profile ksa.kube-system.coredns ingress */
+
+Chain cali-pri-_ymJUz7yzI6NOKJhG2- (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0            all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:52zm9tLYY65R0fSD */ /* Profile ksa.calico-system.csi-node-driver ingress */
+
+Chain cali-pri-kns.calico-system (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:hLANj-OVIyT53h_j */ /* Profile kns.calico-system ingress */ MARK or 0x10000
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:AHts2xleddEc04Gr */ mark match 0x10000/0x10000
+
+Chain cali-pri-kns.kube-system (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:J1TyxtHWd0qaBGK- */ /* Profile kns.kube-system ingress */ MARK or 0x10000
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:QIB6k7eEKdIg73Jp */ mark match 0x10000/0x10000
+
+Chain cali-pro-_nzzjLvInId1gPHmQz_ (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0            all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:5bHxBXLMkJKgC6dk */ /* Profile ksa.calico-system.calico-kube-controllers egress */
+
+Chain cali-pro-_u2Tn2rSoAPffvE7JO6 (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0            all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:0-_UPh39dt5XfhmJ */ /* Profile ksa.kube-system.coredns egress */
+
+Chain cali-pro-_ymJUz7yzI6NOKJhG2- (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0            all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:yuJvAdyU1LYltt-O */ /* Profile ksa.calico-system.csi-node-driver egress */
+
+Chain cali-pro-kns.calico-system (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:gWxJzCZXxl31NR0P */ /* Profile kns.calico-system egress */ MARK or 0x10000
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:rHIqpX_kWRu4q0wP */ mark match 0x10000/0x10000
+
+Chain cali-pro-kns.kube-system (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    2   120 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:tgOR2S8DVHZW3F1M */ /* Profile kns.kube-system egress */ MARK or 0x10000
+    2   120 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:HVEEtYPJsiGRXCIt */ mark match 0x10000/0x10000
+
+Chain cali-set-endpoint-mark (3 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 cali-set-endpoint-mark-1  all  --  cali1+ *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:PnNIp7MVWc8s-rZh */
+    0     0 cali-sm-cali79841005a6b  all  --  cali79841005a6b *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:jZbDRCJ4zY0_q0iJ */
+    0     0 cali-sm-cali8122045353c  all  --  cali8122045353c *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:88dvdqOUP1qKOuTl */
+    0     0 DROP       all  --  cali+  *       0.0.0.0/0            0.0.0.0/0            /* cali:SptfpSKuQlsAadKT */ /* Unknown endpoint */
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:tnC5xUaqCH9wRQGi */ /* Non-Cali endpoint mark */ MARK xset 0x100000/0xfff00000
+
+Chain cali-set-endpoint-mark-1 (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 cali-sm-cali12dfed90682  all  --  cali12dfed90682 *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:u7pFD4vQl2k99ZFV */
+    1    60 cali-sm-cali18c56016a30  all  --  cali18c56016a30 *       0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:3MSPeE2X_mv9dKkD */
+
+Chain cali-sm-cali12dfed90682 (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:a9HCU0F_p-SjCcIr */ MARK xset 0xa3500000/0xfff00000
+
+Chain cali-sm-cali18c56016a30 (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    1    60 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:iJZhG1yKJJRrUlhJ */ MARK xset 0xb7c00000/0xfff00000
+
+Chain cali-sm-cali79841005a6b (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    1    60 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:dbcRHELSJd-IDe7y */ MARK xset 0xb700000/0xfff00000
+
+Chain cali-sm-cali8122045353c (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    1    60 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:9m9HQJ5mzArKvZlE */ MARK xset 0xffc00000/0xfff00000
+
+Chain cali-to-hep-forward (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain cali-to-host-endpoint (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain cali-to-wl-dispatch (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+  125 24691 cali-to-wl-dispatch-1  all  --  *      cali1+  0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:svNUGuuCd7LCNEXq */
+    0     0 cali-tw-cali79841005a6b  all  --  *      cali79841005a6b  0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:6ctGvjjKq55yh2zy */
+    0     0 cali-tw-cali8122045353c  all  --  *      cali8122045353c  0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:78y06Xs6z3WFsaIh */
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:pEYK9WcYchz47J5L */ /* Unknown interface */
+
+Chain cali-to-wl-dispatch-1 (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 cali-tw-cali12dfed90682  all  --  *      cali12dfed90682  0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:6bF2oUnPKo4Nn6hy */
+  155 47239 cali-tw-cali18c56016a30  all  --  *      cali18c56016a30  0.0.0.0/0            0.0.0.0/0           [goto]  /* cali:ipaM-hOLKAsL_OxF */
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:8P7sJu21DcVfI6uX */ /* Unknown interface */
+
+Chain cali-tw-cali12dfed90682 (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Q9oWzaBG0cUbycom */ ctstate RELATED,ESTABLISHED
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:oG1q341uQxU4ar0P */ ctstate INVALID
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:nk1p38vJLskrWitd */ MARK and 0xfffeffff
+    0     0 cali-pri-kns.calico-system  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:XwEEn05sBVNDWwU4 */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:vI44a79c6P5KpDZb */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 cali-pri-_ymJUz7yzI6NOKJhG2-  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:bsUpMAfTuyVgxsW6 */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:gKnCHX2k7U2uPN_w */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:qPFmXmiFWRFhMmAW */ /* Drop if no profiles matched */
+
+Chain cali-tw-cali18c56016a30 (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+  155 47239 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Zec-5tDXWE68-J7q */ ctstate RELATED,ESTABLISHED
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:dQAD6JFS2LB3mcfC */ ctstate INVALID
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:JFT1usw6MzYq5inH */ MARK and 0xfffeffff
+    0     0 cali-pri-kns.kube-system  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:bI-1zyFwqgWQ7-cf */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:rB_jAr4fuXmb_Td7 */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 cali-pri-_u2Tn2rSoAPffvE7JO6  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:vTVZ3MUaYf-hg9TK */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:EuAxPNQliSyGDX7b */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:smjTV5zuz2NqHjJ2 */ /* Drop if no profiles matched */
+
+Chain cali-tw-cali79841005a6b (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:eu1oBKuF2dENMO75 */ ctstate RELATED,ESTABLISHED
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:kEvFoFxWyO4XBLqC */ ctstate INVALID
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:RhQuQi-kRbCdTlsa */ MARK and 0xfffeffff
+    0     0 cali-pri-kns.calico-system  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:BaIUDto3TdXSTLOo */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:gJTqhl8dXA952spp */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 cali-pri-_nzzjLvInId1gPHmQz_  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:UMXmZOBJTMvtarx7 */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:f_QD3Y-jmR4_Dh_P */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:3BKPni4G5oGlo1rq */ /* Drop if no profiles matched */
+
+Chain cali-tw-cali8122045353c (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:WBsiuKc3FEoANhpB */ ctstate RELATED,ESTABLISHED
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:3TqrbIU0KwzFVqIs */ ctstate INVALID
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:RTSntQ4-YfDwaS-F */ MARK and 0xfffeffff
+    0     0 cali-pri-kns.kube-system  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:MqJZQnROnj9XjTPE */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:K_smyqIDdjaMFaG6 */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 cali-pri-_u2Tn2rSoAPffvE7JO6  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:8RAk6m4WI4jF1vBX */
+    0     0 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:bOoE2bhV14SQUFpZ */ /* Return if profile accepted */ mark match 0x10000/0x10000
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:eNU1ejz0jM2IcpiJ */ /* Drop if no profiles matched */
+
+Chain cali-wl-to-host (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+ 5679  455K cali-from-wl-dispatch  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:Ee9Sbo10IpVujdIY */
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* cali:nSZbcOoG1xPONxb8 */ /* Configured DefaultEndpointToHostAction */

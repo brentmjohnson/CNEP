@@ -1,0 +1,34 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+  name: istiocontrolplane
+spec:
+  profile: default
+  components:
+    cni:
+      enabled: true
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: false
+    egressGateways:
+    - name: istio-egressgateway
+      enabled: true
+    pilot:
+      enabled: true
+  meshConfig:
+    accessLogFile: /dev/stdout
+    defaultConfig:
+      discoveryAddress: istiod.istio-system.svc:15012
+      proxyMetadata: {}
+      tracing:
+        sampling: 100.0
+        zipkin:
+          address: daemonset-collector.opentelemetry-operator-system.svc.cluster.local:9411
+    defaultProviders:
+    enablePrometheusMerge: true
+    enableTracing: true
+    extensionProviders:
+    - name: otel
+    rootNamespace: istio-system
+    trustDomain: cluster.local

@@ -1,0 +1,4092 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    apisix.apache.org/app: ingress-apisix
+  name: apisixclusterconfigs.apisix.apache.org
+spec:
+  group: apisix.apache.org
+  names:
+    kind: ApisixClusterConfig
+    plural: apisixclusterconfigs
+    shortNames:
+    - acc
+    singular: apisixclusterconfig
+  preserveUnknownFields: false
+  scope: Cluster
+  versions:
+  - deprecated: true
+    name: v2beta3
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              admin:
+                properties:
+                  adminKey:
+                    type: string
+                  baseURL:
+                    pattern: https?://[^:]+:(\d+)
+                    type: string
+                required:
+                - baseURL
+                type: object
+              monitoring:
+                properties:
+                  prometheus:
+                    properties:
+                      enable:
+                        type: boolean
+                    type: object
+                  skywalking:
+                    properties:
+                      enable:
+                        type: boolean
+                      sampleRatio:
+                        maximum: 1
+                        minimum: 1e-05
+                        type: number
+                    type: object
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - name: v2
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              admin:
+                properties:
+                  adminKey:
+                    type: string
+                  baseURL:
+                    pattern: https?://[^:]+:(\d+)
+                    type: string
+                required:
+                - baseURL
+                type: object
+              monitoring:
+                properties:
+                  prometheus:
+                    properties:
+                      enable:
+                        type: boolean
+                    type: object
+                  skywalking:
+                    properties:
+                      enable:
+                        type: boolean
+                      sampleRatio:
+                        maximum: 1
+                        minimum: 1e-05
+                        type: number
+                    type: object
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    apisix.apache.org/app: ingress-apisix
+  name: apisixconsumers.apisix.apache.org
+spec:
+  group: apisix.apache.org
+  names:
+    kind: ApisixConsumer
+    plural: apisixconsumers
+    shortNames:
+    - ac
+    singular: apisixconsumer
+  preserveUnknownFields: false
+  scope: Namespaced
+  versions:
+  - deprecated: true
+    name: v2beta3
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              authParameter:
+                oneOf:
+                - required:
+                  - basicAuth
+                - required:
+                  - keyAuth
+                - required:
+                  - wolfRBAC
+                - required:
+                  - jwtAuth
+                - required:
+                  - hmacAuth
+                properties:
+                  basicAuth:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          password:
+                            minLength: 1
+                            type: string
+                          username:
+                            minLength: 1
+                            type: string
+                        required:
+                        - username
+                        - password
+                        type: object
+                    type: object
+                  hmacAuth:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          access_key:
+                            type: string
+                          algorithm:
+                            type: string
+                          clock_skew:
+                            type: integer
+                          encode_uri_params:
+                            type: boolean
+                          keep_headers:
+                            type: boolean
+                          max_req_body:
+                            type: integer
+                          secret_key:
+                            type: string
+                          signed_headers:
+                            items:
+                              type: string
+                            type: array
+                          validate_request_body:
+                            type: boolean
+                        required:
+                        - access_key
+                        - secret_key
+                        type: object
+                    type: object
+                  jwtAuth:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          algorithm:
+                            type: string
+                          base64_secret:
+                            type: boolean
+                          exp:
+                            type: integer
+                          key:
+                            minLength: 1
+                            type: string
+                          private_key:
+                            type: string
+                          public_key:
+                            type: string
+                          secret:
+                            type: string
+                        required:
+                        - key
+                        type: object
+                    type: object
+                  keyAuth:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          key:
+                            minLength: 1
+                            type: string
+                        required:
+                        - key
+                        type: object
+                    type: object
+                  wolfRBAC:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          appid:
+                            type: string
+                          header_prefix:
+                            type: string
+                          server:
+                            type: string
+                        type: object
+                    type: object
+                type: object
+            required:
+            - authParameter
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - name: v2
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              authParameter:
+                oneOf:
+                - required:
+                  - basicAuth
+                - required:
+                  - keyAuth
+                - required:
+                  - wolfRBAC
+                - required:
+                  - jwtAuth
+                - required:
+                  - hmacAuth
+                properties:
+                  basicAuth:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          password:
+                            minLength: 1
+                            type: string
+                          username:
+                            minLength: 1
+                            type: string
+                        required:
+                        - username
+                        - password
+                        type: object
+                    type: object
+                  hmacAuth:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          access_key:
+                            type: string
+                          algorithm:
+                            type: string
+                          clock_skew:
+                            type: integer
+                          encode_uri_params:
+                            type: boolean
+                          keep_headers:
+                            type: boolean
+                          max_req_body:
+                            type: integer
+                          secret_key:
+                            type: string
+                          signed_headers:
+                            items:
+                              type: string
+                            type: array
+                          validate_request_body:
+                            type: boolean
+                        required:
+                        - access_key
+                        - secret_key
+                        type: object
+                    type: object
+                  jwtAuth:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          algorithm:
+                            type: string
+                          base64_secret:
+                            type: boolean
+                          exp:
+                            type: integer
+                          key:
+                            minLength: 1
+                            type: string
+                          private_key:
+                            type: string
+                          public_key:
+                            type: string
+                          secret:
+                            type: string
+                        required:
+                        - key
+                        type: object
+                    type: object
+                  keyAuth:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          key:
+                            minLength: 1
+                            type: string
+                        required:
+                        - key
+                        type: object
+                    type: object
+                  wolfRBAC:
+                    oneOf:
+                    - required:
+                      - value
+                    - required:
+                      - secretRef
+                    properties:
+                      secretRef:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      value:
+                        properties:
+                          appid:
+                            type: string
+                          header_prefix:
+                            type: string
+                          server:
+                            type: string
+                        type: object
+                    type: object
+                type: object
+            required:
+            - authParameter
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    apisix.apache.org/app: ingress-apisix
+  name: apisixpluginconfigs.apisix.apache.org
+spec:
+  group: apisix.apache.org
+  names:
+    kind: ApisixPluginConfig
+    plural: apisixpluginconfigs
+    shortNames:
+    - apc
+    singular: apisixpluginconfig
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      priority: 0
+      type: date
+    deprecated: true
+    name: v2beta3
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              plugins:
+                items:
+                  properties:
+                    config:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    enable:
+                      type: boolean
+                    name:
+                      minLength: 1
+                      type: string
+                  type: object
+                required:
+                - name
+                - enable
+                type: array
+            required:
+            - plugins
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    message:
+                      type: string
+                    observedGeneration:
+                      type: integer
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      priority: 0
+      type: date
+    name: v2
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              plugins:
+                items:
+                  properties:
+                    config:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    enable:
+                      type: boolean
+                    name:
+                      minLength: 1
+                      type: string
+                    secretRef:
+                      type: string
+                  type: object
+                required:
+                - name
+                - enable
+                type: array
+            required:
+            - plugins
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    message:
+                      type: string
+                    observedGeneration:
+                      type: integer
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    apisix.apache.org/app: ingress-apisix
+  name: apisixroutes.apisix.apache.org
+spec:
+  group: apisix.apache.org
+  names:
+    kind: ApisixRoute
+    plural: apisixroutes
+    shortNames:
+    - ar
+    singular: apisixroute
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.http[].match.hosts
+      name: Hosts
+      priority: 0
+      type: string
+    - jsonPath: .spec.http[].match.paths
+      name: URIs
+      priority: 0
+      type: string
+    - jsonPath: .spec.http[].backend.serviceName
+      name: Target Service(HTTP)
+      priority: 1
+      type: string
+    - jsonPath: .spec.tcp[].match.ingressPort
+      name: Ingress Server Port(TCP)
+      priority: 1
+      type: integer
+    - jsonPath: .spec.tcp[].match.backend.serviceName
+      name: Target Service(TCP)
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      priority: 0
+      type: date
+    deprecated: true
+    name: v2beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            anyOf:
+            - required:
+              - http
+            - required:
+              - tcp
+            - required:
+              - stream
+            properties:
+              http:
+                items:
+                  oneOf:
+                  - required:
+                    - name
+                    - match
+                    - backend
+                  - required:
+                    - name
+                    - match
+                    - backends
+                  properties:
+                    authentication:
+                      properties:
+                        enable:
+                          type: boolean
+                        keyAuth:
+                          properties:
+                            header:
+                              type: string
+                          type: object
+                        type:
+                          enum:
+                          - basicAuth
+                          - keyAuth
+                          type: string
+                      required:
+                      - enable
+                      type: object
+                    backend:
+                      properties:
+                        resolveGranularity:
+                          enum:
+                          - endpoint
+                          - service
+                          type: string
+                        serviceName:
+                          minLength: 1
+                          type: string
+                        servicePort:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          x-kubernetes-int-or-string: true
+                        subset:
+                          type: string
+                        weight:
+                          minimum: 0
+                          type: integer
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: object
+                    backends:
+                      items:
+                        properties:
+                          resolveGranularity:
+                            enum:
+                            - endpoint
+                            - service
+                            type: string
+                          serviceName:
+                            minLength: 1
+                            type: string
+                          servicePort:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            x-kubernetes-int-or-string: true
+                          subset:
+                            type: string
+                          weight:
+                            minimum: 0
+                            type: integer
+                        type: object
+                      minItems: 1
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: array
+                    match:
+                      properties:
+                        exprs:
+                          items:
+                            oneOf:
+                            - required:
+                              - subject
+                              - op
+                              - value
+                            - required:
+                              - subject
+                              - op
+                              - set
+                            properties:
+                              op:
+                                enum:
+                                - Equal
+                                - NotEqual
+                                - GreaterThan
+                                - LessThan
+                                - In
+                                - NotIn
+                                - RegexMatch
+                                - RegexNotMatch
+                                - RegexMatchCaseInsensitive
+                                - RegexNotMatchCaseInsensitive
+                                type: string
+                              set:
+                                items:
+                                  type: string
+                                type: array
+                              subject:
+                                properties:
+                                  name:
+                                    minLength: 1
+                                    type: string
+                                  scope:
+                                    enum:
+                                    - Cookie
+                                    - Header
+                                    - Path
+                                    - Query
+                                    type: string
+                                required:
+                                - scope
+                                type: object
+                              value:
+                                type: string
+                            type: object
+                          minItems: 1
+                          type: array
+                        hosts:
+                          items:
+                            pattern: ^\*?[0-9a-zA-Z-._]+$
+                            type: string
+                          minItems: 1
+                          type: array
+                        methods:
+                          items:
+                            enum:
+                            - CONNECT
+                            - DELETE
+                            - GET
+                            - HEAD
+                            - OPTIONS
+                            - PATCH
+                            - POST
+                            - PUT
+                            - TRACE
+                            type: string
+                          minItems: 1
+                          type: array
+                        paths:
+                          items:
+                            pattern: ^/[a-zA-Z0-9\-._~%!$&'()+,;=:@/]*\*?$
+                            type: string
+                          minItems: 1
+                          type: array
+                        remoteAddrs:
+                          items:
+                            type: string
+                          minItems: 1
+                          type: array
+                      required:
+                      - paths
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    plugins:
+                      items:
+                        properties:
+                          config:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          enable:
+                            type: boolean
+                          name:
+                            minLength: 1
+                            type: string
+                        type: object
+                      required:
+                      - name
+                      - enable
+                      type: array
+                    priority:
+                      type: integer
+                    timeout:
+                      properties:
+                        connect:
+                          type: string
+                        read:
+                          type: string
+                        send:
+                          type: string
+                      type: object
+                    websocket:
+                      type: boolean
+                  type: object
+                minItems: 1
+                type: array
+              stream:
+                items:
+                  properties:
+                    backend:
+                      properties:
+                        resolveGranularity:
+                          enum:
+                          - endpoint
+                          - service
+                          type: string
+                        serviceName:
+                          minLength: 1
+                          type: string
+                        servicePort:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          x-kubernetes-int-or-string: true
+                        subset:
+                          type: string
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: object
+                    match:
+                      properties:
+                        ingressPort:
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                      required:
+                      - ingressPort
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    protocol:
+                      enum:
+                      - TCP
+                      - UDP
+                      type: string
+                  required:
+                  - name
+                  - match
+                  - backend
+                  - protocol
+                  type: object
+                minItems: 1
+                type: array
+              tcp:
+                items:
+                  properties:
+                    backend:
+                      properties:
+                        resolveGranularity:
+                          enum:
+                          - endpoint
+                          - service
+                          type: string
+                        serviceName:
+                          minLength: 1
+                          type: string
+                        servicePort:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          x-kubernetes-int-or-string: true
+                        subset:
+                          type: string
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: object
+                    match:
+                      properties:
+                        ingressPort:
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                      required:
+                      - ingressPort
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                  required:
+                  - name
+                  - match
+                  - backend
+                  type: object
+                minItems: 1
+                type: array
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    message:
+                      type: string
+                    observedGeneration:
+                      type: integer
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: false
+    storage: false
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .spec.http[].match.hosts
+      name: Hosts
+      priority: 0
+      type: string
+    - jsonPath: .spec.http[].match.paths
+      name: URIs
+      priority: 0
+      type: string
+    - jsonPath: .spec.http[].backends[].serviceName
+      name: Target Service(HTTP)
+      priority: 1
+      type: string
+    - jsonPath: .spec.tcp[].match.ingressPort
+      name: Ingress Server Port(TCP)
+      priority: 1
+      type: integer
+    - jsonPath: .spec.tcp[].match.backend.serviceName
+      name: Target Service(TCP)
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      priority: 0
+      type: date
+    deprecated: true
+    name: v2beta2
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            anyOf:
+            - required:
+              - http
+            - required:
+              - stream
+            properties:
+              http:
+                items:
+                  properties:
+                    authentication:
+                      properties:
+                        enable:
+                          type: boolean
+                        keyAuth:
+                          properties:
+                            header:
+                              type: string
+                          type: object
+                        type:
+                          enum:
+                          - basicAuth
+                          - keyAuth
+                          type: string
+                      required:
+                      - enable
+                      type: object
+                    backends:
+                      items:
+                        properties:
+                          resolveGranularity:
+                            enum:
+                            - endpoint
+                            - service
+                            type: string
+                          serviceName:
+                            minLength: 1
+                            type: string
+                          servicePort:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            x-kubernetes-int-or-string: true
+                          subset:
+                            type: string
+                          weight:
+                            minimum: 0
+                            type: integer
+                        type: object
+                      minItems: 1
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: array
+                    match:
+                      properties:
+                        exprs:
+                          items:
+                            oneOf:
+                            - required:
+                              - subject
+                              - op
+                              - value
+                            - required:
+                              - subject
+                              - op
+                              - set
+                            properties:
+                              op:
+                                enum:
+                                - Equal
+                                - NotEqual
+                                - GreaterThan
+                                - LessThan
+                                - In
+                                - NotIn
+                                - RegexMatch
+                                - RegexNotMatch
+                                - RegexMatchCaseInsensitive
+                                - RegexNotMatchCaseInsensitive
+                                type: string
+                              set:
+                                items:
+                                  type: string
+                                type: array
+                              subject:
+                                properties:
+                                  name:
+                                    minLength: 1
+                                    type: string
+                                  scope:
+                                    enum:
+                                    - Cookie
+                                    - Header
+                                    - Path
+                                    - Query
+                                    type: string
+                                required:
+                                - scope
+                                type: object
+                              value:
+                                type: string
+                            type: object
+                          minItems: 1
+                          type: array
+                        hosts:
+                          items:
+                            pattern: ^\*?[0-9a-zA-Z-._]+$
+                            type: string
+                          minItems: 1
+                          type: array
+                        methods:
+                          items:
+                            enum:
+                            - CONNECT
+                            - DELETE
+                            - GET
+                            - HEAD
+                            - OPTIONS
+                            - PATCH
+                            - POST
+                            - PUT
+                            - TRACE
+                            type: string
+                          minItems: 1
+                          type: array
+                        paths:
+                          items:
+                            pattern: ^/[a-zA-Z0-9\-._~%!$&'()+,;=:@/]*\*?$
+                            type: string
+                          minItems: 1
+                          type: array
+                        remoteAddrs:
+                          items:
+                            type: string
+                          minItems: 1
+                          type: array
+                      required:
+                      - paths
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    plugins:
+                      items:
+                        properties:
+                          config:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          enable:
+                            type: boolean
+                          name:
+                            minLength: 1
+                            type: string
+                        type: object
+                      required:
+                      - name
+                      - enable
+                      type: array
+                    priority:
+                      type: integer
+                    timeout:
+                      properties:
+                        connect:
+                          type: string
+                        read:
+                          type: string
+                        send:
+                          type: string
+                      type: object
+                    websocket:
+                      type: boolean
+                  required:
+                  - name
+                  - match
+                  - backends
+                  type: object
+                minItems: 1
+                type: array
+              stream:
+                items:
+                  properties:
+                    backend:
+                      properties:
+                        resolveGranularity:
+                          enum:
+                          - endpoint
+                          - service
+                          type: string
+                        serviceName:
+                          minLength: 1
+                          type: string
+                        servicePort:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          x-kubernetes-int-or-string: true
+                        subset:
+                          type: string
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: object
+                    match:
+                      properties:
+                        ingressPort:
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                      required:
+                      - ingressPort
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    protocol:
+                      enum:
+                      - TCP
+                      - UDP
+                      type: string
+                  required:
+                  - name
+                  - match
+                  - backend
+                  - protocol
+                  type: object
+                minItems: 1
+                type: array
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    message:
+                      type: string
+                    observedGeneration:
+                      type: integer
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .spec.http[].match.hosts
+      name: Hosts
+      priority: 0
+      type: string
+    - jsonPath: .spec.http[].match.paths
+      name: URIs
+      priority: 0
+      type: string
+    - jsonPath: .spec.http[].backends[].serviceName
+      name: Target Service(HTTP)
+      priority: 1
+      type: string
+    - jsonPath: .spec.tcp[].match.ingressPort
+      name: Ingress Server Port(TCP)
+      priority: 1
+      type: integer
+    - jsonPath: .spec.tcp[].match.backend.serviceName
+      name: Target Service(TCP)
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      priority: 0
+      type: date
+    deprecated: true
+    name: v2beta3
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            anyOf:
+            - required:
+              - http
+            - required:
+              - stream
+            properties:
+              http:
+                items:
+                  properties:
+                    authentication:
+                      properties:
+                        enable:
+                          type: boolean
+                        jwtAuth:
+                          properties:
+                            cookie:
+                              type: string
+                            header:
+                              type: string
+                            query:
+                              type: string
+                          type: object
+                        keyAuth:
+                          properties:
+                            header:
+                              type: string
+                          type: object
+                        type:
+                          enum:
+                          - basicAuth
+                          - keyAuth
+                          - jwtAuth
+                          - wolfRBAC
+                          - hmacAuth
+                          type: string
+                      required:
+                      - enable
+                      type: object
+                    backends:
+                      items:
+                        properties:
+                          resolveGranularity:
+                            enum:
+                            - endpoint
+                            - service
+                            type: string
+                          serviceName:
+                            minLength: 1
+                            type: string
+                          servicePort:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            x-kubernetes-int-or-string: true
+                          subset:
+                            type: string
+                          weight:
+                            minimum: 0
+                            type: integer
+                        type: object
+                      minItems: 1
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: array
+                    match:
+                      properties:
+                        exprs:
+                          items:
+                            oneOf:
+                            - required:
+                              - subject
+                              - op
+                              - value
+                            - required:
+                              - subject
+                              - op
+                              - set
+                            properties:
+                              op:
+                                enum:
+                                - Equal
+                                - NotEqual
+                                - GreaterThan
+                                - LessThan
+                                - In
+                                - NotIn
+                                - RegexMatch
+                                - RegexNotMatch
+                                - RegexMatchCaseInsensitive
+                                - RegexNotMatchCaseInsensitive
+                                type: string
+                              set:
+                                items:
+                                  type: string
+                                type: array
+                              subject:
+                                properties:
+                                  name:
+                                    minLength: 1
+                                    type: string
+                                  scope:
+                                    enum:
+                                    - Cookie
+                                    - Header
+                                    - Path
+                                    - Query
+                                    type: string
+                                required:
+                                - scope
+                                type: object
+                              value:
+                                type: string
+                            type: object
+                          minItems: 1
+                          type: array
+                        hosts:
+                          items:
+                            pattern: ^\*?[0-9a-zA-Z-._]+$
+                            type: string
+                          minItems: 1
+                          type: array
+                        methods:
+                          items:
+                            enum:
+                            - CONNECT
+                            - DELETE
+                            - GET
+                            - HEAD
+                            - OPTIONS
+                            - PATCH
+                            - POST
+                            - PUT
+                            - TRACE
+                            type: string
+                          minItems: 1
+                          type: array
+                        paths:
+                          items:
+                            pattern: ^/[a-zA-Z0-9\-._~%!$&'()+,;=:@/]*\*?$
+                            type: string
+                          minItems: 1
+                          type: array
+                        remoteAddrs:
+                          items:
+                            type: string
+                          minItems: 1
+                          type: array
+                      required:
+                      - paths
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    plugin_config_name:
+                      minLength: 1
+                      type: string
+                    plugins:
+                      items:
+                        properties:
+                          config:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          enable:
+                            type: boolean
+                          name:
+                            minLength: 1
+                            type: string
+                        type: object
+                      required:
+                      - name
+                      - enable
+                      type: array
+                    priority:
+                      type: integer
+                    timeout:
+                      properties:
+                        connect:
+                          type: string
+                        read:
+                          type: string
+                        send:
+                          type: string
+                      type: object
+                    websocket:
+                      type: boolean
+                  required:
+                  - name
+                  - match
+                  - backends
+                  type: object
+                minItems: 1
+                type: array
+              stream:
+                items:
+                  properties:
+                    backend:
+                      properties:
+                        resolveGranularity:
+                          enum:
+                          - endpoint
+                          - service
+                          type: string
+                        serviceName:
+                          minLength: 1
+                          type: string
+                        servicePort:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          x-kubernetes-int-or-string: true
+                        subset:
+                          type: string
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: object
+                    match:
+                      properties:
+                        ingressPort:
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                      required:
+                      - ingressPort
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    protocol:
+                      enum:
+                      - TCP
+                      - UDP
+                      type: string
+                  required:
+                  - name
+                  - match
+                  - backend
+                  - protocol
+                  type: object
+                minItems: 1
+                type: array
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    message:
+                      type: string
+                    observedGeneration:
+                      type: integer
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .spec.http[].match.hosts
+      name: Hosts
+      priority: 0
+      type: string
+    - jsonPath: .spec.http[].match.paths
+      name: URIs
+      priority: 0
+      type: string
+    - jsonPath: .spec.http[].backends[].serviceName
+      name: Target Service(HTTP)
+      priority: 1
+      type: string
+    - jsonPath: .spec.tcp[].match.ingressPort
+      name: Ingress Server Port(TCP)
+      priority: 1
+      type: integer
+    - jsonPath: .spec.tcp[].match.backend.serviceName
+      name: Target Service(TCP)
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      priority: 0
+      type: date
+    name: v2
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            anyOf:
+            - required:
+              - http
+            - required:
+              - stream
+            properties:
+              http:
+                items:
+                  anyOf:
+                  - required:
+                    - name
+                    - match
+                    - backends
+                  - required:
+                    - name
+                    - match
+                    - upstreams
+                  properties:
+                    authentication:
+                      properties:
+                        enable:
+                          type: boolean
+                        jwtAuth:
+                          properties:
+                            cookie:
+                              type: string
+                            header:
+                              type: string
+                            query:
+                              type: string
+                          type: object
+                        keyAuth:
+                          properties:
+                            header:
+                              type: string
+                          type: object
+                        type:
+                          enum:
+                          - basicAuth
+                          - keyAuth
+                          - jwtAuth
+                          - wolfRBAC
+                          - hmacAuth
+                          type: string
+                      required:
+                      - enable
+                      type: object
+                    backends:
+                      items:
+                        properties:
+                          resolveGranularity:
+                            enum:
+                            - endpoint
+                            - service
+                            type: string
+                          serviceName:
+                            minLength: 1
+                            type: string
+                          servicePort:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            x-kubernetes-int-or-string: true
+                          subset:
+                            type: string
+                          weight:
+                            minimum: 0
+                            type: integer
+                        type: object
+                      minItems: 1
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: array
+                    match:
+                      properties:
+                        exprs:
+                          items:
+                            oneOf:
+                            - required:
+                              - subject
+                              - op
+                              - value
+                            - required:
+                              - subject
+                              - op
+                              - set
+                            properties:
+                              op:
+                                enum:
+                                - Equal
+                                - NotEqual
+                                - GreaterThan
+                                - GreaterThanEqual
+                                - LessThan
+                                - LessThanEqual
+                                - In
+                                - NotIn
+                                - RegexMatch
+                                - RegexNotMatch
+                                - RegexMatchCaseInsensitive
+                                - RegexNotMatchCaseInsensitive
+                                type: string
+                              set:
+                                items:
+                                  type: string
+                                type: array
+                              subject:
+                                properties:
+                                  name:
+                                    minLength: 1
+                                    type: string
+                                  scope:
+                                    enum:
+                                    - Cookie
+                                    - Header
+                                    - Path
+                                    - Query
+                                    - Variable
+                                    type: string
+                                required:
+                                - scope
+                                type: object
+                              value:
+                                type: string
+                            type: object
+                          minItems: 1
+                          type: array
+                        hosts:
+                          items:
+                            pattern: ^\*?[0-9a-zA-Z-._]+$
+                            type: string
+                          minItems: 1
+                          type: array
+                        methods:
+                          items:
+                            enum:
+                            - CONNECT
+                            - DELETE
+                            - GET
+                            - HEAD
+                            - OPTIONS
+                            - PATCH
+                            - POST
+                            - PUT
+                            - TRACE
+                            type: string
+                          minItems: 1
+                          type: array
+                        paths:
+                          items:
+                            pattern: ^/[a-zA-Z0-9\-._~%!$&'()+,;=:@/]*\*?$
+                            type: string
+                          minItems: 1
+                          type: array
+                        remoteAddrs:
+                          items:
+                            type: string
+                          minItems: 1
+                          type: array
+                      required:
+                      - paths
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    plugin_config_name:
+                      minLength: 1
+                      type: string
+                    plugins:
+                      items:
+                        properties:
+                          config:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          enable:
+                            type: boolean
+                          name:
+                            minLength: 1
+                            type: string
+                          secretRef:
+                            type: string
+                        type: object
+                      required:
+                      - name
+                      - enable
+                      type: array
+                    priority:
+                      type: integer
+                    timeout:
+                      properties:
+                        connect:
+                          type: string
+                        read:
+                          type: string
+                        send:
+                          type: string
+                      type: object
+                    upstreams:
+                      description: Upstreams refer to ApisixUpstream CRD
+                      items:
+                        description: ApisixRouteUpstreamReference contains a ApisixUpstream
+                          CRD reference
+                        properties:
+                          name:
+                            type: string
+                          weight:
+                            type: integer
+                        type: object
+                      type: array
+                    websocket:
+                      type: boolean
+                  type: object
+                minItems: 1
+                type: array
+              stream:
+                items:
+                  properties:
+                    backend:
+                      properties:
+                        resolveGranularity:
+                          enum:
+                          - endpoint
+                          - service
+                          type: string
+                        serviceName:
+                          minLength: 1
+                          type: string
+                        servicePort:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          x-kubernetes-int-or-string: true
+                        subset:
+                          type: string
+                      required:
+                      - serviceName
+                      - servicePort
+                      type: object
+                    match:
+                      properties:
+                        host:
+                          type: string
+                        ingressPort:
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                      required:
+                      - ingressPort
+                      type: object
+                    name:
+                      minLength: 1
+                      type: string
+                    plugins:
+                      items:
+                        properties:
+                          config:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          enable:
+                            type: boolean
+                          name:
+                            minLength: 1
+                            type: string
+                          secretRef:
+                            type: string
+                        type: object
+                      required:
+                      - name
+                      - enable
+                      type: array
+                    protocol:
+                      enum:
+                      - TCP
+                      - UDP
+                      type: string
+                  required:
+                  - name
+                  - match
+                  - backend
+                  - protocol
+                  type: object
+                minItems: 1
+                type: array
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    message:
+                      type: string
+                    observedGeneration:
+                      type: integer
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    apisix.apache.org/app: ingress-apisix
+  name: apisixtlses.apisix.apache.org
+spec:
+  group: apisix.apache.org
+  names:
+    kind: ApisixTls
+    plural: apisixtlses
+    shortNames:
+    - atls
+    singular: apisixtls
+  preserveUnknownFields: false
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.hosts
+      name: SNIs
+      type: string
+    - jsonPath: .spec.secret.name
+      name: Secret Name
+      type: string
+    - jsonPath: .spec.secret.namespace
+      name: Secret Namespace
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    deprecated: true
+    name: v2beta3
+    schema:
+      openAPIV3Schema:
+        description: ApisixTls defines SSL resource in APISIX.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ApisixTlsSpec is the specification of ApisixSSL.
+            properties:
+              client:
+                description: ApisixMutualTlsClientConfig describes the mutual TLS
+                  CA and verify depth
+                properties:
+                  caSecret:
+                    description: ApisixSecret describes the Kubernetes Secret name
+                      and namespace.
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                      namespace:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
+                  depth:
+                    type: integer
+                type: object
+              hosts:
+                items:
+                  pattern: ^\*?[0-9a-zA-Z-.]+$
+                  type: string
+                minItems: 1
+                type: array
+              secret:
+                description: ApisixSecret describes the Kubernetes Secret name and
+                  namespace.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                  namespace:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            required:
+            - hosts
+            - secret
+            type: object
+          status:
+            description: ApisixStatus is the status report for Apisix ingress Resources
+            properties:
+              conditions:
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    type FooStatus struct{     // Represents the observations of a
+                    foo's current state.     // Known .status.conditions.type are:
+                    \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type
+                    \    // +patchStrategy=merge     // +listType=map     // +listMapKey=type
+                    \    Conditions []metav1.Condition `json:\"conditions,omitempty\"
+                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`
+                    \n     // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .spec.hosts
+      name: SNIs
+      type: string
+    - jsonPath: .spec.secret.name
+      name: Secret Name
+      type: string
+    - jsonPath: .spec.secret.namespace
+      name: Secret Namespace
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v2
+    schema:
+      openAPIV3Schema:
+        description: ApisixTls defines SSL resource in APISIX.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ApisixTlsSpec is the specification of ApisixSSL.
+            properties:
+              client:
+                description: ApisixMutualTlsClientConfig describes the mutual TLS
+                  CA and verify depth
+                properties:
+                  caSecret:
+                    description: ApisixSecret describes the Kubernetes Secret name
+                      and namespace.
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                      namespace:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
+                  depth:
+                    type: integer
+                type: object
+              hosts:
+                items:
+                  pattern: ^\*?[0-9a-zA-Z-.]+$
+                  type: string
+                minItems: 1
+                type: array
+              secret:
+                description: ApisixSecret describes the Kubernetes Secret name and
+                  namespace.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                  namespace:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            required:
+            - hosts
+            - secret
+            type: object
+          status:
+            description: ApisixStatus is the status report for Apisix ingress Resources
+            properties:
+              conditions:
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    type FooStatus struct{     // Represents the observations of a
+                    foo's current state.     // Known .status.conditions.type are:
+                    \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type
+                    \    // +patchStrategy=merge     // +listType=map     // +listMapKey=type
+                    \    Conditions []metav1.Condition `json:\"conditions,omitempty\"
+                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`
+                    \n     // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    apisix.apache.org/app: ingress-apisix
+  name: apisixupstreams.apisix.apache.org
+spec:
+  group: apisix.apache.org
+  names:
+    kind: ApisixUpstream
+    plural: apisixupstreams
+    shortNames:
+    - au
+    singular: apisixupstream
+  scope: Namespaced
+  versions:
+  - deprecated: true
+    name: v2beta3
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              healthCheck:
+                anyOf:
+                - required:
+                  - active
+                - required:
+                  - active
+                  - passive
+                properties:
+                  active:
+                    properties:
+                      concurrency:
+                        minimum: 1
+                        type: integer
+                      healthy:
+                        properties:
+                          httpCodes:
+                            items:
+                              maximum: 599
+                              minimum: 200
+                              type: integer
+                            minItems: 1
+                            type: array
+                          interval:
+                            type: string
+                          successes:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                        type: object
+                      host:
+                        pattern: ^\*?[0-9a-zA-Z-._]+$
+                        type: string
+                      httpPath:
+                        minLength: 1
+                        type: string
+                      port:
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                      requestHeaders:
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      strictTLS:
+                        type: boolean
+                      timeout:
+                        minimum: 0
+                        type: number
+                      type:
+                        enum:
+                        - http
+                        - https
+                        - tcp
+                        type: string
+                      unhealthy:
+                        properties:
+                          httpCodes:
+                            items:
+                              maximum: 599
+                              minimum: 200
+                              type: integer
+                            minItems: 1
+                            type: array
+                          httpFailures:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                          interval:
+                            type: string
+                          tcpFailures:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                          timeouts:
+                            minimum: 0
+                            type: integer
+                        type: object
+                    type: object
+                  passive:
+                    properties:
+                      healthy:
+                        properties:
+                          httpCodes:
+                            items:
+                              maximum: 599
+                              minimum: 200
+                              type: integer
+                            minItems: 1
+                            type: array
+                          successes:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                        type: object
+                      type:
+                        enum:
+                        - http
+                        - https
+                        - tcp
+                        type: string
+                      unhealthy:
+                        properties:
+                          httpCodes:
+                            items:
+                              maximum: 599
+                              minimum: 200
+                              type: integer
+                            minItems: 1
+                            type: array
+                          httpFailures:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                          tcpFailures:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                          timeouts:
+                            minimum: 0
+                            type: integer
+                        type: object
+                    type: object
+                type: object
+              loadbalancer:
+                properties:
+                  hashOn:
+                    enum:
+                    - vars
+                    - vars_combinations
+                    - header
+                    - cookie
+                    - consumer
+                    type: string
+                  key:
+                    type: string
+                  type:
+                    enum:
+                    - roundrobin
+                    - chash
+                    - ewma
+                    - least_conn
+                    type: string
+                required:
+                - type
+                type: object
+              portLevelSettings:
+                items:
+                  properties:
+                    healthCheck:
+                      anyOf:
+                      - required:
+                        - active
+                      - required:
+                        - active
+                        - passive
+                      properties:
+                        active:
+                          properties:
+                            concurrency:
+                              minimum: 1
+                              type: integer
+                            healthy:
+                              properties:
+                                httpCodes:
+                                  items:
+                                    maximum: 599
+                                    minimum: 200
+                                    type: integer
+                                  minItems: 1
+                                  type: array
+                                interval:
+                                  type: string
+                                successes:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                              type: object
+                            host:
+                              pattern: ^\*?[0-9a-zA-Z-._]+$
+                              type: string
+                            httpPath:
+                              minLength: 1
+                              type: string
+                            port:
+                              maximum: 65535
+                              minimum: 1
+                              type: integer
+                            requestHeaders:
+                              items:
+                                type: string
+                              minItems: 1
+                              type: array
+                            strictTLS:
+                              type: boolean
+                            timeout:
+                              minimum: 0
+                              type: number
+                            type:
+                              enum:
+                              - http
+                              - https
+                              - tcp
+                              type: string
+                            unhealthy:
+                              properties:
+                                httpCodes:
+                                  items:
+                                    maximum: 599
+                                    minimum: 200
+                                    type: integer
+                                  minItems: 1
+                                  type: array
+                                httpFailures:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                                interval:
+                                  type: string
+                                tcpFailures:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                                timeout:
+                                  type: string
+                              type: object
+                          type: object
+                        passive:
+                          properties:
+                            healthy:
+                              properties:
+                                httpCodes:
+                                  items:
+                                    maximum: 599
+                                    minimum: 200
+                                    type: integer
+                                  minItems: 1
+                                  type: array
+                                successes:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                              type: object
+                            type:
+                              enum:
+                              - http
+                              - https
+                              - tcp
+                              type: string
+                            unhealthy:
+                              properties:
+                                httpCodes:
+                                  items:
+                                    maximum: 599
+                                    minimum: 200
+                                    type: integer
+                                  minItems: 1
+                                  type: array
+                                httpFailures:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                                tcpFailures:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                                timeout:
+                                  type: string
+                              type: object
+                          type: object
+                      type: object
+                    loadbalancer:
+                      properties:
+                        hashOn:
+                          enum:
+                          - vars
+                          - vars_combinations
+                          - header
+                          - cookie
+                          - consumer
+                          type: string
+                        key:
+                          type: string
+                        type:
+                          enum:
+                          - roundrobin
+                          - chash
+                          - ewma
+                          - least_conn
+                          type: string
+                      required:
+                      - type
+                      type: object
+                    port:
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                    retries:
+                      minimum: 0
+                      type: integer
+                    scheme:
+                      enum:
+                      - http
+                      - grpc
+                      type: string
+                    timeout:
+                      properties:
+                        connect:
+                          type: string
+                        read:
+                          type: string
+                        send:
+                          type: string
+                      type: object
+                  type: object
+                type: array
+              retries:
+                minimum: 0
+                type: integer
+              scheme:
+                enum:
+                - http
+                - grpc
+                - https
+                - grpcs
+                type: string
+              subsets:
+                items:
+                  properties:
+                    labels:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    name:
+                      minLength: 1
+                      type: string
+                  required:
+                  - name
+                  - labels
+                  type: object
+                type: array
+              timeout:
+                properties:
+                  connect:
+                    type: string
+                  read:
+                    type: string
+                  send:
+                    type: string
+                type: object
+              tlsSecret:
+                description: ApisixSecret describes the Kubernetes Secret name and
+                  namespace.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                  namespace:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - name: v2
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              discovery:
+                description: Discovery is used to configure service discovery for
+                  upstream
+                properties:
+                  args:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  serviceName:
+                    type: string
+                  type:
+                    type: string
+                type: object
+              externalNodes:
+                description: ExternalNodes contains external nodes the Upstream should
+                  use If this field is set, the upstream will use these nodes directly
+                  without any further resolves
+                items:
+                  description: ApisixUpstreamExternalNode is the external node conf
+                  properties:
+                    name:
+                      type: string
+                    port:
+                      type: integer
+                    type:
+                      type: string
+                    weight:
+                      type: integer
+                  type: object
+                type: array
+              healthCheck:
+                anyOf:
+                - required:
+                  - active
+                - required:
+                  - active
+                  - passive
+                properties:
+                  active:
+                    properties:
+                      concurrency:
+                        minimum: 1
+                        type: integer
+                      healthy:
+                        properties:
+                          httpCodes:
+                            items:
+                              maximum: 599
+                              minimum: 200
+                              type: integer
+                            minItems: 1
+                            type: array
+                          interval:
+                            type: string
+                          successes:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                        type: object
+                      host:
+                        pattern: ^\*?[0-9a-zA-Z-._]+$
+                        type: string
+                      httpPath:
+                        minLength: 1
+                        type: string
+                      port:
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                      requestHeaders:
+                        items:
+                          type: string
+                        minItems: 1
+                        type: array
+                      strictTLS:
+                        type: boolean
+                      timeout:
+                        minimum: 0
+                        type: number
+                      type:
+                        enum:
+                        - http
+                        - https
+                        - tcp
+                        type: string
+                      unhealthy:
+                        properties:
+                          httpCodes:
+                            items:
+                              maximum: 599
+                              minimum: 200
+                              type: integer
+                            minItems: 1
+                            type: array
+                          httpFailures:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                          interval:
+                            type: string
+                          tcpFailures:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                          timeouts:
+                            minimum: 0
+                            type: integer
+                        type: object
+                    type: object
+                  passive:
+                    properties:
+                      healthy:
+                        properties:
+                          httpCodes:
+                            items:
+                              maximum: 599
+                              minimum: 200
+                              type: integer
+                            minItems: 1
+                            type: array
+                          successes:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                        type: object
+                      type:
+                        enum:
+                        - http
+                        - https
+                        - tcp
+                        type: string
+                      unhealthy:
+                        properties:
+                          httpCodes:
+                            items:
+                              maximum: 599
+                              minimum: 200
+                              type: integer
+                            minItems: 1
+                            type: array
+                          httpFailures:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                          tcpFailures:
+                            maximum: 254
+                            minimum: 1
+                            type: integer
+                          timeouts:
+                            minimum: 0
+                            type: integer
+                        type: object
+                    type: object
+                type: object
+              loadbalancer:
+                properties:
+                  hashOn:
+                    enum:
+                    - vars
+                    - vars_combinations
+                    - header
+                    - cookie
+                    - consumer
+                    type: string
+                  key:
+                    type: string
+                  type:
+                    enum:
+                    - roundrobin
+                    - chash
+                    - ewma
+                    - least_conn
+                    type: string
+                required:
+                - type
+                type: object
+              portLevelSettings:
+                items:
+                  properties:
+                    healthCheck:
+                      anyOf:
+                      - required:
+                        - active
+                      - required:
+                        - active
+                        - passive
+                      properties:
+                        active:
+                          properties:
+                            concurrency:
+                              minimum: 1
+                              type: integer
+                            healthy:
+                              properties:
+                                httpCodes:
+                                  items:
+                                    maximum: 599
+                                    minimum: 200
+                                    type: integer
+                                  minItems: 1
+                                  type: array
+                                interval:
+                                  type: string
+                                successes:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                              type: object
+                            host:
+                              pattern: ^\*?[0-9a-zA-Z-._]+$
+                              type: string
+                            httpPath:
+                              minLength: 1
+                              type: string
+                            port:
+                              maximum: 65535
+                              minimum: 1
+                              type: integer
+                            requestHeaders:
+                              items:
+                                type: string
+                              minItems: 1
+                              type: array
+                            strictTLS:
+                              type: boolean
+                            timeout:
+                              minimum: 0
+                              type: number
+                            type:
+                              enum:
+                              - http
+                              - https
+                              - tcp
+                              type: string
+                            unhealthy:
+                              properties:
+                                httpCodes:
+                                  items:
+                                    maximum: 599
+                                    minimum: 200
+                                    type: integer
+                                  minItems: 1
+                                  type: array
+                                httpFailures:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                                interval:
+                                  type: string
+                                tcpFailures:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                                timeout:
+                                  type: string
+                              type: object
+                          type: object
+                        passive:
+                          properties:
+                            healthy:
+                              properties:
+                                httpCodes:
+                                  items:
+                                    maximum: 599
+                                    minimum: 200
+                                    type: integer
+                                  minItems: 1
+                                  type: array
+                                successes:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                              type: object
+                            type:
+                              enum:
+                              - http
+                              - https
+                              - tcp
+                              type: string
+                            unhealthy:
+                              properties:
+                                httpCodes:
+                                  items:
+                                    maximum: 599
+                                    minimum: 200
+                                    type: integer
+                                  minItems: 1
+                                  type: array
+                                httpFailures:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                                tcpFailures:
+                                  maximum: 254
+                                  minimum: 1
+                                  type: integer
+                                timeout:
+                                  type: string
+                              type: object
+                          type: object
+                      type: object
+                    loadbalancer:
+                      properties:
+                        hashOn:
+                          enum:
+                          - vars
+                          - vars_combinations
+                          - header
+                          - cookie
+                          - consumer
+                          type: string
+                        key:
+                          type: string
+                        type:
+                          enum:
+                          - roundrobin
+                          - chash
+                          - ewma
+                          - least_conn
+                          type: string
+                      required:
+                      - type
+                      type: object
+                    port:
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                    retries:
+                      minimum: 0
+                      type: integer
+                    scheme:
+                      enum:
+                      - http
+                      - grpc
+                      type: string
+                    timeout:
+                      properties:
+                        connect:
+                          type: string
+                        read:
+                          type: string
+                        send:
+                          type: string
+                      type: object
+                  type: object
+                type: array
+              retries:
+                minimum: 0
+                type: integer
+              scheme:
+                enum:
+                - http
+                - grpc
+                - https
+                - grpcs
+                type: string
+              subsets:
+                items:
+                  properties:
+                    labels:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    name:
+                      minLength: 1
+                      type: string
+                  required:
+                  - name
+                  - labels
+                  type: object
+                type: array
+              timeout:
+                properties:
+                  connect:
+                    type: string
+                  read:
+                    type: string
+                  send:
+                    type: string
+                type: object
+              tlsSecret:
+                description: ApisixSecret describes the Kubernetes Secret name and
+                  namespace.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                  namespace:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/version: 3.0.0
+    helm.sh/chart: dashboard-0.8.0
+  name: apisix-dashboard
+  namespace: ingress-apisix
+---
+apiVersion: v1
+automountServiceAccountToken: true
+kind: ServiceAccount
+metadata:
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apisix-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - pods
+  - services
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses/status
+  verbs:
+  - update
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - update
+- apiGroups:
+  - apisix.apache.org
+  resources:
+  - apisixroutes
+  - apisixroutes/status
+  - apisixupstreams
+  - apisixupstreams/status
+  - apisixtlses
+  - apisixtlses/status
+  - apisixclusterconfigs
+  - apisixclusterconfigs/status
+  - apisixconsumers
+  - apisixconsumers/status
+  - apisixpluginconfigs
+  - apisixpluginconfigs/status
+  verbs:
+  - '*'
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - '*'
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  - tlsroutes
+  - gateways
+  - gatewayclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes/status
+  - tlsroutes/status
+  - gateways/status
+  - gatewayclasses/status
+  verbs:
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: apisix-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: apisix-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+---
+apiVersion: v1
+data:
+  config.yaml: |-
+    #
+    # Licensed to the Apache Software Foundation (ASF) under one or more
+    # contributor license agreements.  See the NOTICE file distributed with
+    # this work for additional information regarding copyright ownership.
+    # The ASF licenses this file to You under the Apache License, Version 2.0
+    # (the "License"); you may not use this file except in compliance with
+    # the License.  You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    #
+    apisix:    # universal configurations
+      node_listen: 80    # APISIX listening port
+      enable_heartbeat: true
+      enable_admin: true
+      enable_admin_cors: true
+      enable_debug: false
+
+      enable_dev_mode: false                       # Sets nginx worker_processes to 1 if set to true
+      enable_reuseport: true                       # Enable nginx SO_REUSEPORT switch if set to true.
+      enable_ipv6: true # Enable nginx IPv6 resolver
+      enable_server_tokens: true # Whether the APISIX version number should be shown in Server header
+
+      # proxy_protocol:                   # Proxy Protocol configuration
+      #   listen_http_port: 9181          # The port with proxy protocol for http, it differs from node_listen and admin_listen.
+      #                                   # This port can only receive http request with proxy protocol, but node_listen & admin_listen
+      #                                   # can only receive http request. If you enable proxy protocol, you must use this port to
+      #                                   # receive http request with proxy protocol
+      #   listen_https_port: 9182         # The port with proxy protocol for https
+      #   enable_tcp_pp: true             # Enable the proxy protocol for tcp proxy, it works for stream_proxy.tcp option
+      #   enable_tcp_pp_to_upstream: true # Enables the proxy protocol to the upstream server
+
+      proxy_cache:                         # Proxy Caching configuration
+        cache_ttl: 10s                     # The default caching time if the upstream does not specify the cache time
+        zones:                             # The parameters of a cache
+        - name: disk_cache_one             # The name of the cache, administrator can be specify
+                                           # which cache to use by name in the admin api
+          memory_size: 50m                 # The size of shared memory, it's used to store the cache index
+          disk_size: 1G                    # The size of disk, it's used to store the cache data
+          disk_path: "/tmp/disk_cache_one" # The path to store the cache data
+          cache_levels: "1:2"              # The hierarchy levels of a cache
+      #  - name: disk_cache_two
+      #    memory_size: 50m
+      #    disk_size: 1G
+      #    disk_path: "/tmp/disk_cache_two"
+      #    cache_levels: "1:2"
+
+      router:
+        http: radixtree_uri  # radixtree_uri: match route by uri(base on radixtree)
+                                    # radixtree_host_uri: match route by host + uri(base on radixtree)
+                                    # radixtree_uri_with_parameter: match route by uri with parameters
+        ssl: 'radixtree_sni'        # radixtree_sni: match route by SNI(base on radixtree)
+      stream_proxy:                 # TCP/UDP proxy
+        only: false
+        tcp:                        # TCP proxy port list
+          - 9042
+          - 9092
+      # udp:                        # UDP proxy port list
+      #   - 9200
+      # dns_resolver:
+      #
+      #   - 127.0.0.1
+      #
+      #   - 172.20.0.10
+      #
+      #   - 114.114.114.114
+      #
+      #   - 223.5.5.5
+      #
+      #   - 1.1.1.1
+      #
+      #   - 8.8.8.8
+      #
+      dns_resolver_valid: 30
+      resolver_timeout: 5
+      ssl:
+        enable: true
+        listen:
+          - port: 443
+            enable_http2: true
+        ssl_protocols: "TLSv1.2 TLSv1.3"
+        ssl_ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA"
+
+    nginx_config:    # config for render the template to genarate nginx.conf
+      error_log: "/dev/stderr"
+      error_log_level: "warn"    # warn,error
+      worker_processes: "1"
+      enable_cpu_affinity: true
+      worker_rlimit_nofile: 20480  # the number of files a worker process can open, should be larger than worker_connections
+      event:
+        worker_connections: 10620
+      http:
+        enable_access_log: true
+        access_log: "/dev/stdout"
+        access_log_format: "$remote_addr - $remote_user [$time_local] $http_host \"$request\" $status $body_bytes_sent $request_time \"$http_referer\" \"$http_user_agent\" $upstream_addr $upstream_status $upstream_response_time \"$upstream_scheme://$upstream_host$upstream_uri\""
+        access_log_format_escape: default
+        keepalive_timeout: 60s         # timeout during which a keep-alive client connection will stay open on the server side.
+        client_header_timeout: 60s     # timeout for reading client request header, then 408 (Request Time-out) error is returned to the client
+        client_body_timeout: 60s       # timeout for reading client request body, then 408 (Request Time-out) error is returned to the client
+        send_timeout: 10s              # timeout for transmitting a response to the client.then the connection is closed
+        underscores_in_headers: "on"   # default enables the use of underscores in client request header fields
+        real_ip_header: "CF-Connecting-IP"    # http://nginx.org/en/docs/http/ngx_http_realip_module.html#real_ip_header
+        real_ip_from:                  # http://nginx.org/en/docs/http/ngx_http_realip_module.html#set_real_ip_from
+          - 127.0.0.1
+          - 'unix:'
+      http_configuration_snippet:      |
+        proxy_buffer_size 32k;
+        proxy_buffers 8 32k;
+        proxy_busy_buffers_size 32k;
+        lua_shared_dict redis_cluster_slot_locks 100k;
+        # cache for discovery metadata documents
+        # lua_shared_dict discovery 1m;
+        # cache for JWKs
+        # lua_shared_dict jwks 1m;
+        # cache for validation results
+        # lua_shared_dict introspection 10m;
+        # cache for JWT verification results
+        lua_shared_dict jwt_verification 10m;
+      http_server_configuration_snippet:      |
+        proxy_buffer_size 32k;
+        proxy_buffers 8 32k;
+        proxy_busy_buffers_size 32k;
+        set $session_name "apisix_session";
+        # set $session_cipher none;
+        set $session_cookie_samesite Strict;
+        # set $session_cookie_renew 60;
+        # set $session_cookie_lifetime 360;
+        large_client_header_buffers 4 16k;
+        set $session_strategy regenerate;
+        set $session_storage redis;
+        set $session_secret <secret>;
+        # set_by_lua_block $session_secret {
+        #     local secrets = {
+        #         ["internal.example.com"] = <secret>,
+        #     }
+        #     # ngx.log(ngx.STDERR, 'host: ', ngx.var.host, ' ', 'secret: ', secrets[ngx.var.host] or nil)
+        #     return secrets[ngx.var.host] or nil
+        # }
+        # set $session_redis_host redis-cluster-leader-headless.redis.svc.cluster.local;
+        # set $session_redis_port 26379;
+        # set $session_redis_ssl off;
+        # set $session_redis_ssl_verify off;
+        set $session_redis_uselocking off;
+        set $session_redis_cluster_name redis-cluster;
+        set $session_redis_cluster_nodes 'redis-cluster-leader-headless.redis.svc.cluster.local redis-cluster-follower-headless.redis.svc.cluster.local';
+      stream:
+        enable_access_log: true         # enable access log or not, default false
+        access_log: "/dev/stdout"
+        access_log_format: "$remote_addr [$time_local] $protocol $status $bytes_sent $bytes_received $session_time"
+                                                # create your custom log format by visiting http://nginx.org/en/docs/varindex.html
+        access_log_format_escape: default       # allows setting json or default characters escaping in variables
+        lua_shared_dict:
+          etcd-cluster-health-check-stream: 10m
+          lrucache-lock-stream: 10m
+          plugin-limit-conn-stream: 10m
+    plugins:    # plugin list
+      - api-breaker
+      - authz-keycloak
+      - basic-auth
+      - batch-requests
+      - consumer-restriction
+      - cors
+      - echo
+      - fault-injection
+      - file-logger
+      - grpc-transcode
+      - hmac-auth
+      - http-logger
+      - ip-restriction
+      - ua-restriction
+      - jwt-auth
+      - kafka-logger
+      - key-auth
+      - limit-conn
+      - limit-count
+      - limit-req
+      - node-status
+      - openid-connect
+      - opentelemetry
+      - authz-casbin
+      - prometheus
+      - proxy-cache
+      - proxy-control
+      - proxy-mirror
+      - proxy-rewrite
+      - redirect
+      - referer-restriction
+      - request-id
+      - request-validation
+      - response-rewrite
+      - serverless-post-function
+      - serverless-pre-function
+      - sls-logger
+      - syslog
+      - tcp-logger
+      - udp-logger
+      - uri-blocker
+      - wolf-rbac
+      - zipkin
+      - traffic-split
+      - gzip
+      - real-ip
+      - ext-plugin-pre-req
+      - ext-plugin-post-req
+    stream_plugins:
+      - mqtt-proxy
+      - ip-restriction
+      - limit-conn
+      - syslog
+    plugin_attr:
+      opentelemetry:
+        batch_span_processor:
+          batch_timeout: 5
+          drop_on_queue_full: false
+          inactive_timeout: 2
+          max_export_batch_size: 256
+          max_queue_size: 2048
+        collector:
+          address: daemonset-collector.opentelemetry-operator-system.svc.cluster.local:4318
+          request_timeout: 3
+        resource:
+          service.name: APISIX
+        trace_id_source: random
+      prometheus:
+        export_addr:
+          ip: 0.0.0.0
+          port: 9091
+        export_uri: /apisix/prometheus/metrics
+        metric_prefix: apisix_
+      request-id:
+        snowflake:
+          data_machine_bits: 12
+          data_machine_interval: 10
+          data_machine_ttl: 30
+          enable: false
+          sequence_bits: 10
+          snowflake_epoc: 1609459200000
+
+    deployment:
+      role: traditional
+      role_traditional:
+        config_provider: etcd
+      admin:
+        allow_admin:    # http://nginx.org/en/docs/http/ngx_http_access_module.html#allow
+          - 127.0.0.0/24
+          - 0.0.0.0/0
+        #   - "::/64"
+        admin_listen:
+          ip: 0.0.0.0
+          port: 9180
+        # Default token when use API to call for Admin API.
+        # *NOTE*: Highly recommended to modify this value to protect APISIX's Admin API.
+        # Disabling this configuration item means that the Admin API does not
+        # require any authentication.
+        admin_key:
+          # admin: can everything for configuration data
+          - name: "admin"
+            key: <secret>
+            role: admin
+          # viewer: only can view configuration data
+          - name: "viewer"
+            key: <secret>
+            role: viewer
+      etcd:
+        host:                          # it's possible to define multiple etcd hosts addresses of the same etcd cluster.
+          - "http://etcd-cluster.ingress-apisix.svc.cluster.local:2379"             # multiple etcd address
+        prefix: "/apisix"    # configuration prefix in etcd
+        timeout: 30    # 30 seconds
+  debug.yaml: |-
+    #
+    # Licensed to the Apache Software Foundation (ASF) under one or more
+    # contributor license agreements.  See the NOTICE file distributed with
+    # this work for additional information regarding copyright ownership.
+    # The ASF licenses this file to You under the Apache License, Version 2.0
+    # (the "License"); you may not use this file except in compliance with
+    # the License.  You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    #
+    basic:
+      enable: false
+    http_filter:
+      enable: false         # enable or disable this feature
+      enable_header_name: X-APISIX-Dynamic-Debug # the header name of dynamic enable
+    hook_conf:
+      enable: false                 # enable or disable this feature
+      name: hook_phase              # the name of module and function list
+      log_level: debug              # log level
+      is_print_input_args: true     # print the input arguments
+      is_print_return_value: true   # print the return value
+
+    hook_phase:                     # module and function list, name: hook_phase
+      apisix:                       # required module name
+        - http_access_phase         # function name
+        - http_header_filter_phase
+        - http_body_filter_phase
+        - http_log_phase
+
+    #END
+kind: ConfigMap
+metadata:
+  name: apisix
+  namespace: ingress-apisix
+---
+apiVersion: v1
+data:
+  config.yaml: |-
+    # log options
+    log_level: "info"
+    log_output: "stderr"
+    cert_file: "/etc/webhook/certs/cert.pem"
+    key_file: "/etc/webhook/certs/key.pem"
+    http_listen: ":8080"
+    https_listen: ":8443"
+    ingress_publish_service: "ingress-apisix/apisix-gateway"
+    enable_profiling: true
+    apisix-resource-sync-interval: 300s
+    kubernetes:
+      kubeconfig: ""
+      resync_interval: "10m"
+      namespace_selector:
+      - ""
+      election_id: "ingress-apisix-leader"
+      ingress_class: "apisix"
+      ingress_version: "networking/v1"
+      watch_endpointslices: false
+      apisix_route_version: "apisix.apache.org/v2"
+      enable_gateway_api: false
+      apisix_version: "apisix.apache.org/v2"
+      plugin_metadata_cm: ""
+    apisix:
+      admin_api_version: "v3"
+      default_cluster_base_url: http://apisix-admin.ingress-apisix.svc.cluster.local:9180/apisix/admin
+      default_cluster_admin_key: <secret>
+      default_cluster_name: "default"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: ingress-controller
+    app.kubernetes.io/version: 1.6.0
+    helm.sh/chart: ingress-controller-0.11.3
+  name: apisix-configmap
+  namespace: ingress-apisix
+---
+apiVersion: v1
+data:
+  conf.yaml: |-
+    conf:
+      listen:
+        host: 0.0.0.0
+        port: 9000
+      etcd:
+        prefix: "/apisix"
+        endpoints:
+          - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+      log:
+        error_log:
+          level: warn
+          file_path: /dev/stderr
+        access_log:
+          file_path: /dev/stdout
+    authentication:
+      secret: secret
+      expire_time: 3600
+      users:
+        - username: <user>
+          password: <password>
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/version: 3.0.0
+    helm.sh/chart: dashboard-0.8.0
+  name: apisix-dashboard
+  namespace: ingress-apisix
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/service: apisix-admin
+    app.kubernetes.io/version: 3.2.0
+    helm.sh/chart: apisix-1.2.0
+  name: apisix-admin
+  namespace: ingress-apisix
+spec:
+  ports:
+  - appProtocol: http
+    name: prometheus
+    port: 9091
+    protocol: TCP
+    targetPort: 9091
+  - appProtocol: http
+    name: apisix-admin
+    port: 9180
+    protocol: TCP
+    targetPort: 9180
+  selector:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/name: apisix
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/version: 3.0.0
+    helm.sh/chart: dashboard-0.8.0
+  name: apisix-dashboard
+  namespace: ingress-apisix
+spec:
+  ports:
+  - name: http
+    port: 9000
+    protocol: TCP
+    targetPort: http
+  selector:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/name: dashboard
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/service: apisix-gateway
+    app.kubernetes.io/version: 3.2.0
+    helm.sh/chart: apisix-1.2.0
+  name: apisix-gateway
+  namespace: ingress-apisix
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: apisix-gateway
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  - name: apisix-gateway-tls
+    port: 443
+    protocol: TCP
+    targetPort: 443
+  - name: prometheus
+    port: 9091
+    protocol: TCP
+    targetPort: 9091
+  - name: proxy-tcp-0
+    port: 9042
+    protocol: TCP
+    targetPort: 9042
+  - name: proxy-tcp-1
+    port: 9092
+    protocol: TCP
+    targetPort: 9092
+  selector:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/name: apisix
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: ingress-controller
+    app.kubernetes.io/version: 1.6.0
+    helm.sh/chart: ingress-controller-0.11.3
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/name: ingress-controller
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/version: 3.2.0
+    helm.sh/chart: apisix-1.2.0
+  name: apisix
+  namespace: ingress-apisix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/name: apisix
+  template:
+    metadata:
+      annotations:
+        checksum/config: ba35a176505c831f2135acebd66c27b80e4e3a3ade7d68bf745374b9b30dd04f
+        proxy.istio.io/config: |
+          proxyMetadata:
+            OUTPUT_CERTS: /etc/istio-output-certs
+        sidecar.istio.io/logLevel: dns:debug
+        sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+      labels:
+        app.kubernetes.io/instance: apisix
+        app.kubernetes.io/name: apisix
+    spec:
+      containers:
+      - env: null
+        image: k8s-lb:5000/apache/apisix:3.2.0.1-debian
+        imagePullPolicy: Always
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - sleep 30
+        name: apisix
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        - containerPort: 443
+          name: tls
+          protocol: TCP
+        - containerPort: 9180
+          name: admin
+          protocol: TCP
+        - containerPort: 9091
+          name: prometheus
+          protocol: TCP
+        - containerPort: 9042
+          name: proxy-tcp-0
+          protocol: TCP
+        - containerPort: 9092
+          name: proxy-tcp-1
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 6
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 80
+          timeoutSeconds: 1
+        resources: {}
+        volumeMounts:
+        - mountPath: /usr/local/apisix/conf/config.yaml
+          name: apisix-config
+          subPath: config.yaml
+        - mountPath: /etc/prom-certs/
+          name: istio-certs
+        - mountPath: /usr/local/apisix/conf/debug.yaml
+          name: apisix-config
+          subPath: debug.yaml
+      hostNetwork: false
+      initContainers: null
+      securityContext:
+        sysctls:
+        - name: net.ipv4.ip_unprivileged_port_start
+          value: "1"
+      serviceAccountName: default
+      volumes:
+      - configMap:
+          name: apisix
+        name: apisix-config
+      - emptyDir:
+          medium: Memory
+        name: istio-certs
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/version: 3.0.0
+    helm.sh/chart: dashboard-0.8.0
+  name: apisix-dashboard
+  namespace: ingress-apisix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/name: dashboard
+  template:
+    metadata:
+      annotations:
+        checksum/config: 018275a6ceb052a5ff7e1f67b3d133a92321364000b604861dcfe7d1c2ba2803
+      labels:
+        app.kubernetes.io/instance: apisix
+        app.kubernetes.io/name: dashboard
+    spec:
+      containers:
+      - image: apache/apisix-dashboard:3.0.0-alpine
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: http
+        name: dashboard
+        ports:
+        - containerPort: 9000
+          name: http
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: http
+        resources: {}
+        securityContext: {}
+        volumeMounts:
+        - mountPath: /usr/local/apisix-dashboard/conf/conf.yaml
+          name: apisix-dashboard-config
+          subPath: conf.yaml
+      securityContext: {}
+      serviceAccountName: apisix-dashboard
+      volumes:
+      - configMap:
+          name: apisix-dashboard
+        name: apisix-dashboard-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: ingress-controller
+    app.kubernetes.io/version: 1.6.0
+    helm.sh/chart: ingress-controller-0.11.3
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/name: ingress-controller
+  template:
+    metadata:
+      annotations:
+        checksum/config: b7b7f8d9ffd64078ed5bf050ae0b896a446d6024a297925c0d879f29a3b61f1e
+      labels:
+        app.kubernetes.io/instance: apisix
+        app.kubernetes.io/name: ingress-controller
+    spec:
+      containers:
+      - command:
+        - /ingress-apisix/apisix-ingress-controller
+        - ingress
+        - --config-path
+        - /ingress-apisix/conf/config.yaml
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        image: apache/apisix-ingress-controller:1.6.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        name: ingress-controller
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources: {}
+        volumeMounts:
+        - mountPath: /ingress-apisix/conf
+          name: configuration
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - until nc -z apisix-admin.ingress-apisix.svc.cluster.local 9180 ; do echo
+          waiting for apisix-admin; sleep 2; done;
+        image: busybox:1.28
+        name: wait-apisix-admin
+        securityContext: {}
+      securityContext: {}
+      serviceAccountName: apisix-ingress-controller
+      volumes:
+      - configMap:
+          items:
+          - key: config.yaml
+            path: config.yaml
+          name: apisix-configmap
+        name: configuration
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: apisix-dashboard-route
+  namespace: ingress-apisix
+spec:
+  http:
+  - backends:
+    - serviceName: apisix-dashboard
+      servicePort: 9000
+    match:
+      hosts:
+      - apisix.internal.example.com
+      paths:
+      - /*
+    name: rule1
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: apisix-dashboard.ingress-apisix.svc.cluster.local
+      enable: true
+      name: proxy-rewrite
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: apisix-internal-tls
+  namespace: ingress-apisix
+spec:
+  hosts:
+  - internal.example.com
+  - '*.internal.example.com'
+  secret:
+    name: apisix-internal-letsencrypt-cert
+    namespace: ingress-apisix
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: apisix-tls
+  namespace: ingress-apisix
+spec:
+  hosts:
+  - example.com
+  - '*.example.com'
+  secret:
+    name: apisix-letsencrypt-cert
+    namespace: ingress-apisix
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/version: 3.2.0
+    helm.sh/chart: apisix-1.2.0
+  name: apisix
+  namespace: ingress-apisix
+spec:
+  endpoints:
+  - interval: 15s
+    path: /apisix/prometheus/metrics
+    scheme: https
+    targetPort: prometheus
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  namespaceSelector:
+    matchNames:
+    - ingress-apisix
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: apisix
+      app.kubernetes.io/service: apisix-gateway
+      app.kubernetes.io/version: 3.2.0
+      helm.sh/chart: apisix-1.2.0
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+spec:
+  endpoints:
+  - interval: 15s
+    scheme: https
+    targetPort: http
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  namespaceSelector:
+    matchNames:
+    - ingress-apisix
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: ingress-controller
+      app.kubernetes.io/version: 1.6.0
+      helm.sh/chart: ingress-controller-0.11.3
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: apisix.internal.example.com
+  name: apisix-dashboard-ingress
+  namespace: ingress-apisix
+spec:
+  defaultBackend:
+    service:
+      name: apisix-dashboard
+      port:
+        number: 80
+  ingressClassName: apisix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+  name: apisix-ingress
+  namespace: ingress-apisix
+spec:
+  defaultBackend:
+    service:
+      name: apisix-gateway
+      port:
+        number: 443
+  ingressClassName: apisix
+  tls:
+  - hosts:
+    - example.com
+    - '*.example.com'
+    secretName: apisix-letsencrypt-cert
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    external-dns.alpha.kubernetes.io/hostname: internal.example.com
+    external-dns.alpha.kubernetes.io/ingress-hostname-source: annotation-only
+  name: apisix-internal-ingress
+  namespace: ingress-apisix
+spec:
+  defaultBackend:
+    service:
+      name: apisix-gateway
+      port:
+        number: 443
+  ingressClassName: apisix
+  tls:
+  - hosts:
+    - internal.example.com
+    - '*.internal.example.com'
+    secretName: apisix-internal-letsencrypt-cert
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: apisix-peerauthentication
+  namespace: ingress-apisix
+spec:
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "80":
+      mode: PERMISSIVE
+    "443":
+      mode: PERMISSIVE
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/name: apisix

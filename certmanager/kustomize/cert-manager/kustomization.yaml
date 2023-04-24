@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/cert-manager-namespace.yaml
+- ./base/cert-manager-serviceMonitor.yaml
+- ./base/cert-manager/templates/cainjector-deployment.yaml
+- ./base/cert-manager/templates/cainjector-rbac.yaml
+- ./base/cert-manager/templates/cainjector-serviceaccount.yaml
+- ./base/cert-manager/templates/crds.yaml
+- ./base/cert-manager/templates/deployment.yaml
+- ./base/cert-manager/templates/rbac.yaml
+- ./base/cert-manager/templates/service.yaml
+- ./base/cert-manager/templates/serviceaccount.yaml
+- ./base/cert-manager/templates/startupapicheck-job.yaml
+- ./base/cert-manager/templates/startupapicheck-rbac.yaml
+- ./base/cert-manager/templates/startupapicheck-serviceaccount.yaml
+- ./base/cert-manager/templates/webhook-config.yaml
+- ./base/cert-manager/templates/webhook-deployment.yaml
+- ./base/cert-manager/templates/webhook-mutating-webhook.yaml
+- ./base/cert-manager/templates/webhook-rbac.yaml
+- ./base/cert-manager/templates/webhook-service.yaml
+- ./base/cert-manager/templates/webhook-serviceaccount.yaml
+- ./base/cert-manager/templates/webhook-validating-webhook.yaml

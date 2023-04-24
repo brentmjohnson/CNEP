@@ -1,0 +1,57 @@
+---
+- name: Install Jetstack Cert-Manager-Istio-CSR
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Helm template cert-manager chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=v0.6.0
+          --namespace=cert-manager
+          --values={{ playbook_dir }}/../helm/values/cert-manager-istio-csr-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/cert-manager-istio-csr/base
+          cert-manager-istio-csr jetstack/cert-manager-istio-csr
+      register: myoutput
+    # - debug: var=myoutput
+
+    # - name: Helm template cert-manager chart
+    #   kubernetes.core.helm_template:
+    #     chart_ref: jetstack/cert-manager
+    #     chart_version: "1.10.1"
+    #     # release_name: vault
+    #     release_namespace: cert-manager
+    #     values_files:
+    #       - "{{ playbook_dir }}/../helm/values/cert-manager-values.yaml"
+    #     include_crds: yes
+    #     output_dir: "{{ playbook_dir }}/../kustomize/cert-manager/base"
+
+    - name: Add cert-manager-istio-csr resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/cert-manager-istio-csr/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/cert-manager-istio-csr/"
+
+    - name: Kustomize build cert-manager-istio-csr manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/cert-manager-istio-csr/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy cert-manager-istio-csr resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/cert-manager-istio-csr/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply cert-manager-istio-csr manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/cert-manager-istio-csr/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+        

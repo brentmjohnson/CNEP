@@ -1,0 +1,27 @@
+---
+- name: Copy ETCD certs for monitoring
+  vars_files:
+    - vars/k8s_cluster.yml
+  hosts: controls[0]
+  become: true
+  tasks:
+    - name: Fetch etcd ca.crt
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/pki/etcd/ca.crt
+        dest: "{{ playbook_dir }}/../../cluster/etcd/ca.crt"
+        flat: yes
+    - name: Fetch etcd ca.key
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/pki/etcd/ca.key
+        dest: "{{ playbook_dir }}/../../cluster/etcd/ca.key"
+        flat: yes
+    - name: Fetch etcd apiserver-etcd-client.crt
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/pki/apiserver-etcd-client.crt
+        dest: "{{ playbook_dir }}/../../cluster/etcd/apiserver-etcd-client.crt"
+        flat: yes
+    - name: Fetch etcd apiserver-etcd-client.key
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/pki/apiserver-etcd-client.key
+        dest: "{{ playbook_dir }}/../../cluster/etcd/apiserver-etcd-client.key"
+        flat: yes

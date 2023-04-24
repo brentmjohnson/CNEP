@@ -1,0 +1,14 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: kafka-route
+  namespace: kafka
+spec:
+  stream:
+    - name: rule1
+      protocol: TCP
+      match:
+        ingressPort: 9092
+      backend:
+        serviceName: kafka-kafka-bootstrap
+        servicePort: 9092

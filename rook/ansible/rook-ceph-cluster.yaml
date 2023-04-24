@@ -1,0 +1,327 @@
+---
+- name: Apply network plugin
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add rook-release chart repo
+      kubernetes.core.helm_repository:
+        name: rook-release
+        repo_url: "https://charts.rook.io/release"
+
+    - name: Separately update the rook-release cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: rook-release
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template rook-ceph-cluster chart
+      kubernetes.core.helm_template:
+        chart_ref: rook-release/rook-ceph-cluster
+        chart_version: "1.11.1"
+        release_namespace: rook-ceph
+        values_files:
+          - "{{ playbook_dir }}/../helm/values/rook-ceph-cluster-values.yaml"
+        include_crds: yes
+        output_dir: "{{ playbook_dir }}/../kustomize/rook-ceph-cluster/base"
+
+    - name: Add rook-ceph-cluster resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/rook-ceph-cluster/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/rook-ceph-cluster/"
+
+    - name: Kustomize build rook-ceph-cluster manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/rook-ceph-cluster/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy rook-ceph-cluster resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/rook-ceph-cluster/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply rook-ceph-cluster manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/rook-ceph-cluster/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for rook-ceph-tools deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: rook-ceph-tools
+        namespace: rook-ceph
+        # label_selectors:
+        #   - app = rook-ceph-tools
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # wait_timeout: 600
+    
+    - name: Wait for ceph
+      ansible.builtin.shell: 
+        cmd: | 
+          while ! \
+            kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+            -- ceph health;
+          do sleep 1;
+          done
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: Wait for rook-ceph-dashboard-password secret
+      kubernetes.core.k8s_info:
+        kind: Secret
+        wait: yes
+        name: rook-ceph-dashboard-password
+        namespace: rook-ceph
+        # label_selectors:
+        #   - app = rook-ceph-tools
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # wait_timeout: 600
+    #   register: myoutput
+    # - debug: var=myoutput
+
+    - name: Get rook-ceph-dashboard-password secret
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph get secret rook-ceph-dashboard-password \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -o jsonpath="{['data']['password']}"
+      register: rook_ceph_dashboard_password
+    # - debug: var=rook_ceph_dashboard_password.stdout
+
+    - name: Save rook-ceph-dashboard-password secret to tmp file
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- bash -c "echo '{{ rook_ceph_dashboard_password.stdout }}' | base64 -d | tee /tmp/rook-ceph-dashboard-password"
+      register: myoutput
+    # - debug: var=myoutput
+
+    - name: Create ceph-admin dashboard user
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph dashboard ac-user-create ceph-admin -i /tmp/rook-ceph-dashboard-password administrator;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: Delete secret tmp file
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- bash -c "rm /tmp/rook-ceph-dashboard-password"
+      # register: myoutput
+    # - debug: var=myoutput
+
+    # - name: Wait for original admin dashboard user
+    #   ansible.builtin.shell: 
+    #     cmd: | 
+    #       while ! \
+    #         kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+    #         --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+    #         -- ceph dashboard ac-user-show admin;
+    #       do sleep 1;
+    #       done
+    #   register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    # - name: Delete original admin dashboard user
+    #   ansible.builtin.shell: 
+    #     cmd: | 
+    #       kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+    #       --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+    #       -- ceph dashboard ac-user-delete admin;
+    #   register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph mgr module enable rook
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph mgr module enable rook;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph orch set backend rook
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph orch set backend rook;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph config set global mon_max_pg_per_osd
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph config set global mon_max_pg_per_osd 300;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph config set global osd_memory_target
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph config set global osd_memory_target 896Mi;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph config set global osd_class_update_on_start
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph config set global osd_class_update_on_start false;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph dashboard set-grafana-api-url
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph dashboard set-grafana-api-url https://internal.example.com/grafana;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph dashboard set-grafana-frontend-api-url
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph dashboard set-grafana-frontend-api-url https://internal.example.com/grafana;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph dashboard set-grafana-api-ssl-verify
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph dashboard set-grafana-api-ssl-verify false;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph dashboard set-alertmanager-api-host
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph dashboard set-alertmanager-api-host https://internal.example.com/alertmanager;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    - name: ceph dashboard set-prometheus-api-host
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl -n rook-ceph exec deployment/rook-ceph-tools \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig' \
+          -- ceph dashboard set-prometheus-api-host https://internal.example.com/prometheus;
+      register: myoutput
+    # - debug: var=myoutput.stdout_lines
+
+    # - name: Print ceph-admin credentials
+    #   ansible.builtin.debug:
+    #     msg: |-
+    #       dashboard proxy: kubectl -n rook-ceph port-forward svc/rook-ceph-mgr-dashboard 7000:7000
+    #       username: ceph-admin
+    #       password: {{ rook_ceph_dashboard_password.stdout | b64decode }}
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              ceph_dashboard:
+                password: "{{ rook_ceph_dashboard_password.stdout | b64decode }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.ceph_dashboard.password is not defined or
+        credentials.ceph_dashboard.password == None or
+        credentials.ceph_dashboard.password | length == 0 or
+        credentials.ceph_dashboard.password != rook_ceph_dashboard_password.stdout | b64decode"
+
+    - name: Get the ceph-bucket-admin-user secret info
+      kubernetes.core.k8s_info:
+        kind: Secret
+        wait: yes
+        name: rook-ceph-object-user-my-store-ceph-bucket-admin-user
+        namespace: rook-ceph
+        wait_timeout: 240
+      register: user_secret_data
+    # - debug: var=user_secret_data
+    # - debug: var=user_secret_data.resources[0].data
+  
+    - ansible.builtin.set_fact:
+        ceph_bucket_admin_user: "{{ {} |
+          combine(dict(secret_keys | zip(decoded_secret_values))) 
+          }}"
+      vars:
+        secret_keys: "{{ user_secret_data.resources[0].data.keys() | list }}"
+        secret_values: "{{ user_secret_data.resources[0].data.values() | list }}"
+        decoded_secret_values: "{{ secret_values | map('b64decode') | list }}"
+    # - debug: var=ceph_bucket_admin_user
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              ceph_bucket_admin:
+                accessKey: "{{ ceph_bucket_admin_user.AccessKey }}"
+                secretKey: "{{ ceph_bucket_admin_user.SecretKey }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.ceph_bucket_admin.accessKey is not defined or
+        credentials.ceph_bucket_admin.secretKey is not defined or
+        credentials.ceph_bucket_admin.accessKey == None or
+        credentials.ceph_bucket_admin.secretKey == None or
+        credentials.ceph_bucket_admin.accessKey | length == 0 or
+        credentials.ceph_bucket_admin.secretKey | length == 0 or
+        credentials.ceph_bucket_admin.accessKey != ceph_bucket_admin_user.AccessKey or
+        credentials.ceph_bucket_admin.secretKey != ceph_bucket_admin_user.SecretKey"

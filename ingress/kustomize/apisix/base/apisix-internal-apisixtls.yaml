@@ -1,0 +1,12 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: apisix-internal-tls
+  namespace: ingress-apisix
+spec:
+  hosts:
+  - internal.example.com
+  - "*.internal.example.com"
+  secret:
+    name: apisix-internal-letsencrypt-cert
+    namespace: ingress-apisix

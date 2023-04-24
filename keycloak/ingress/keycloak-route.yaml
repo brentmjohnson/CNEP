@@ -1,0 +1,83 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: keycloak-route
+  namespace: keycloak-operator
+spec:
+  http:
+  - name: rule1
+    match:
+      paths:
+      - /keycloak/*
+    backends:
+       - serviceName: keycloak-service
+         servicePort: 8080
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      - name: opentelemetry
+        enable: true
+        config:
+          sampler:
+            name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: keycloak-service.keycloak-operator.svc.cluster.local
+          # headers:
+          #   X-Forwarded-Port: "30080"
+          # regex_uri:
+          #   - "^/keycloak/(.*)"
+          #   - "/$1"
+      # https://github.com/apache/apisix/issues/4942#issuecomment-1114798300
+      - name: serverless-pre-function
+        enable: true
+        config:
+          phase: rewrite
+          functions:
+            # - return function(conf, ctx) ngx.var.var_x_forwarded_port = 30080 end
+            - return function(conf, ctx) ngx.var.var_x_forwarded_proto = "https"; ngx.var.var_x_forwarded_port = 443 end
+  - name: rule2
+    match:
+      paths:
+      - /keycloak-internal/*
+    backends:
+       - serviceName: keycloak-service
+         servicePort: 8080
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      - name: opentelemetry
+        enable: true
+        config:
+          sampler:
+            name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: keycloak-service.keycloak-operator.svc.cluster.local
+          # headers:
+          #   X-Forwarded-Port: "8080"
+          regex_uri:
+            - "^/keycloak-internal/(.*)"
+            - "/$1"
+      # https://github.com/apache/apisix/issues/4942#issuecomment-1114798300
+      - name: serverless-pre-function
+        enable: true
+        config:
+          phase: rewrite
+          functions:
+            # - return function(conf, ctx) ngx.var.var_x_forwarded_port = 8080 end
+            - return function(conf, ctx) ngx.var.var_x_forwarded_port = 8080; ngx.var.var_x_forwarded_host = "keycloak-service.keycloak-operator.svc.cluster.local" end

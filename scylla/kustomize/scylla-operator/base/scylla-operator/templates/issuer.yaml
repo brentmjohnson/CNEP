@@ -1,0 +1,9 @@
+---
+# Source: scylla-operator/templates/issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: scylla-operator-selfsigned-issuer
+  namespace: scylla-operator
+spec:
+  selfSigned: {}

@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    batch.kubernetes.io/job-tracking: ""
+  labels:
+    app: jaeger
+    app.kubernetes.io/component: cronjob-cassandra-schema
+    app.kubernetes.io/instance: jaeger
+    app.kubernetes.io/managed-by: jaeger-operator
+    app.kubernetes.io/name: jaeger-cassandra-schema-job
+    app.kubernetes.io/part-of: jaeger
+  name: jaeger-cassandra-schema-job
+  namespace: observability
+spec:
+  activeDeadlineSeconds: 86400
+  backoffLimit: 6
+  completionMode: NonIndexed
+  completions: 1
+  parallelism: 1
+  suspend: false
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: disabled
+        prometheus.io/scrape: "false"
+        sidecar.istio.io/inject: "true"
+      creationTimestamp: null
+    spec:
+      activeDeadlineSeconds: 320
+      containers:
+        - env:
+            - name: MODE
+              value: prod
+            - name: DATACENTER
+              value: dc
+            - name: CQLSH_HOST
+              value: scylla-client.scylla.svc.cluster.local
+            - name: CQLSH_PORT
+              value: "9042"
+            - name: KEYSPACE
+              value: jaeger
+            - name: REPLICATION_FACTOR
+              value: "1"
+            - name: TRACE_TTL
+              value: "172800"
+          envFrom:
+            - secretRef:
+                name: jaeger-scylla
+          image: jaegertracing/jaeger-cassandra-schema:1.39.0
+          imagePullPolicy: IfNotPresent
+          name: jaeger-cassandra-schema-job
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: OnFailure
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30

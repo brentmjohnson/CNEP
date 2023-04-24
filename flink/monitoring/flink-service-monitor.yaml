@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  namespace: flink
+  name: flink-kubernetes-operator
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flink-kubernetes-operator
+  podMetricsEndpoints:
+      - port: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  namespace: flink
+  name: flink-jobmanager
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      component: jobmanager
+  podMetricsEndpoints:
+      - port: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  namespace: flink
+  name: flink-taskmanager
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      component: taskmanager
+  podMetricsEndpoints:
+      - port: metrics

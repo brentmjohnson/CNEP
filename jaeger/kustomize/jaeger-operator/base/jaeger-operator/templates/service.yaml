@@ -1,0 +1,41 @@
+---
+# Source: jaeger-operator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaegertracing-jaeger-operator-metrics
+  namespace: observability
+  labels:
+    
+    app.kubernetes.io/name: jaeger-operator
+    app.kubernetes.io/instance: jaegertracing
+spec:
+  ports:
+  - name: metrics
+    port: 8383
+    protocol: TCP
+    targetPort: 8383
+  selector:
+    app.kubernetes.io/name: jaeger-operator
+    app.kubernetes.io/instance: jaegertracing
+  type: ClusterIP
+---
+# Source: jaeger-operator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    
+    app.kubernetes.io/name: jaeger-operator
+    app.kubernetes.io/instance: jaegertracing
+  name: jaeger-operator-webhook-service
+  namespace: observability
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    
+    app.kubernetes.io/name: jaeger-operator
+    app.kubernetes.io/instance: jaegertracing

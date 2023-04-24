@@ -1,0 +1,26 @@
+[vm_host]
+{% for host in groups['vm_host'] %}
+{{ host }} ansible_sudo_pass={{ hostvars[host].ansible_sudo_pass }}
+{% endfor %}
+[hyperv_host]
+{% for host in groups['hyperv_host'] %}
+{{ host }} ansible_user="{{ hostvars[host].ansible_user }}" ansible_password={{ hostvars[host].ansible_password }} ansible_connection={{ hostvars[host].ansible_connection }} ansible_winrm_server_cert_validation={{ hostvars[host].ansible_winrm_server_cert_validation }} ansible_winrm_transport={{ hostvars[host].ansible_winrm_transport }}
+{% endfor %}
+[controls]
+{% for control in groups['controls'] %}
+{{ hostvars[control].host_fqdn }} ansible_host={{ hostvars[control].host_ip }} {#ansible_ssh_private_key_file={{ hostvars[control].ansible_ssh_private_key_file }} ansible_user={{ hostvars[control].ansible_user }}#} ansible_sudo_pass={{ hostvars[control].ansible_sudo_pass }} ansible_ssh_common_args="{{ hostvars[control].ansible_ssh_common_args }}" host_fqdn={{ hostvars[control].host_fqdn }} host_ip={{ hostvars[control].host_ip }} {% if loop.first %} kubehash={{ hostvars[control].kubehash }} kubetoken={{ hostvars[control].kubetoken }} kubecertkey={{ hostvars[control].kubecertkey }} k8s_installed={{ hostvars[control].k8s_installed }} {% else %} k8s_joined={{ hostvars[control].k8s_joined }} {% endif %} 
+{% endfor %}
+{% if k8s.worker_nodes.vms > 0 %}
+[workers]
+{% for worker in groups['workers'] %}
+{{ hostvars[worker].host_fqdn }} ansible_host={{ hostvars[worker].host_ip }} {#ansible_ssh_private_key_file={{ hostvars[worker].ansible_ssh_private_key_file }} ansible_user={{ hostvars[worker].ansible_user }}#} ansible_ssh_common_args="{{ hostvars[worker].ansible_ssh_common_args }}" host_fqdn={{ hostvars[worker].host_fqdn }} host_ip={{ hostvars[worker].host_ip }} k8s_joined={{ hostvars[worker].k8s_joined }}
+{% endfor %}
+[k8s_nodes:children]
+workers
+{% endif %}
+{% if k8s.control_plane.vms > 1 or k8s.worker_nodes.vms > 1 %}
+[loadbalancer]
+{% for lb in groups['loadbalancer'] %}
+{{ hostvars[lb].host_fqdn }} ansible_host={{ hostvars[lb].host_ip }} {#ansible_ssh_private_key_file={{ hostvars[lb].ansible_ssh_private_key_file }}#} ansible_user={{ hostvars[lb].ansible_user }} ansible_ssh_common_args="{{ hostvars[lb].ansible_ssh_common_args }}" host_fqdn={{ hostvars[lb].host_fqdn }} host_ip={{ hostvars[lb].host_ip }}
+{% endfor %}
+{% endif %}

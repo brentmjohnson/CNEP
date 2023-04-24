@@ -1,0 +1,2 @@
+- import_playbook: ./fluent-operator.yaml
+- import_playbook: ./fluent-bit.yaml

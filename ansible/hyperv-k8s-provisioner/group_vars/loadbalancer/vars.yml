@@ -1,0 +1,15 @@
+services:
+  - http
+  - https
+
+internal_zone_port:
+  - port: 6443
+    proto: tcp
+
+packages:
+    # - dnsmasq
+    - docker
+    - docker-registry
+    - haproxy
+    - ip6tables
+    - ufw

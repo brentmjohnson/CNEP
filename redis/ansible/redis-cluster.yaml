@@ -1,0 +1,86 @@
+- name: Install redis
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add redis-cluster chart repo
+      kubernetes.core.helm_repository:
+        name: ot-helm
+        repo_url: "https://ot-container-kit.github.io/helm-charts/"
+
+    - name: Separately update the redis-cluster cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: ot-helm
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template redis-cluster chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=0.14.1
+          --namespace=redis
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/redis-cluster-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/redis-cluster/base
+          redis-cluster ot-helm/redis-cluster
+
+    - name: Add redis-cluster resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/redis-cluster/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/redis-cluster/"
+
+    - name: Kustomize build redis-cluster manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/redis-cluster/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy redis-cluster resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/redis-cluster/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply redis-cluster manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/redis-cluster/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the redis-cluster-leader statefulset
+      kubernetes.core.k8s_info:
+        kind: StatefulSet
+        wait: yes
+        name: redis-cluster-leader
+        namespace: redis
+      register: myoutput
+
+    - name: Wait for redis-cluster-leader statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl rollout status --watch --timeout=300s -n redis statefulset/redis-cluster-leader \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+
+    - name: Wait for the redis-cluster-follower statefulset
+      kubernetes.core.k8s_info:
+        kind: StatefulSet
+        wait: yes
+        name: redis-cluster-follower
+        namespace: redis
+      register: myoutput
+
+    - name: Wait for redis-cluster-follower statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl rollout status --watch --timeout=300s -n redis statefulset/redis-cluster-follower \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput

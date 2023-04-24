@@ -1,0 +1,152 @@
+- name: Install Apisix
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add apisix chart repo
+      kubernetes.core.helm_repository:
+        name: apisix
+        repo_url: "https://charts.apiseven.com"
+
+    - name: Separately update the apisix cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: apisix
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy:
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              apisix_dashboard:
+                password: "{{ lookup('ansible.builtin.password', '/dev/null') }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.apisix_dashboard.password is not defined or
+        credentials.apisix_dashboard.password == None or
+        credentials.apisix_dashboard.password | length == 0"
+
+    - name: Setting helm values templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../helm/values/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../helm/values/templates/*.j2"
+
+    - name: Helm template apisix chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=1.2.0
+          --namespace=ingress-apisix
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/apisix-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/apisix/base
+          apisix apisix/apisix
+
+    - name: Add apisix resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/apisix/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/apisix/"
+
+    - name: Add additional apisix resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/apisix/**/**/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/apisix/"
+
+    - name: Dynamically update configmap patch
+      ansible.builtin.shell:
+        cmd: |
+          yq '.data.["conf.yaml"]' \
+          < {{ playbook_dir }}/../kustomize/apisix/base/apisix/charts/dashboard/templates/configmap.yaml \
+          | yq e '
+            .authentication.users[0].username="{{ credentials.apisix_dashboard.username }}",
+            .authentication.users[0].password="{{ credentials.apisix_dashboard.password }}"
+          '
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - ansible.builtin.set_fact:
+        apisix_dashboard_config: "{{ myoutput.stdout | indent( width=4 ) }}"
+    # - debug: var=scylla_manager_config
+
+    - name: Setting kustomize apisix patch templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../kustomize/apisix/patches/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../kustomize/apisix/patches/templates/*.j2"
+
+    - name: Kustomize build apisix manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/apisix/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy apisix resources.
+      ansible.builtin.copy:
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/apisix/resources/resources.yaml"
+        mode: "0644"
+
+    - name: kubectl apply apisix
+      ansible.builtin.shell:
+        cmd: "kubectl apply --server-side -f {{ playbook_dir }}/../kustomize/apisix/resources/resources.yaml"
+
+    # - name: Apply apisix manifests to the cluster
+    #   kubernetes.core.k8s:
+    #     state: present
+    #     src: "{{ playbook_dir }}/../kustomize/apisix/resources/resources.yaml"
+    #     kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+    #     # apply: yes
+    #     # server_side_apply:
+    #     #   field_manager: ansible
+    #     # wait: true
+
+    - name: Wait for the apisix-ingress-controller deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: apisix-ingress-controller
+        namespace: ingress-apisix
+      register: myoutput
+
+    - name: Enable http_to_https global rule
+      ansible.builtin.shell:
+        cmd: |
+          kubectl debug -it -n ingress-apisix $(kubectl get pods --namespace ingress-apisix -l 'app.kubernetes.io/instance=apisix,app.kubernetes.io/name=apisix' -o jsonpath='{.items[0].metadata.name}') --image="curlimages/curl:latest" -- \
+          curl -X PUT \
+          http://apisix-admin.ingress-apisix.svc.cluster.local:9180/apisix/admin/global_rules/1 \
+          -H 'Content-Type: application/json' \
+          -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' \
+          -d '{
+                "plugins": {
+                    "redirect": {
+                        "http_to_https": true
+                    },
+                    "opentelemetry": {
+                        "sampler": {
+                            "name": "always_on"
+                        }
+                    }
+                }
+            }'

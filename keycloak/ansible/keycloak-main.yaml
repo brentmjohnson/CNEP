@@ -1,0 +1,3 @@
+- import_playbook: ./keycloak-operator.yaml
+- import_playbook: ./keycloak.yaml
+- import_playbook: ./keycloak-httpbin.yaml

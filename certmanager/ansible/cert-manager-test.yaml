@@ -1,0 +1,9 @@
+---
+- name: Test some tasks
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Cache letsencrypt certs
+      include_tasks: "{{ playbook_dir }}/cache-certs-tasks.yaml"

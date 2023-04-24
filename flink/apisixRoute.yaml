@@ -1,0 +1,15 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: flink-dashboard-route
+  namespace: flink
+spec:
+  http:
+  - name: rule1
+    match:
+      paths:
+      - /flink
+    backends:
+       - serviceName: basic-example-rest
+         servicePort: 8081

@@ -1,0 +1,3 @@
+- import_playbook: istio-base.yaml
+- import_playbook: istiod.yaml
+- import_playbook: istio-cni.yaml

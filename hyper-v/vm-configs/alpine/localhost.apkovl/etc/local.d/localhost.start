@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Fail fast, if we make it onto a live system.
+test "$(hostname)" = "localhost" || exit 111
+
+rc-update del local boot && rm /etc/local.d/localhost.start
+lbu include -r /root/apkcache.img
+lbu exclude /root/apkcache.img
+lbu exclude /etc/apk/cache
+sed -i '/^http:\/\/dl-cdn\.alpinelinux\.org\/alpine\/v3\.17\/main$/d' /etc/apk/repositories
+sed -i '/^$/d' /etc/apk/repositories
+
+export ERASE_DISKS=/dev/sda
+setup-alpine -e -f /media/sr1/setup-alpine-seed 2>&1 | tee /root/setup-alpine.log
+
+echo "preseeded at $(date)" >> /root/preseeded.txt
+
+# fixing fully qualified hostname
+mount /dev/vg0/lv_root /mnt/
+sed -i 's/\tk8s-lb.internal.example.com k8s-lb /\t/' /mnt/etc/hosts
+umount /mnt/
+
+reboot

@@ -1,0 +1,97 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  labels:
+    k8s-app: daemonset-collector-monitoring
+  name: daemonset-collector-monitoring
+  namespace: opentelemetry-operator-system
+spec:
+  jobLabel: k8s-app
+  namespaceSelector:
+    matchNames:
+    - opentelemetry-operator-system
+  podMetricsEndpoints:
+  - relabelings:
+    - action: replace
+      replacement: $1:8889
+      sourceLabels:
+      - __meta_kubernetes_pod_ip
+      targetLabel: __address__
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: daemonset-collector
+---
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  labels:
+    app: opentelemetry-collector
+    version: v0.71.0
+  name: daemonset
+  namespace: opentelemetry-operator-system
+spec:
+  config: "receivers:\n  jaeger:\n    protocols:\n      thrift_http:\n        endpoint:
+    0.0.0.0:14278\n\n  opencensus:\n    endpoint: 0.0.0.0:55678\n\n  # Dummy receiver
+    that's never used, because a pipeline is required to have one.\n  otlp/spanmetrics:\n
+    \   protocols:\n      grpc:\n        endpoint: localhost:12345\n\n  otlp:\n    protocols:\n
+    \     grpc:\n        endpoint: 0.0.0.0:4317\n        # default limit is 1024 *
+    1024 * 4 = 4194304\n        max_recv_msg_size_mib: 1024\n      http:\n        endpoint:
+    0.0.0.0:4318\n\n  zipkin:\n    endpoint: 0.0.0.0:9411\n\n  fluentforward:\n    endpoint:
+    0.0.0.0:8006\n\nexporters:\n  prometheus:\n    endpoint: 0.0.0.0:8889\n\n  jaeger:\n
+    \   endpoint: jaeger-collector.observability.svc.cluster.local:14250\n    tls:\n
+    \     insecure: true\n\n  logging:\n    loglevel: debug\n\n  loki:\n    endpoint:
+    http://loki-loki-distributed-distributor.monitoring.svc.cluster.local:3100/loki/api/v1/push\n
+    \   # tenant_id: \"\"\n    # labels:\n    #   resource:\n    #     log_name: \"log_name\"\n
+    \   #     zone_name: \"zone_name\"\n    #     cluster_name: \"cluster_name\"\n
+    \   #     node_name: \"node_name\"\n    #   attributes:\n    #     log_name: \"log_name\"\n
+    \   #     cluster_name: \"cluster_name\"\n    #     zone_name: \"zone_name\"\n
+    \   #     node_name: \"node_name\"\n    #     namespace_name: \"namespace_name\"\n
+    \   #     pod_name: \"pod_name\"\n    #     container_name: \"container_name\"\n
+    \   #     # start_time: \"start_time\"\n    #     # method: \"method\"\n    #
+    \    # path: \"path\"\n    #     # protocol: \"protocol\"\n    #     # response_code:
+    \"response_code\"\n    #     # response_flags: \"response_flags\"\n    #     #
+    response_code_details: \"response_code_details\"\n    #     # connection_termination_details:
+    \"connection_termination_details\"\n    #     # upstream_transport_failure_reason:
+    \"upstream_transport_failure_reason\"\n    #     # bytes_received: \"bytes_received\"\n
+    \   #     # bytes_sent: \"bytes_sent\"\n    #     # duration: \"duration\"\n    #
+    \    # upstream_service_time: \"upstream_service_time\"\n    #     # x_forwarded_for:
+    \"x_forwarded_for\"\n    #     # user_agent: \"user_agent\"\n    #     # request_id:
+    \"request_id\"\n    #     # authority: \"authority\"\n    #     # upstream_host:
+    \"upstream_host\"\n    #     # upstream_cluster: \"upstream_cluster\"\n    #     #
+    upstream_local_address: \"upstream_local_address\"\n    #     # downstream_local_address:
+    \"downstream_local_address\"\n    #     # downstream_remote_address: \"downstream_remote_address\"\n
+    \   #     # requested_server_name: \"requested_server_name\"\n    #     # route_name:
+    \"route_name\"\n    #     # traceid: \"traceid\"\n    # format: \"json\"\n    #
+    # (default = 512 * 1024) or 4096\n    # # write_buffer_size: 4194304\n\n  otlp/spanmetrics:\n
+    \   endpoint: localhost:4317\n    tls:\n      insecure: true\n\nprocessors:\n
+    \ batch:\n  transform:\n    trace_statements:\n      - context: span\n        statements:\n
+    \         - set(kind, 2) where kind == 0\n  spanmetrics:\n    metrics_exporter:
+    otlp/spanmetrics\n    latency_histogram_buckets: [100us, 1ms, 2ms, 6ms, 10ms,
+    100ms, 250ms]\n    dimensions:\n      - name: http.method\n        default: GET\n
+    \     - name: http.status_code\n    dimensions_cache_size: 1000\n    aggregation_temporality:
+    \"AGGREGATION_TEMPORALITY_CUMULATIVE\"  \n  resource:\n    attributes:\n    -
+    action: insert\n      key: log_name\n      from_attribute: log_name\n    - action:
+    insert\n      key: zone_name\n      from_attribute: zone_name\n    - action: insert\n
+    \     key: cluster_name\n      from_attribute: cluster_name\n    - action: insert\n
+    \     key: node_name\n      from_attribute: node_name\n    - action: insert\n
+    \     key: loki.resource.labels\n      value: log_name, zone_name, cluster_name,
+    node_name\n  attributes:\n    actions:\n    - action: insert\n      key: log_name\n
+    \     from_attribute: log_name\n    - action: insert\n      key: cluster_name\n
+    \     from_attribute: cluster_name\n    - action: insert\n      key: zone_name\n
+    \     from_attribute: zone_name\n    - action: insert\n      key: node_name\n
+    \     from_attribute: node_name\n    - action: insert\n      key: namespace_name\n
+    \     from_attribute: namespace_name\n    - action: insert\n      key: pod_name\n
+    \     from_attribute: pod_name\n    - action: insert\n      key: container_name\n
+    \     from_attribute: container_name\n    - action: insert\n      key: loki.attribute.labels\n
+    \     value: log_name, cluster_name, zone_name, node_name, namespace_name, pod_name,
+    container_name\n\nservice:\n  pipelines:\n    traces:\n      receivers: [jaeger,
+    opencensus, otlp, zipkin]\n      processors: [transform, spanmetrics, batch]\n
+    \     exporters: [jaeger]\n\n    # The exporter name must match the metrics_exporter
+    name.\n    # The receiver is just a dummy and never used; added to pass validation
+    requiring at least one receiver in a pipeline.\n    metrics/spanmetrics:\n      receivers:
+    [otlp/spanmetrics]\n      exporters: [otlp/spanmetrics]\n\n    metrics:\n      receivers:
+    [otlp]\n      exporters: [prometheus]\n\n    logs:\n      receivers: [otlp, fluentforward]\n
+    \     processors: [batch, resource, attributes]\n      exporters: [loki]"
+  hostNetwork: true
+  image: otel/opentelemetry-collector-contrib:0.71.0
+  mode: daemonset

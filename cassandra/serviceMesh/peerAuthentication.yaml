@@ -1,0 +1,14 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: k8ssandra-operator-webhook-service
+  namespace: k8ssandra-operator
+spec:
+  selector:
+    matchLabels:
+      control-plane: k8ssandra-operator
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    9443:
+      mode: PERMISSIVE

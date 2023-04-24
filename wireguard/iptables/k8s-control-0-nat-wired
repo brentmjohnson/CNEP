@@ -1,0 +1,77 @@
+Chain PREROUTING (policy ACCEPT)
+target     prot opt source               destination         
+cali-PREROUTING  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:6gwbT8clXdHdC1b1 */
+KUBE-SERVICES  all  --  0.0.0.0/0            0.0.0.0/0            /* kubernetes service portals */
+
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+
+Chain OUTPUT (policy ACCEPT)
+target     prot opt source               destination         
+cali-OUTPUT  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:tVnHkvAo15HuiPy0 */
+KUBE-SERVICES  all  --  0.0.0.0/0            0.0.0.0/0            /* kubernetes service portals */
+
+Chain POSTROUTING (policy ACCEPT)
+target     prot opt source               destination         
+cali-POSTROUTING  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:O3lYWMrLQYEMJtB5 */
+KUBE-POSTROUTING  all  --  0.0.0.0/0            0.0.0.0/0            /* kubernetes postrouting rules */
+MASQUERADE  all  --  0.0.0.0/0            0.0.0.0/0           
+
+Chain KUBE-FIREWALL (0 references)
+target     prot opt source               destination         
+KUBE-MARK-DROP  all  --  0.0.0.0/0            0.0.0.0/0           
+
+Chain KUBE-KUBELET-CANARY (0 references)
+target     prot opt source               destination         
+
+Chain KUBE-LOAD-BALANCER (0 references)
+target     prot opt source               destination         
+KUBE-MARK-MASQ  all  --  0.0.0.0/0            0.0.0.0/0           
+
+Chain KUBE-MARK-DROP (1 references)
+target     prot opt source               destination         
+MARK       all  --  0.0.0.0/0            0.0.0.0/0            MARK or 0x8000
+
+Chain KUBE-MARK-MASQ (2 references)
+target     prot opt source               destination         
+MARK       all  --  0.0.0.0/0            0.0.0.0/0            MARK or 0x4000
+
+Chain KUBE-NODE-PORT (1 references)
+target     prot opt source               destination         
+
+Chain KUBE-POSTROUTING (1 references)
+target     prot opt source               destination         
+MASQUERADE  all  --  0.0.0.0/0            0.0.0.0/0            /* Kubernetes endpoints dst ip:port, source ip for solving hairpin purpose */ match-set KUBE-LOOP-BACK dst,dst,src
+RETURN     all  --  0.0.0.0/0            0.0.0.0/0            mark match ! 0x4000/0x4000
+MARK       all  --  0.0.0.0/0            0.0.0.0/0            MARK xor 0x4000
+MASQUERADE  all  --  0.0.0.0/0            0.0.0.0/0            /* kubernetes service traffic requiring SNAT */ random-fully
+
+Chain KUBE-SERVICES (2 references)
+target     prot opt source               destination         
+KUBE-MARK-MASQ  all  -- !10.240.0.0/12        0.0.0.0/0            /* Kubernetes service cluster ip + port for masquerade purpose */ match-set KUBE-CLUSTER-IP dst,dst
+KUBE-NODE-PORT  all  --  0.0.0.0/0            0.0.0.0/0            ADDRTYPE match dst-type LOCAL
+ACCEPT     all  --  0.0.0.0/0            0.0.0.0/0            match-set KUBE-CLUSTER-IP dst,dst
+
+Chain cali-OUTPUT (1 references)
+target     prot opt source               destination         
+cali-fip-dnat  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:GBTAv2p5CwevEyJm */
+
+Chain cali-POSTROUTING (1 references)
+target     prot opt source               destination         
+cali-fip-snat  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:Z-c7XtVd2Bq7s_hA */
+cali-nat-outgoing  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:nYKhEzDlr11Jccal */
+MASQUERADE  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:e9dnSgSVNmIcpVhP */ ADDRTYPE match src-type !LOCAL limit-out ADDRTYPE match src-type LOCAL random-fully
+
+Chain cali-PREROUTING (1 references)
+target     prot opt source               destination         
+cali-fip-dnat  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:r6XmIziWUJsdOK6Z */
+
+Chain cali-fip-dnat (2 references)
+target     prot opt source               destination         
+
+Chain cali-fip-snat (1 references)
+target     prot opt source               destination         
+
+Chain cali-nat-outgoing (1 references)
+target     prot opt source               destination         
+MASQUERADE  all  --  0.0.0.0/0            0.0.0.0/0            /* cali:flqWnvo8yq4ULQLa */ match-set cali40masq-ipam-pools src ! match-set cali40all-ipam-pools dst random-fully

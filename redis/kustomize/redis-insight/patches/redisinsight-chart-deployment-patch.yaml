@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redisinsight-chart
+spec:
+  template:
+    spec:
+      containers:
+        - name: redisinsight-chart
+          env:
+            - name: RITRUSTEDORIGINS
+              value: https://internal.example.com
+            - name: RIPROXYENABLE
+              value: "true"
+            - name: RIPROXYPATH
+              value: /redis
+            - name: RIPROXYPREFIX
+              value: /redis

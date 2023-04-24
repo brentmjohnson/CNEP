@@ -1,0 +1,4 @@
+127.0.0.1       localhost localhost.localdomain
+::1             localhost localhost.localdomain
+10.0.0.2        k8s-lb
+fd11::10:0:0:2  k8s-lb

@@ -1,0 +1,61 @@
+---
+# Source: redpanda-operator/charts/kube-prometheus-stack/templates/prometheus/prometheus.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: redpanda-operator-kube-pro-prometheus
+  namespace: redpanda-system
+  labels:
+    app: kube-prometheus-stack-prometheus
+    
+    chart: kube-prometheus-stack-13.13.1
+    release: "redpanda-operator"
+    heritage: "Helm"
+spec:
+  alerting:
+    alertmanagers:
+      - namespace: redpanda-system
+        name: redpanda-operator-kube-pro-alertmanager
+        port: web
+        pathPrefix: "/"
+        apiVersion: v2
+  image: quay.io/prometheus/prometheus:v2.24.0
+  version: v2.24.0
+  externalUrl: http://redpanda-operator-kube-pro-prometheus.redpanda-system:9090
+  paused: false
+  replicas: 1
+  shards: 1
+  logLevel:  info
+  logFormat:  logfmt
+  listenLocal: false
+  enableAdminAPI: false
+  retention: "10d"
+  routePrefix: "/"
+  serviceAccountName: redpanda-operator-kube-pro-prometheus
+  serviceMonitorSelector:
+    matchLabels:
+      release: "redpanda-operator"
+
+  serviceMonitorNamespaceSelector: {}
+  podMonitorSelector:
+    matchLabels:
+      release: "redpanda-operator"
+
+  podMonitorNamespaceSelector: {}
+  probeSelector:
+    matchLabels:
+      release: "redpanda-operator"
+
+  probeNamespaceSelector: {}
+  securityContext:
+    fsGroup: 2000
+    runAsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  ruleNamespaceSelector: {}
+  ruleSelector:
+    matchLabels:
+      app: kube-prometheus-stack
+      release: "redpanda-operator"
+
+  portName: web

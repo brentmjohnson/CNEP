@@ -1,0 +1,103 @@
+- name: Install postgres ui
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Get the postgres-bucket configmap info
+      kubernetes.core.k8s_info:
+        kind: ConfigMap
+        wait: yes
+        name: postgres-bucket
+        namespace: postgres
+        # wait_timeout: 240
+      register: bucket_configmap_data
+    # - debug: var=bucket_configmap_data.resources[0].data
+    
+    - name: Get the postgres-bucket secret info
+      kubernetes.core.k8s_info:
+        kind: Secret
+        wait: yes
+        name: postgres-bucket
+        namespace: postgres
+        # wait_timeout: 240
+      register: bucket_secret_data
+    # - debug: var=bucket_secret_data.resources[0].data
+  
+    - ansible.builtin.set_fact:
+        postgres_bucket: "{{ {} |
+          combine(bucket_configmap_data.resources[0].data) |
+          combine(dict(secret_keys | zip(decoded_secret_values))) 
+          }}"
+      vars:
+        secret_keys: "{{ bucket_secret_data.resources[0].data.keys() | list }}"
+        secret_values: "{{ bucket_secret_data.resources[0].data.values() | list }}"
+        decoded_secret_values: "{{ secret_values | map('b64decode') | list }}"
+    # - debug: var=postgres_bucket
+
+    - name: Setting helm postgres templates
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ playbook_dir }}/../helm/values/{{ item | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      with_fileglob:
+        - "{{ playbook_dir }}/../helm/values/templates/*.j2"
+
+    - name: Add postgres-ui chart repo
+      kubernetes.core.helm_repository:
+        name: postgres-operator-ui-charts
+        repo_url: "https://opensource.zalando.com/postgres-operator/charts/postgres-operator-ui"
+
+    - name: Separately update the postgres-ui cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: postgres-operator-ui-charts
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template postgres-ui chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=1.9.0
+          --namespace=postgres
+          --values={{ playbook_dir }}/../helm/values/postgres-ui-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/postgres-ui/base
+          postgres-operator-ui postgres-operator-ui-charts/postgres-operator-ui
+
+    - name: Add postgres-ui resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/postgres-operator-ui/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/postgres-ui/"
+    
+    - name: Kustomize build postgres-ui manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/postgres-ui/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy postgres-ui resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/postgres-ui/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply postgres-ui manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/postgres-ui/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the postgres-ui-postgres-operator-ui deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: postgres-operator-ui
+        namespace: postgres
+      register: myoutput
+

@@ -1,0 +1,30 @@
+---
+# Source: redpanda-operator/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redpanda-operator-metrics-monitor
+  labels:
+    app.kubernetes.io/name: redpanda-operator
+    helm.sh/chart: redpanda-operator-v23.1.2
+    app.kubernetes.io/instance: redpanda-operator
+    app.kubernetes.io/version: "v23.1.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  endpoints:
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    path: /metrics
+    port: https
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true
+  namespaceSelector:
+    matchNames:
+    - redpanda-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redpanda-operator
+      helm.sh/chart: redpanda-operator-v23.1.2
+      app.kubernetes.io/instance: redpanda-operator
+      app.kubernetes.io/version: "v23.1.2"
+      app.kubernetes.io/managed-by: Helm

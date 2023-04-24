@@ -1,0 +1,22 @@
+---
+# Source: redpanda-operator/templates/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: redpanda-serving-cert
+  labels:
+    app.kubernetes.io/name: redpanda-operator
+    helm.sh/chart: redpanda-operator-v23.1.2
+    app.kubernetes.io/instance: redpanda-operator
+    app.kubernetes.io/version: "v23.1.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  dnsNames:
+    - redpanda-operator-webhook-service.redpanda-system.svc
+    - redpanda-operator-webhook-service.redpanda-system.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: redpanda-operator-selfsigned-issuer
+  secretName: webhook-server-cert
+  privateKey:
+    rotationPolicy: Never

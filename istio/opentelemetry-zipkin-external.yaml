@@ -1,0 +1,15 @@
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: opentelemetry-zipkin-external
+spec:
+  hosts:
+  - zipkin.opentelemetry.cluster.local
+  location: MESH_EXTERNAL
+  ports:
+  - number: 9411
+    name: zipkin
+    protocol: HTTP
+  resolution: STATIC
+  endpoints:
+  - address: 0.0.0.0

@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opentelemetry-spanmetrics
+  namespace: opentelemetry-operator-system
+spec:
+  endpoints:
+  - interval: 15s
+    port: otlp-spanmetrics-grpc
+  namespaceSelector:
+    matchNames:
+    - opentelemetry-operator-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: opentelemetry-collector
+      app.kubernetes.io/instance: opentelemetry-operator-system.daemonset
+      app.kubernetes.io/managed-by: opentelemetry-operator
+      app.kubernetes.io/part-of: opentelemetry

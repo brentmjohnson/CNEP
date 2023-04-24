@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    deprecated.daemonset.template.generation: "2"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"opentelemetry.io/v1alpha1","kind":"OpenTelemetryCollector","metadata":{"annotations":{},"labels":{"app":"opentelemetry-collector","version":"0.51.0"},"name":"daemonset","namespace":"opentelemetry-operator-system"},"spec":{"config":"receivers:\n  jaeger:\n    protocols:\n      thrift_http:\n        endpoint: \"0.0.0.0:14278\"\n\n  # Dummy receiver that's never used, because a pipeline is required to have one.\n  otlp/spanmetrics:\n    protocols:\n      grpc:\n        endpoint: \"localhost:65535\"\n\n  otlp:\n    protocols:\n      grpc:\n        endpoint: 0.0.0.0:4317\n        # default limit is 1024 * 1024 * 4 = 4194304\n        max_recv_msg_size_mib: 1024\n      http:\n        endpoint: 0.0.0.0:4318\n\n  zipkin:\n    endpoint: \"0.0.0.0:9411\"\n\nexporters:\n  prometheus:\n    endpoint: \"0.0.0.0:8889\"\n\n  jaeger:\n    endpoint: \"jaeger-collector.observability:14250\"\n    tls:\n      insecure: true\n\n  logging:\n    loglevel: debug\n\n  loki:\n    endpoint: \"http://loki.monitoring:3100/loki/api/v1/push\"\n    tenant_id: \"\"\n    labels:\n      resource:\n        container.name: \"container_name\"\n        k8s.cluster.name: \"k8s_cluster_name\"\n      attributes:\n        severity: \"\"\n        http.status_code: \"http_status_code\" \n      record:\n        traceID: \"traceid\"\n\nprocessors:\n  batch:\n  spanmetrics:\n    metrics_exporter: prometheus\n\nservice:\n  pipelines:\n    traces:\n      receivers: [jaeger, otlp, zipkin]\n      processors: [spanmetrics, batch]\n      exporters: [jaeger]\n    # The exporter name in this pipeline must match the spanmetrics.metrics_exporter name.\n    # The receiver is just a dummy and never used; added to pass validation requiring at least one receiver in a pipeline.\n    metrics/spanmetrics:\n      receivers: [otlp/spanmetrics]\n      exporters: [prometheus]\n    logs:\n      receivers: [otlp]\n      processors: [batch]\n      exporters: [logging]\n      # exporters: [loki]\n","hostNetwork":true,"image":"otel/opentelemetry-collector-contrib:0.51.0","mode":"daemonset","podAnnotations":{"proxy.istio.io/config":"proxyMetadata:\n  OUTPUT_CERTS: /etc/istio-output-certs\n","sidecar.istio.io/userVolumeMount":"[{\"name\": \"istio-certs\", \"mountPath\": \"/etc/istio-output-certs\"}]","traffic.sidecar.istio.io/includeInboundPorts":"","traffic.sidecar.istio.io/includeOutboundIPRanges":""},"tolerations":[{"effect":"NoSchedule","key":"node-role.kubernetes.io/master"},{"effect":"NoSchedule","key":"node-role.kubernetes.io/control-plane"}]}}
+    opentelemetry-operator-config/sha256: 7c174ece0a863441135d791179fb0985b34d8ca1efa6f76b99c541a043abc176
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8888"
+    prometheus.io/scrape: "true"
+  creationTimestamp: "2022-08-19T18:38:20Z"
+  generation: 2
+  labels:
+    app: opentelemetry-collector
+    app.kubernetes.io/component: opentelemetry-collector
+    app.kubernetes.io/instance: opentelemetry-operator-system.daemonset
+    app.kubernetes.io/managed-by: opentelemetry-operator
+    app.kubernetes.io/name: daemonset-collector
+    app.kubernetes.io/part-of: opentelemetry
+    app.kubernetes.io/version: 0.51.0
+    version: 0.51.0
+  name: daemonset-collector
+  namespace: opentelemetry-operator-system
+  ownerReferences:
+  - apiVersion: opentelemetry.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: OpenTelemetryCollector
+    name: daemonset
+    uid: 64c03773-0aea-487d-9f5c-06354b3d49c9
+  resourceVersion: "19012611"
+  uid: 30e9c347-46ab-40cd-8530-ef7de0c75ece
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: opentelemetry-collector
+      app.kubernetes.io/instance: opentelemetry-operator-system.daemonset
+      app.kubernetes.io/managed-by: opentelemetry-operator
+      app.kubernetes.io/part-of: opentelemetry
+  template:
+    metadata:
+      annotations:
+        opentelemetry-operator-config/sha256: 7c174ece0a863441135d791179fb0985b34d8ca1efa6f76b99c541a043abc176
+        proxy.istio.io/config: |
+          proxyMetadata:
+            OUTPUT_CERTS: /etc/istio-output-certs
+        sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+        traffic.sidecar.istio.io/includeInboundPorts: ""
+        traffic.sidecar.istio.io/includeOutboundIPRanges: ""
+      creationTimestamp: null
+      labels:
+        app: opentelemetry-collector
+        app.kubernetes.io/component: opentelemetry-collector
+        app.kubernetes.io/instance: opentelemetry-operator-system.daemonset
+        app.kubernetes.io/managed-by: opentelemetry-operator
+        app.kubernetes.io/name: daemonset-collector
+        app.kubernetes.io/part-of: opentelemetry
+        app.kubernetes.io/version: 0.51.0
+        version: 0.51.0
+    spec:
+      containers:
+      - args:
+        - --config=/conf/collector.yaml
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        image: otel/opentelemetry-collector-contrib:0.51.0
+        imagePullPolicy: IfNotPresent
+        name: otc-container
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /conf
+          name: otc-internal
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: daemonset-collector
+      serviceAccountName: daemonset-collector
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: collector.yaml
+            path: collector.yaml
+          name: daemonset-collector
+        name: otc-internal
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+status:
+  currentNumberScheduled: 2
+  desiredNumberScheduled: 2
+  numberAvailable: 2
+  numberMisscheduled: 0
+  numberReady: 2
+  observedGeneration: 2
+  updatedNumberScheduled: 2

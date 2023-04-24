@@ -1,0 +1,51 @@
+---
+- name: Apply apisix crds
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add apisix chart repo
+      kubernetes.core.helm_repository:
+        name: apisix
+        repo_url: "https://charts.apiseven.com"
+
+    - name: Separately update the apisix cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: apisix
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template apisix chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=1.2.0
+          --namespace=ingress-apisix
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/apisix-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/apisix-setup/base
+          apisix apisix/apisix
+
+    - name: Add additional apisix resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/apisix/charts/ingress-controller/crds/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/apisix-setup"
+
+    - name: Kustomize build apisix manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/apisix-setup/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy apisix resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/apisix-setup/resources/resources.yaml"
+        mode: "0644"
+
+    - name: kubectl apply apisix
+      ansible.builtin.shell:
+        cmd: "kubectl apply --server-side -f {{ playbook_dir }}/../kustomize/apisix-setup/resources/resources.yaml"

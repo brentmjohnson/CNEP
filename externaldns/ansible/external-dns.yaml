@@ -1,0 +1,55 @@
+- name: Install External-dns
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add external-dns chart repo
+      kubernetes.core.helm_repository:
+        name: external-dns
+        repo_url: "https://kubernetes-sigs.github.io/external-dns/"
+
+    - name: Separately update the external-dns cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: external-dns
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template external-dns chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=1.12.1
+          --namespace=external-dns
+          --values={{ playbook_dir }}/../helm/values/external-dns-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/base
+          external-dns external-dns/external-dns
+
+    - name: Add external-dns resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/external-dns/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/"
+
+    - name: Kustomize build external-dns manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy external-dns resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply external-dns manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true

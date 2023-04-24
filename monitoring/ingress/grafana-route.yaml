@@ -1,0 +1,74 @@
+# httpbin-route.yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: grafana-route
+  namespace: monitoring
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+        - internal.example.com
+      paths:
+      - /grafana/*
+    backends:
+       - serviceName: grafana
+         servicePort: 3000
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      - name: opentelemetry
+        enable: true
+        config:
+          sampler:
+            name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: grafana.monitoring.svc.cluster.local
+          headers:
+            Origin: ""
+          # regex_uri:
+          #   - "^/grafana/(.*)"
+          #   - "/$1"
+  - name: rule2
+    match:
+      hosts:
+        - internal.example.com
+      paths:
+      # - /grafana/api/live/*
+      - /grafana/api/*
+    websocket: true
+    backends:
+       - serviceName: grafana
+         servicePort: 3000
+    plugins:
+      - name: request-id
+        enable: true
+        config:
+          include_in_response: true
+      - name: opentelemetry
+        enable: true
+        config:
+          sampler:
+            name: always_on
+      - name: prometheus
+        enable: true
+        config:
+          prefer_name: true
+      - name: proxy-rewrite
+        enable: true
+        config:
+          host: grafana.monitoring.svc.cluster.local
+          headers:
+            Origin: ""
+          # regex_uri:
+          #   - "^/grafana/(.*)"
+          #   - "/$1"

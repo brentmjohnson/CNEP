@@ -1,0 +1,21 @@
+---
+# Source: postgres-operator-ui/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: postgres-operator-ui
+    helm.sh/chart: postgres-operator-ui-1.9.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: postgres-operator-ui
+  name: postgres-operator-ui
+  namespace: postgres
+spec:
+  ports:
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+  selector:
+    app.kubernetes.io/instance: postgres-operator-ui
+    app.kubernetes.io/name: postgres-operator-ui
+  type: ClusterIP

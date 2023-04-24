@@ -1,0 +1,20 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: rook-ceph-rgw-my-store-service
+  namespace: rook-ceph
+spec:
+  selector:
+    matchLabels:
+      app: rook-ceph-rgw
+      ceph_daemon_id: my-store
+      rgw: my-store
+      rook_cluster: rook-ceph
+      rook_object_store: my-store
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "80":
+      mode: DISABLE
+    "8080":
+      mode: DISABLE

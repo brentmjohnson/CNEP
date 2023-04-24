@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: connect-etcd
+spec:
+  containers:
+  - name: connect-etcd
+    image: quay.io/coreos/etcd:v3.5.6
+    command: [ sh ]
+    args: [ "-c", "etcdctl --cacert=/etc/ssl/etcd-connect/ca.crt --cert=/etc/ssl/etcd-connect/apiserver-etcd-client.crt --key=/etc/ssl/etcd-connect/apiserver-etcd-client.key --debug=true --endpoints https://k8s-control-0:2379 endpoint status && exec tail -f /dev/null" ]
+    env:
+    - name: ETCDCTL_API
+      value: '3'
+    volumeMounts:
+    - name: etcd-creds
+      mountPath: "/etc/ssl/etcd-connect"
+      readOnly: true
+  volumes:
+  - name: etcd-creds
+    secret:
+      secretName: etcd-creds

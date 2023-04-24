@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./base/observability-namespace.yaml
+- ./base/jaeger-operator-peerAuthentication.yaml
+- ./base/jaeger-operator/crds/crd.yaml
+- ./base/jaeger-operator/templates/certificate.yaml
+- ./base/jaeger-operator/templates/deployment.yaml
+- ./base/jaeger-operator/templates/issuer.yaml
+- ./base/jaeger-operator/templates/mutating-webhook.yaml
+- ./base/jaeger-operator/templates/role-binding.yaml
+- ./base/jaeger-operator/templates/role.yaml
+- ./base/jaeger-operator/templates/service-account.yaml
+- ./base/jaeger-operator/templates/service.yaml
+- ./base/jaeger-operator/templates/validating-webhook.yaml

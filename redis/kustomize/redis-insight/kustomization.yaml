@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: redis
+
+resources:
+- ./base/redisinsight-chart/templates/deployment.yaml
+- ./base/redisinsight-chart/templates/service.yaml
+- ./base/redisinsight-chart/templates/serviceaccount.yaml
+- ./base/redis-route.yaml
+
+patches:
+- path: ./patches/redisinsight-chart-deployment-patch.yaml

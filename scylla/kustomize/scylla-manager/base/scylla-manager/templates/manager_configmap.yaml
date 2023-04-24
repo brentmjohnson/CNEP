@@ -1,0 +1,15 @@
+---
+# Source: scylla-manager/templates/manager_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scylla-manager-config
+  namespace: scylla-manager
+data:
+  scylla-manager.yaml: |-
+    http: :5080
+    logger:
+      level: info
+    database:
+      hosts:
+      - scylla-manager-dc-default-0

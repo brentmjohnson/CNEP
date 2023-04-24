@@ -1,0 +1,303 @@
+---
+- name: Loadbalancer configuration play
+  hosts: loadbalancer
+  # become: true
+  vars_files:
+    - vars/k8s_cluster.yml
+  tasks:
+    - name: Manage packages
+      block:
+        - name: Manage packages on CentOS
+          block:
+            - name: Upgrade all packages
+              ansible.builtin.yum:
+                name: '*'
+                state: latest # noqa package-latest
+            - name: Install packages
+              ansible.builtin.yum:
+                name: "{{ packages }}"
+                state: present
+          when: k8s.cluster_os == 'CentOS'
+
+        - name: Manage packages on Alpine
+          block:
+            # - name: Fixing fully qualified hostname
+            #   ansible.builtin.lineinfile:
+            #     path: /etc/hosts
+            #     regexp: '^(.*)\t\S*\.\. (.*)'
+            #     line: \g<1>\t\g<2>
+            #     backrefs: yes
+
+            # - name: Update host facts
+            #   ansible.builtin.gather_facts:
+
+            # - ansible.builtin.set_fact:
+            #     host_fqdn: "{{ lb_facts.ansible_facts.ansible_fqdn }}"
+            #   when: k8s.control_plane.vms > 1 or (k8s.worker_nodes.vms > 1 and ingress_controller.install_ingress_controller)
+
+            - name: Enable community repository
+              ansible.builtin.lineinfile:
+                path: /etc/apk/repositories
+                regexp: '^#(http:\/\/dl-cdn\.alpinelinux\.org\/alpine\/v{{ansible_distribution_major_version}}.[0-9]*\/community)'
+                line: \g<1>
+                backrefs: yes
+
+            - name: Upgrade all packages
+              community.general.apk:
+                update_cache: true
+                upgrade: true
+
+            - name: Install packages
+              community.general.apk:
+                name: "{{ packages }}"
+                state: present
+
+            # - name: Open yaml file
+            #   ansible.builtin.slurp:
+            #     path: /etc/docker-registry/config.yml
+            #   register: registry_config
+            # - debug: var=registry_config
+
+            # - name: Read yaml to dictionary
+            #   ansible.builtin.set_fact:
+            #     mydata: "{{ registry_config['content'] | b64decode | from_yaml }}"
+            # - debug: var=mydata
+
+            # - name: Patch yaml dictionary
+            #   ansible.builtin.set_fact:
+            #     mydata: "{{ mydata | combine(newdata, recursive=True) }}"
+            #   vars: 
+            #     newdata:
+            #       storage:
+            #         delete:
+            #           enabled: true
+
+            # - name: Write yaml file
+            #   ansible.builtin.copy:
+            #     content: '{{ mydata | to_nice_yaml }}'
+            #     dest: /etc/docker-registry/config.yml
+
+            - name: Enable docker-registry delete
+              ansible.builtin.replace:
+                path: /etc/docker-registry/config.yml
+                regexp: '(^storage:.|\n*?  delete:\n    enabled: ).*(\n)'
+                replace: '\g<1>true\g<2>'
+
+            - name: Disable docker-registry auth
+              ansible.builtin.replace:
+                path: /etc/docker-registry/config.yml
+                regexp: '^auth:\n  htpasswd:\n    realm: basic-realm\n    path: /etc/docker-registry'
+                replace: '#auth:\n#  htpasswd:\n#    realm: basic-realm\n#    path: /etc/docker-registry'
+
+            - name: Disable docker-registry debug-port
+              ansible.builtin.replace:
+                path: /etc/docker-registry/config.yml
+                regexp: '^  debug:\n    addr: localhost:5001\n'
+                replace: '  #debug:\n  #  addr: localhost:5001\n'
+
+            # - name: Bind reduce the delay timeout for UDP connections
+            #   ansible.posix.sysctl:
+            #     name: "{{ item.key }}"
+            #     value: "{{ item.value }}"
+            #     state: present
+            #     reload: true
+            #     sysctl_set: true
+            #   loop:
+            #     - key: net.netfilter.nf_conntrack_udp_timeout
+            #       value: 10
+            - name: Add modules to autostart
+              ansible.builtin.blockinfile:
+                path: /etc/modules-load.d/bind.conf
+                block: |
+                  nf_conntrack
+                create: true
+                mode: 0755
+
+            - name: Enable br_netfilter
+              community.general.modprobe:
+                name: "{{ item }}"
+                state: present
+              loop:
+                - nf_conntrack
+
+            - name: Enable bind sysctl values
+              ansible.posix.sysctl:
+                name: "{{ item.key }}"
+                value: "{{ item.value }}"
+                state: present
+                reload: true
+                sysctl_set: true
+                sysctl_file: /etc/sysctl.d/bind.conf
+              loop:
+                # - key: net.ipv4.ip_forward
+                #   value: 1
+                # - key: net.ipv6.conf.default.forwarding
+                #   value: 1
+                - key: net.netfilter.nf_conntrack_udp_timeout
+                  value: 10
+          when: k8s.cluster_os == 'Ubuntu'
+
+        - name: Ensure docker-registry haproxy and ufw are enabled
+          ansible.builtin.service:
+            name: "{{ item }}"
+            enabled: true
+            state: stopped
+          loop:
+            - docker
+            - docker-registry
+            - haproxy
+            # - ufw
+
+        # - name: Firewall settings for Ubuntu
+        #   block:
+        #     - name: Stop NetworkManager
+        #       ansible.builtin.service:
+        #         name: NetworkManager
+        #         state: stopped
+
+        #     - name: Adding interface to firewall internal zone
+        #       ansible.posix.firewalld:
+        #         zone: internal
+        #         interface: "ens3"
+        #         permanent: true
+        #         state: enabled
+
+        #     - name: Start NetworkManager
+        #       ansible.builtin.service:
+        #         name: NetworkManager
+        #         state: started
+        #         enabled: true
+        #   when: k8s.cluster_os == 'Ubuntu'
+
+        - name: Firewall settings for CentOS
+          block:
+            - name: Adding interface to internal zone
+              ansible.builtin.command: nmcli con mod "System eth0" connection.zone internal
+
+            - name: Refreshing interface
+              ansible.builtin.shell: nmcli con down "System eth0"; nmcli con up "System eth0"
+
+            - name: Restart NetworkManager
+              ansible.builtin.service:
+                name: NetworkManager
+                state: restarted
+          when: k8s.cluster_os == 'CentOS'
+
+        # https://github.com/chaifeng/ufw-docker#solving-ufw-and-docker-issues
+        # might have to do something here eventually
+
+        - name: ufw default deny incoming
+          community.general.ufw:
+            default: deny
+            direction: incoming
+        
+        - name: ufw default allow outgoing
+          community.general.ufw:
+            default: allow
+            direction: outgoing
+
+        - name: ufw limit SSH
+          community.general.ufw:
+            rule: limit
+            name: SSH
+            # port: ssh
+            # proto: tcp
+
+        - name: ufw allow DNS
+          community.general.ufw:
+            rule: allow
+            name: DNS
+            # proto: udp
+
+        - name: ufw allow bootps (DHCP)
+          community.general.ufw:
+            rule: allow
+            port: bootps
+            # proto: udp
+
+        - name: ufw allow 546/udp
+          community.general.ufw:
+            rule: allow
+            port: dhcpv6-client
+            # port: 546
+            # proto: udp
+
+        - name: ufw allow 547/udp
+          community.general.ufw:
+            rule: allow
+            port: dhcpv6-server
+            # port: 547
+            # proto: udp
+          
+        - name: ufw allow 5000/tcp
+          community.general.ufw:
+            rule: allow
+            port: "{{ item }}"
+            proto: tcp
+          loop: "{{ range(5000, 5008, 1) | list }}"
+
+        - name: Allow ports for internal zone
+          community.general.ufw:
+            rule: allow
+            port: "{{ item.port }}"
+            proto: "{{ item.proto }}"
+          loop: "{{ internal_zone_port }}"
+
+        - name: ufw enable
+          community.general.ufw:
+            state: enabled
+
+        - name: Reload ufw service
+          ansible.builtin.service:
+            name: ufw
+            state: restarted
+            enabled: true
+
+        - name: Enabling selinux boolean for haproxy
+          ansible.posix.seboolean:
+            name: haproxy_connect_any
+            state: true
+            persistent: true
+          when: k8s.cluster_os == 'CentOS'
+
+        - name: Firing haproxy template
+          ansible.builtin.template:
+            src: templates/haproxy.j2
+            dest: /etc/haproxy/haproxy.cfg
+            mode: 0755
+
+        - name: Reload haproxy service
+          ansible.builtin.service:
+            name: haproxy
+            state: restarted
+            enabled: true
+
+        - name: Reload docker-registry service
+          ansible.builtin.service:
+            name: docker-registry
+            state: restarted
+            enabled: true
+
+        - name: Reload docker service
+          ansible.builtin.service:
+            name: docker
+            state: restarted
+            enabled: true  
+
+        - name: Copy docker configuration in /etc/docker
+          ansible.builtin.copy:
+            src: files/create-container-registry-proxies.sh
+            dest: ./create-container-registry-proxies.sh
+            mode: 0744
+
+        - name: Kustomize build cert-manager-istio-csr manifests.
+          ansible.builtin.shell:
+            cmd: |
+              docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
+              ./create-container-registry-proxies.sh
+          register: myoutput
+        - debug: var=myoutput
+
+        - name: Reboot loadbalancer
+          ansible.builtin.reboot:
+      when: k8s.control_plane.vms > 1 or (k8s.worker_nodes.vms > 1 and ingress_controller.install_ingress_controller)

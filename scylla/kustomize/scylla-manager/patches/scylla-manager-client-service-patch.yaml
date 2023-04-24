@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: scylla-manager-client
+  namespace: scylla-manager
+spec:
+  ports:
+  - port: 9180
+    protocol: TCP
+    appProtocol: http
+  - port: 5090
+    protocol: TCP
+    appProtocol: http

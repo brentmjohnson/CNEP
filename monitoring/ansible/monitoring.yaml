@@ -1,0 +1,81 @@
+---
+- name: Apply monitoring manifests
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Sync my-kube-prometheus manifests
+      local_action: 
+        module: ansible.posix.synchronize
+        src: "{{ playbook_dir }}/../my-kube-prometheus/manifests/"
+        dest: "{{ playbook_dir }}/../kustomize/monitoring/base/"
+
+    - name: Add resources to monitoring kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/monitoring/"
+
+    - name: Create kube-etcd-client-certs secret.
+      ansible.builtin.shell:
+        cmd: |
+          kubectl create secret generic kube-etcd-client-certs -n monitoring \
+          --from-file=etcd-client-ca.crt={{ playbook_dir }}/../../cluster/etcd/ca.crt \
+          --from-file=etcd-client.crt={{ playbook_dir }}/../../cluster/etcd/apiserver-etcd-client.crt \
+          --from-file=etcd-client.key={{ playbook_dir }}/../../cluster/etcd/apiserver-etcd-client.key \
+          -o yaml --dry-run
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Copy kube-etcd-client-certs secret to kustomize patches.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/monitoring/patches/kube-etcd-client-certs-secret-patch.yaml"
+        mode: "0644"
+
+    - name: Kustomize build monitoring manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/monitoring/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy monitoring resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/monitoring/resources/resources.yaml"
+        mode: "0644"
+
+    # # doesnt work because of this:
+    # # enum:
+    # # - '!='
+    # # - =     <---
+    # # - =~
+    # # - '!~'
+    # # - name: Apply monitoring-setup manifests to the cluster
+    # #   kubernetes.core.k8s:
+    # #     state: present
+    # #     src: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+    # #     kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+    # #     apply: yes
+    # #     server_side_apply:
+    # #       field_manager: ansible
+    # #     wait: true
+
+    - name: kubectl apply monitoring-setup 
+      ansible.builtin.shell:
+        cmd: "kubectl apply --server-side -f {{ playbook_dir }}/../kustomize/monitoring/resources/resources.yaml"
+
+    - name: Apply calico felix ServiceMonitor manifests to the cluster.
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../../cluster/monitoring/calico-felix-metrics-serviceMonitor.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        wait: true
+
+    - name: Apply calico typha ServiceMonitor manifests to the cluster.
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../../cluster/monitoring/calico-typha-metrics-serviceMonitor.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        wait: true

@@ -1,0 +1,17 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: apisix-peerauthentication
+  namespace: ingress-apisix
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/name: apisix
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    "80":
+      mode: PERMISSIVE
+    "443":
+      mode: PERMISSIVE

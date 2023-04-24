@@ -1,0 +1,14 @@
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterOutput
+metadata:
+  name: fluentd
+  namespace: fluent
+  labels:
+    fluentbit.fluent.io/enabled: "true"
+    fluentbit.fluent.io/component: logging
+spec:
+  matchRegex: (?:kube|service)\.(.*)
+  forward:
+    # host: daemonset-collector.opentelemetry-operator-system.svc.cluster.local
+    host: ${HOST_IP}
+    port: 8006

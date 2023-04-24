@@ -1,0 +1,132 @@
+Release "kubitus-pod-cleaner-operator" does not exist. Installing it now.
+NAME: kubitus-pod-cleaner-operator
+LAST DEPLOYED: Wed Sep 14 08:02:03 2022
+NAMESPACE: istio-operator
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+image:
+  repository: k8s-lb:5000/kubitus-project/kubitus-pod-cleaner-operator
+  tag: v1.0.3.1
+
+COMPUTED VALUES:
+affinity: {}
+fullnameOverride: ""
+image:
+  pullPolicy: IfNotPresent
+  repository: k8s-lb:5000/kubitus-project/kubitus-pod-cleaner-operator
+  tag: v1.0.3.1
+imagePullSecrets: []
+nameOverride: ""
+nodeSelector: {}
+podAnnotations: {}
+podSecurityContext: {}
+rbac:
+  create: true
+resources: {}
+securityContext: {}
+serviceAccount:
+  annotations: {}
+  create: true
+  name: ""
+tolerations: []
+
+HOOKS:
+MANIFEST:
+---
+# Source: kubitus-pod-cleaner-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubitus-pod-cleaner-operator
+  labels:
+    helm.sh/chart: kubitus-pod-cleaner-operator-v1.0.3
+    app.kubernetes.io/name: kubitus-pod-cleaner-operator
+    app.kubernetes.io/instance: kubitus-pod-cleaner-operator
+    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kubitus-pod-cleaner-operator/templates/clusterrole.yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubitus-pod-cleaner-operator
+  labels:
+    helm.sh/chart: kubitus-pod-cleaner-operator-v1.0.3
+    app.kubernetes.io/name: kubitus-pod-cleaner-operator
+    app.kubernetes.io/instance: kubitus-pod-cleaner-operator
+    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["watch", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create]
+---
+# Source: kubitus-pod-cleaner-operator/templates/clusterrolebinding.yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubitus-pod-cleaner-operator
+  labels:
+    helm.sh/chart: kubitus-pod-cleaner-operator-v1.0.3
+    app.kubernetes.io/name: kubitus-pod-cleaner-operator
+    app.kubernetes.io/instance: kubitus-pod-cleaner-operator
+    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubitus-pod-cleaner-operator
+subjects:
+- kind: ServiceAccount
+  name: kubitus-pod-cleaner-operator
+  namespace: istio-operator
+---
+# Source: kubitus-pod-cleaner-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubitus-pod-cleaner-operator
+  labels:
+    helm.sh/chart: kubitus-pod-cleaner-operator-v1.0.3
+    app.kubernetes.io/name: kubitus-pod-cleaner-operator
+    app.kubernetes.io/instance: kubitus-pod-cleaner-operator
+    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubitus-pod-cleaner-operator
+      app.kubernetes.io/instance: kubitus-pod-cleaner-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubitus-pod-cleaner-operator
+        app.kubernetes.io/instance: kubitus-pod-cleaner-operator
+    spec:
+      serviceAccountName: kubitus-pod-cleaner-operator
+      securityContext:
+        {}
+      containers:
+        - name: kubitus-pod-cleaner-operator
+          securityContext:
+            {}
+          image: "k8s-lb:5000/kubitus-project/kubitus-pod-cleaner-operator:v1.0.3.1"
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          resources:
+            {}
+

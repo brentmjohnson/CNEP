@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: k8s
+  namespace: monitoring
+spec:
+  podMonitorSelector:
+    matchLabels:
+      app: strimzi
+  enableAdminAPI: false
+  ruleSelector:
+    matchLabels:
+      role: alert-rules
+      app: strimzi
+  additionalScrapeConfigs:
+    name: additional-scrape-configs
+    key: prometheus-additional.yaml

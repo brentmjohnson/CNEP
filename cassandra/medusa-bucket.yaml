@@ -1,0 +1,8 @@
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: k8ssandra-medusa-bucket
+  namespace: k8ssandra-operator
+spec:
+  generateBucketName: k8ssandra-medusa-bucket
+  storageClassName: ceph-bucket

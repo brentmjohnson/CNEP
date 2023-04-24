@@ -1,0 +1,15 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: opensearch-peer-authentication
+  namespace: opensearch
+spec:
+  selector:
+    matchLabels:
+      opster.io/opensearch-cluster: opensearch
+  mtls:
+    mode: UNSET
+  portLevelMtls:
+    9200:
+      # mode: PERMISSIVE
+      mode: DISABLE

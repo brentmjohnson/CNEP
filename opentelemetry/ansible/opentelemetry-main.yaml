@@ -1,0 +1,2 @@
+- import_playbook: ./opentelemetry-setup.yaml
+- import_playbook: ./opentelemetry.yaml

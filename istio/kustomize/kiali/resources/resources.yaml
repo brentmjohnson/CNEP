@@ -1,0 +1,66 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: kiali-route
+  namespace: istio-system
+spec:
+  http:
+  - backends:
+    - serviceName: kiali
+      servicePort: 20001
+    match:
+      hosts:
+      - internal.example.com
+      paths:
+      - /kiali/*
+    name: rule1
+    plugins:
+    - config:
+        include_in_response: true
+      enable: true
+      name: request-id
+    - config:
+        prefer_name: true
+      enable: true
+      name: prometheus
+    - config:
+        host: kiali.istio-system.svc.cluster.local
+      enable: true
+      name: proxy-rewrite
+---
+apiVersion: kiali.io/v1alpha1
+kind: Kiali
+metadata:
+  name: kiali
+  namespace: istio-system
+spec:
+  auth:
+    strategy: anonymous
+  deployment:
+    accessible_namespaces:
+    - '**'
+    pod_annotations:
+      prometheus.io/port: "15020"
+    pod_labels:
+      sidecar.istio.io/inject: "true"
+    view_only_mode: false
+  external_services:
+    grafana:
+      auth:
+        password: <password>
+        type: basic
+        username: <user>
+      enabled: true
+      in_cluster_url: http://grafana.monitoring.svc.cluster.local:3000/
+      url: http://internal.example.com/grafana/
+    prometheus:
+      url: http://prometheus-k8s.monitoring.svc.cluster.local:9090/
+    tracing:
+      enabled: true
+      in_cluster_url: http://jaeger-query.observability.svc.cluster.local:16685/
+      url: http://internal.example.com/jaeger
+      use_grpc: true
+  installation_tag: Kiali
+  istio_namespace: istio-system
+  server:
+    web_root: /kiali

@@ -1,0 +1,67 @@
+# Example answer file for setup-alpine script
+# If you don't want to use a certain option, then comment it out
+
+# Use US layout with US variant
+KEYMAPOPTS="us us"
+
+# Set hostname to 'alpine'
+HOSTNAMEOPTS=k8s-control-0
+
+# Set device manager to mdev
+DEVDOPTS=mdev
+
+# Contents of /etc/network/interfaces
+INTERFACESOPTS="auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address 10.0.0.3
+    netmask 255.255.255.0
+    gateway 10.0.0.1
+iface eth0 inet6 static
+    address fd11::10:0:0:3
+    netmask 120
+    gateway fd11::10:0:0:1
+    pre-up echo 0 > /proc/sys/net/ipv6/conf/eth0/accept_ra
+"
+
+# Search domain of example.com, Google public nameserver
+DNSOPTS="<host> <host> <host> <host>"
+
+# Set timezone to UTC
+TIMEZONEOPTS="UTC"
+
+# set http/ftp proxy
+PROXYOPTS=none
+
+# Add first mirror (CDN)
+APKREPOSOPTS="-1"
+
+# Create admin user
+USEROPTS="-a -u -g audio,video,netdev <user>"
+#USERSSHKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOIiHcbg/7ytfLFHUNLRgEAubFz/13SwXBOM/05GNZe4 juser@example.com"
+#USERSSHKEY="https://example.com/juser.keys"
+USERSSHKEY="ssh-rsa <secret>"
+
+# Install Openssh
+SSHDOPTS=openssh
+#ROOTSSHKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOIiHcbg/7ytfLFHUNLRgEAubFz/13SwXBOM/05GNZe4 juser@example.com"
+#ROOTSSHKEY="https://example.com/juser.keys"
+ROOTSSHKEY="ssh-rsa <secret>"
+
+# Use openntpd
+# NTPOPTS="openntpd"
+NTPOPTS=chrony
+
+# Use /dev/sda as a sys disk
+# DISKOPTS="-m sys /dev/sda"
+DISKOPTS="-m sys -L -s 16384 /dev/sda"
+
+# Setup storage with label APKOVL for config storage
+#LBUOPTS="LABEL=APKOVL"
+LBUOPTS=none
+
+#APKCACHEOPTS="/media/LABEL=APKOVL/cache"
+APKCACHEOPTS=none
+

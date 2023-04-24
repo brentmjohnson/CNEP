@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: alert-router
+    app.kubernetes.io/instance: main
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 0.25.0
+  name: alertmanager-main
+  namespace: monitoring
+spec:
+  endpoints:
+  - interval: 30s
+    port: web
+    scheme: http
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  - interval: 30s
+    port: reloader-web
+    scheme: https
+    tlsConfig:
+      caFile: /etc/prom-certs/root-cert.pem
+      certFile: /etc/prom-certs/cert-chain.pem
+      insecureSkipVerify: true
+      keyFile: /etc/prom-certs/key.pem
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: alert-router
+      app.kubernetes.io/instance: main
+      app.kubernetes.io/name: alertmanager
+      app.kubernetes.io/part-of: kube-prometheus

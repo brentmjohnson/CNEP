@@ -1,0 +1,58 @@
+---
+# Source: postgres-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.9.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: postgres-operator
+  name: postgres-operator
+  namespace: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-operator
+      app.kubernetes.io/instance: postgres-operator
+  template:
+    metadata:
+      annotations:
+        checksum/config: ff8a0bd3ad20a3588d1993898243aa383d7c4879c0af58f29026c4b946739fbd
+      labels:
+        app.kubernetes.io/name: postgres-operator
+        app.kubernetes.io/instance: postgres-operator
+    spec:
+      serviceAccountName: postgres-operator
+      containers:
+      - name: postgres-operator
+        image: "registry.opensource.zalan.do/acid/postgres-operator:v1.9.0"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: POSTGRES_OPERATOR_CONFIGURATION_OBJECT
+          value: postgres-operator
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 100m
+            memory: 250Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      affinity:
+        {}
+      nodeSelector:
+        {}
+      tolerations:
+        []

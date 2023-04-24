@@ -1,0 +1,514 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 9.3.2
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: grafana
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/part-of: kube-prometheus
+  template:
+    metadata:
+      annotations:
+        checksum/grafana-config: 239964a4e389fcecbbd6f4319bc258c0
+        checksum/grafana-dashboardproviders: dcd18e1ec35a2edf2af9aebe0a0a1e69
+        checksum/grafana-datasources: 9dae29c14a5ee19895f1d077fb7c2bb3
+      labels:
+        app: grafana
+        app.kubernetes.io/component: grafana
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/part-of: kube-prometheus
+        app.kubernetes.io/version: 9.3.2
+        version: 8.5.5
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - env: []
+        image: grafana/grafana:9.3.2
+        name: grafana
+        ports:
+        - containerPort: 3000
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+        resources:
+          limits:
+            cpu: 800m
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /var/lib/grafana
+          name: grafana-storage
+          readOnly: false
+        - mountPath: /etc/grafana/provisioning/datasources
+          name: grafana-datasources
+          readOnly: false
+        - mountPath: /etc/grafana/provisioning/dashboards
+          name: grafana-dashboards
+          readOnly: false
+        - mountPath: /tmp
+          name: tmp-plugins
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/alertmanager-overview
+          name: grafana-dashboard-alertmanager-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/apiserver
+          name: grafana-dashboard-apiserver
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/cluster-total
+          name: grafana-dashboard-cluster-total
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/controller-manager
+          name: grafana-dashboard-controller-manager
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/grafana-overview
+          name: grafana-dashboard-grafana-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/k8s-resources-cluster
+          name: grafana-dashboard-k8s-resources-cluster
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/k8s-resources-namespace
+          name: grafana-dashboard-k8s-resources-namespace
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/k8s-resources-node
+          name: grafana-dashboard-k8s-resources-node
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/k8s-resources-pod
+          name: grafana-dashboard-k8s-resources-pod
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/k8s-resources-workload
+          name: grafana-dashboard-k8s-resources-workload
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/k8s-resources-workloads-namespace
+          name: grafana-dashboard-k8s-resources-workloads-namespace
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/kubelet
+          name: grafana-dashboard-kubelet
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/namespace-by-pod
+          name: grafana-dashboard-namespace-by-pod
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/namespace-by-workload
+          name: grafana-dashboard-namespace-by-workload
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/node-cluster-rsrc-use
+          name: grafana-dashboard-node-cluster-rsrc-use
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/node-rsrc-use
+          name: grafana-dashboard-node-rsrc-use
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/nodes
+          name: grafana-dashboard-nodes
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/persistentvolumesusage
+          name: grafana-dashboard-persistentvolumesusage
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/pod-total
+          name: grafana-dashboard-pod-total
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/prometheus-remote-write
+          name: grafana-dashboard-prometheus-remote-write
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/prometheus
+          name: grafana-dashboard-prometheus
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/proxy
+          name: grafana-dashboard-proxy
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/scheduler
+          name: grafana-dashboard-scheduler
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/0/workload-total
+          name: grafana-dashboard-workload-total
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Apisix/apisix-grafana-dashboard
+          name: grafana-dashboard-apisix-grafana-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Apisix/apisix-ingress-controller-grafana
+          name: grafana-dashboard-apisix-ingress-controller-grafana
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Calico/felix-dashboard
+          name: grafana-dashboard-felix-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Calico/typha-dashboard
+          name: grafana-dashboard-typha-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Cassandra/cassandra-condensed
+          name: grafana-dashboard-cassandra-condensed
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Cassandra/overview
+          name: grafana-dashboard-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Cassandra/stargate
+          name: grafana-dashboard-stargate
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Cassandra/system-metrics
+          name: grafana-dashboard-system-metrics
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/cephfs-overview
+          name: grafana-dashboard-cephfs-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/host-details
+          name: grafana-dashboard-host-details
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/hosts-overview
+          name: grafana-dashboard-hosts-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/osd-device-details
+          name: grafana-dashboard-osd-device-details
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/osds-overview
+          name: grafana-dashboard-osds-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/pool-detail
+          name: grafana-dashboard-pool-detail
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/pool-overview
+          name: grafana-dashboard-pool-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/radosgw-detail
+          name: grafana-dashboard-radosgw-detail
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/radosgw-overview
+          name: grafana-dashboard-radosgw-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/radosgw-sync-overview
+          name: grafana-dashboard-radosgw-sync-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/rbd-details
+          name: grafana-dashboard-rbd-details
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Ceph/rbd-overview
+          name: grafana-dashboard-rbd-overview
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/CertManager/cert-manager
+          name: grafana-dashboard-cert-manager
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/EtcDash/etcd
+          name: grafana-dashboard-etcd
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Istio/istio-extension-dashboard
+          name: grafana-dashboard-istio-extension-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Istio/istio-mesh-dashboard
+          name: grafana-dashboard-istio-mesh-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Istio/istio-performance-dashboard
+          name: grafana-dashboard-istio-performance-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Istio/istio-service-dashboard
+          name: grafana-dashboard-istio-service-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Istio/istio-workload-dashboard
+          name: grafana-dashboard-istio-workload-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Istio/pilot-dashboard
+          name: grafana-dashboard-pilot-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/JaegerDash/jaeger
+          name: grafana-dashboard-jaeger
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Opensearch/elasticsearch-exporter
+          name: grafana-dashboard-elasticsearch-exporter
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Redpanda/kafka-consumer-metrics
+          name: grafana-dashboard-kafka-consumer-metrics
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Redpanda/kafka-consumer-offsets
+          name: grafana-dashboard-kafka-consumer-offsets
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Redpanda/kafka-topic-metrics
+          name: grafana-dashboard-kafka-topic-metrics
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Redpanda/redpanda-default-dashboard
+          name: grafana-dashboard-redpanda-default-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Redpanda/redpanda-metrics-dashboard
+          name: grafana-dashboard-redpanda-metrics-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Redpanda/redpanda-ops-dashboard
+          name: grafana-dashboard-redpanda-ops-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Redpanda/redpanda-public-metrics-dashboard
+          name: grafana-dashboard-redpanda-public-metrics-dashboard
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/alternator-5-1
+          name: grafana-dashboard-alternator-5-1
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/scylla-advanced-5-1
+          name: grafana-dashboard-scylla-advanced-5-1
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/scylla-cql-5-1
+          name: grafana-dashboard-scylla-cql-5-1
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/scylla-cql-overview-5-1
+          name: grafana-dashboard-scylla-cql-overview-5-1
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/scylla-detailed-5-1
+          name: grafana-dashboard-scylla-detailed-5-1
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/scylla-ks-5-1
+          name: grafana-dashboard-scylla-ks-5-1
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/scylla-manager-3-0
+          name: grafana-dashboard-scylla-manager-3-0
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/scylla-os-5-1
+          name: grafana-dashboard-scylla-os-5-1
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/Scylla/scylla-overview-5-1
+          name: grafana-dashboard-scylla-overview-5-1
+          readOnly: false
+        - mountPath: /etc/grafana
+          name: grafana-config
+          readOnly: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      serviceAccountName: grafana
+      volumes:
+      - emptyDir: {}
+        name: grafana-storage
+      - name: grafana-datasources
+        secret:
+          secretName: grafana-datasources
+      - configMap:
+          name: grafana-dashboards
+        name: grafana-dashboards
+      - emptyDir:
+          medium: Memory
+        name: tmp-plugins
+      - configMap:
+          name: grafana-dashboard-alertmanager-overview
+        name: grafana-dashboard-alertmanager-overview
+      - configMap:
+          name: grafana-dashboard-apiserver
+        name: grafana-dashboard-apiserver
+      - configMap:
+          name: grafana-dashboard-cluster-total
+        name: grafana-dashboard-cluster-total
+      - configMap:
+          name: grafana-dashboard-controller-manager
+        name: grafana-dashboard-controller-manager
+      - configMap:
+          name: grafana-dashboard-grafana-overview
+        name: grafana-dashboard-grafana-overview
+      - configMap:
+          name: grafana-dashboard-k8s-resources-cluster
+        name: grafana-dashboard-k8s-resources-cluster
+      - configMap:
+          name: grafana-dashboard-k8s-resources-namespace
+        name: grafana-dashboard-k8s-resources-namespace
+      - configMap:
+          name: grafana-dashboard-k8s-resources-node
+        name: grafana-dashboard-k8s-resources-node
+      - configMap:
+          name: grafana-dashboard-k8s-resources-pod
+        name: grafana-dashboard-k8s-resources-pod
+      - configMap:
+          name: grafana-dashboard-k8s-resources-workload
+        name: grafana-dashboard-k8s-resources-workload
+      - configMap:
+          name: grafana-dashboard-k8s-resources-workloads-namespace
+        name: grafana-dashboard-k8s-resources-workloads-namespace
+      - configMap:
+          name: grafana-dashboard-kubelet
+        name: grafana-dashboard-kubelet
+      - configMap:
+          name: grafana-dashboard-namespace-by-pod
+        name: grafana-dashboard-namespace-by-pod
+      - configMap:
+          name: grafana-dashboard-namespace-by-workload
+        name: grafana-dashboard-namespace-by-workload
+      - configMap:
+          name: grafana-dashboard-node-cluster-rsrc-use
+        name: grafana-dashboard-node-cluster-rsrc-use
+      - configMap:
+          name: grafana-dashboard-node-rsrc-use
+        name: grafana-dashboard-node-rsrc-use
+      - configMap:
+          name: grafana-dashboard-nodes
+        name: grafana-dashboard-nodes
+      - configMap:
+          name: grafana-dashboard-persistentvolumesusage
+        name: grafana-dashboard-persistentvolumesusage
+      - configMap:
+          name: grafana-dashboard-pod-total
+        name: grafana-dashboard-pod-total
+      - configMap:
+          name: grafana-dashboard-prometheus-remote-write
+        name: grafana-dashboard-prometheus-remote-write
+      - configMap:
+          name: grafana-dashboard-prometheus
+        name: grafana-dashboard-prometheus
+      - configMap:
+          name: grafana-dashboard-proxy
+        name: grafana-dashboard-proxy
+      - configMap:
+          name: grafana-dashboard-scheduler
+        name: grafana-dashboard-scheduler
+      - configMap:
+          name: grafana-dashboard-workload-total
+        name: grafana-dashboard-workload-total
+      - configMap:
+          name: grafana-dashboard-apisix-grafana-dashboard
+        name: grafana-dashboard-apisix-grafana-dashboard
+      - configMap:
+          name: grafana-dashboard-apisix-ingress-controller-grafana
+        name: grafana-dashboard-apisix-ingress-controller-grafana
+      - configMap:
+          name: grafana-dashboard-felix-dashboard
+        name: grafana-dashboard-felix-dashboard
+      - configMap:
+          name: grafana-dashboard-typha-dashboard
+        name: grafana-dashboard-typha-dashboard
+      - configMap:
+          name: grafana-dashboard-cassandra-condensed
+        name: grafana-dashboard-cassandra-condensed
+      - configMap:
+          name: grafana-dashboard-overview
+        name: grafana-dashboard-overview
+      - configMap:
+          name: grafana-dashboard-stargate
+        name: grafana-dashboard-stargate
+      - configMap:
+          name: grafana-dashboard-system-metrics
+        name: grafana-dashboard-system-metrics
+      - configMap:
+          name: grafana-dashboard-cephfs-overview
+        name: grafana-dashboard-cephfs-overview
+      - configMap:
+          name: grafana-dashboard-host-details
+        name: grafana-dashboard-host-details
+      - configMap:
+          name: grafana-dashboard-hosts-overview
+        name: grafana-dashboard-hosts-overview
+      - configMap:
+          name: grafana-dashboard-osd-device-details
+        name: grafana-dashboard-osd-device-details
+      - configMap:
+          name: grafana-dashboard-osds-overview
+        name: grafana-dashboard-osds-overview
+      - configMap:
+          name: grafana-dashboard-pool-detail
+        name: grafana-dashboard-pool-detail
+      - configMap:
+          name: grafana-dashboard-pool-overview
+        name: grafana-dashboard-pool-overview
+      - configMap:
+          name: grafana-dashboard-radosgw-detail
+        name: grafana-dashboard-radosgw-detail
+      - configMap:
+          name: grafana-dashboard-radosgw-overview
+        name: grafana-dashboard-radosgw-overview
+      - configMap:
+          name: grafana-dashboard-radosgw-sync-overview
+        name: grafana-dashboard-radosgw-sync-overview
+      - configMap:
+          name: grafana-dashboard-rbd-details
+        name: grafana-dashboard-rbd-details
+      - configMap:
+          name: grafana-dashboard-rbd-overview
+        name: grafana-dashboard-rbd-overview
+      - configMap:
+          name: grafana-dashboard-cert-manager
+        name: grafana-dashboard-cert-manager
+      - configMap:
+          name: grafana-dashboard-etcd
+        name: grafana-dashboard-etcd
+      - configMap:
+          name: grafana-dashboard-istio-extension-dashboard
+        name: grafana-dashboard-istio-extension-dashboard
+      - configMap:
+          name: grafana-dashboard-istio-mesh-dashboard
+        name: grafana-dashboard-istio-mesh-dashboard
+      - configMap:
+          name: grafana-dashboard-istio-performance-dashboard
+        name: grafana-dashboard-istio-performance-dashboard
+      - configMap:
+          name: grafana-dashboard-istio-service-dashboard
+        name: grafana-dashboard-istio-service-dashboard
+      - configMap:
+          name: grafana-dashboard-istio-workload-dashboard
+        name: grafana-dashboard-istio-workload-dashboard
+      - configMap:
+          name: grafana-dashboard-pilot-dashboard
+        name: grafana-dashboard-pilot-dashboard
+      - configMap:
+          name: grafana-dashboard-jaeger
+        name: grafana-dashboard-jaeger
+      - configMap:
+          name: grafana-dashboard-elasticsearch-exporter
+        name: grafana-dashboard-elasticsearch-exporter
+      - configMap:
+          name: grafana-dashboard-kafka-consumer-metrics
+        name: grafana-dashboard-kafka-consumer-metrics
+      - configMap:
+          name: grafana-dashboard-kafka-consumer-offsets
+        name: grafana-dashboard-kafka-consumer-offsets
+      - configMap:
+          name: grafana-dashboard-kafka-topic-metrics
+        name: grafana-dashboard-kafka-topic-metrics
+      - configMap:
+          name: grafana-dashboard-redpanda-default-dashboard
+        name: grafana-dashboard-redpanda-default-dashboard
+      - configMap:
+          name: grafana-dashboard-redpanda-metrics-dashboard
+        name: grafana-dashboard-redpanda-metrics-dashboard
+      - configMap:
+          name: grafana-dashboard-redpanda-ops-dashboard
+        name: grafana-dashboard-redpanda-ops-dashboard
+      - configMap:
+          name: grafana-dashboard-redpanda-public-metrics-dashboard
+        name: grafana-dashboard-redpanda-public-metrics-dashboard
+      - configMap:
+          name: grafana-dashboard-alternator-5-1
+        name: grafana-dashboard-alternator-5-1
+      - configMap:
+          name: grafana-dashboard-scylla-advanced-5-1
+        name: grafana-dashboard-scylla-advanced-5-1
+      - configMap:
+          name: grafana-dashboard-scylla-cql-5-1
+        name: grafana-dashboard-scylla-cql-5-1
+      - configMap:
+          name: grafana-dashboard-scylla-cql-overview-5-1
+        name: grafana-dashboard-scylla-cql-overview-5-1
+      - configMap:
+          name: grafana-dashboard-scylla-detailed-5-1
+        name: grafana-dashboard-scylla-detailed-5-1
+      - configMap:
+          name: grafana-dashboard-scylla-ks-5-1
+        name: grafana-dashboard-scylla-ks-5-1
+      - configMap:
+          name: grafana-dashboard-scylla-manager-3-0
+        name: grafana-dashboard-scylla-manager-3-0
+      - configMap:
+          name: grafana-dashboard-scylla-os-5-1
+        name: grafana-dashboard-scylla-os-5-1
+      - configMap:
+          name: grafana-dashboard-scylla-overview-5-1
+        name: grafana-dashboard-scylla-overview-5-1
+      - name: grafana-config
+        secret:
+          secretName: grafana-config

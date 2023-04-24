@@ -1,0 +1,2 @@
+- import_playbook: rook-ceph.yaml
+- import_playbook: rook-ceph-cluster.yaml

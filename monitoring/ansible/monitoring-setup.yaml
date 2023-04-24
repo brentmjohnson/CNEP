@@ -1,0 +1,59 @@
+---
+- name: Apply network plugin
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    # - name: Build my-kube-promethus.
+    #   ansible.builtin.shell:
+    #     cmd: ./build.sh
+    #     chdir: "{{ playbook_dir }}/../my-kube-prometheus/"
+    #   args:
+    #     executable: /bin/bash
+      # register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Sync my-kube-prometheus setup manifests
+      local_action: 
+        module: ansible.posix.synchronize
+        src: "{{ playbook_dir }}/../my-kube-prometheus/manifests/setup/"
+        dest: "{{ playbook_dir }}/../kustomize/monitoring-setup/base/"
+
+    # - name: Add resources to monitoring-setup kustomization file
+    #   ansible.builtin.shell:
+    #     cmd: kustomize edit add resource ./base/*.yaml
+    #     chdir: "{{ playbook_dir }}/../kustomize/"
+
+    - name: Kustomize build monitoring-setup manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/monitoring-setup/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy monitoring-setup resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/monitoring-setup/resources/resources.yaml"
+        mode: "0644"
+
+    # doesnt work because of this:
+    # enum:
+    # - '!='
+    # - =     <---
+    # - =~
+    # - '!~'
+    # - name: Apply monitoring-setup manifests to the cluster
+    #   kubernetes.core.k8s:
+    #     state: present
+    #     src: "{{ playbook_dir }}/../kustomize/resources/resources.yaml"
+    #     kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+    #     apply: yes
+    #     server_side_apply:
+    #       field_manager: ansible
+    #     wait: true
+
+    - name: kubectl apply monitoring-setup 
+      ansible.builtin.shell:
+        cmd: "kubectl apply --server-side -f {{ playbook_dir }}/../kustomize/monitoring-setup/resources/resources.yaml"

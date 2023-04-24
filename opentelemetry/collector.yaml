@@ -1,0 +1,130 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  namespace: opentelemetry-operator-system
+  name: daemonset 
+  labels:
+    app: opentelemetry-collector
+    version: "0.69.0"
+spec:
+  mode: daemonset
+  hostNetwork: true
+  image: otel/opentelemetry-collector-contrib:0.69.0
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      effect: NoSchedule
+    - key: node-role.kubernetes.io/control-plane
+      effect: NoSchedule
+  podAnnotations:
+    traffic.sidecar.istio.io/includeInboundPorts: ""   # do not intercept any inbound ports
+    traffic.sidecar.istio.io/includeOutboundIPRanges: ""  # do not intercept any outbound traffic
+    proxy.istio.io/config: |  # configure an env variable `OUTPUT_CERTS` to write certificates to the given folder
+      proxyMetadata:
+        OUTPUT_CERTS: /etc/istio-output-certs
+    sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]' # mount the shared volume at sidecar proxy
+  config: |
+    receivers:
+      jaeger:
+        protocols:
+          thrift_http:
+            endpoint: "0.0.0.0:14278"
+
+      # Dummy receiver that's never used, because a pipeline is required to have one.
+      otlp/spanmetrics:
+        protocols:
+          grpc:
+            endpoint: "localhost:65535"
+
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+            # default limit is 1024 * 1024 * 4 = 4194304
+            max_recv_msg_size_mib: 1024
+          http:
+            endpoint: 0.0.0.0:4318
+
+      zipkin:
+        endpoint: "0.0.0.0:9411"
+
+      fluentforward:
+        endpoint: 0.0.0.0:8006
+
+    exporters:
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+
+      jaeger:
+        endpoint: "jaeger-collector.observability.svc.cluster.local:14250"
+        tls:
+          insecure: true
+
+      logging:
+        loglevel: debug
+
+      loki:
+        endpoint: "http://loki-loki-distributed-distributor.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        tenant_id: ""
+        labels:
+          resource:
+            log_name: "log_name"
+            zone_name: "zone_name"
+            cluster_name: "cluster_name"
+            node_name: "node_name"
+          attributes:
+            log_name: "log_name"
+            cluster_name: "cluster_name"
+            zone_name: "zone_name"
+            node_name: "node_name"
+            namespace_name: "namespace_name"
+            pod_name: "pod_name"
+            container_name: "container_name"
+            # start_time: "start_time"
+            # method: "method"
+            # path: "path"
+            # protocol: "protocol"
+            # response_code: "response_code"
+            # response_flags: "response_flags"
+            # response_code_details: "response_code_details"
+            # connection_termination_details: "connection_termination_details"
+            # upstream_transport_failure_reason: "upstream_transport_failure_reason"
+            # bytes_received: "bytes_received"
+            # bytes_sent: "bytes_sent"
+            # duration: "duration"
+            # upstream_service_time: "upstream_service_time"
+            # x_forwarded_for: "x_forwarded_for"
+            # user_agent: "user_agent"
+            # request_id: "request_id"
+            # authority: "authority"
+            # upstream_host: "upstream_host"
+            # upstream_cluster: "upstream_cluster"
+            # upstream_local_address: "upstream_local_address"
+            # downstream_local_address: "downstream_local_address"
+            # downstream_remote_address: "downstream_remote_address"
+            # requested_server_name: "requested_server_name"
+            # route_name: "route_name"
+            # traceid: "traceid"
+        format: "json"
+        # (default = 512 * 1024) or 4096
+        # write_buffer_size: 4194304
+
+    processors:
+      batch:
+      spanmetrics:
+        metrics_exporter: prometheus
+
+    service:
+      pipelines:
+        traces:
+          receivers: [jaeger, otlp, zipkin]
+          processors: [spanmetrics, batch]
+          exporters: [jaeger]
+        # The exporter name in this pipeline must match the spanmetrics.metrics_exporter name.
+        # The receiver is just a dummy and never used; added to pass validation requiring at least one receiver in a pipeline.
+        metrics/spanmetrics:
+          receivers: [otlp/spanmetrics]
+          exporters: [prometheus]
+        logs:
+          receivers: [otlp, fluentforward]
+          processors: [batch]
+          exporters: [loki]

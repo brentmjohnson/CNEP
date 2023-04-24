@@ -1,0 +1,18 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: kibana-kb-default
+  namespace: elastic
+  labels:
+    common.k8s.elastic.co/type: kibana
+    kibana.k8s.elastic.co/name: kibana
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 5601
+      targetPort: 5601
+  selector:
+    common.k8s.elastic.co/type: kibana
+    kibana.k8s.elastic.co/name: kibana
+  clusterIP: None

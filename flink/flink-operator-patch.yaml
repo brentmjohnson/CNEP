@@ -1,0 +1,35 @@
+operatorPod:
+  labels:
+    app: flink-kubernetes-operator
+    version: "1.0.1"
+operatorVolumes:
+  create: false
+  data:
+  - name: flink-artifacts
+    persistentVolumeClaim:
+      claimName: flink-artifacts
+podSecurityContext:
+  fsGroup: 9999
+# operatorConfiguration:
+#   create: true
+#   append: true
+#   flink-conf.yaml: |+
+#     metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+#     metrics.reporter.prom.port: 9999
+defaultConfiguration:
+  create: true
+  append: true
+  flink-conf.yaml: |+
+    kubernetes.operator.metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+    kubernetes.operator.metrics.reporter.prom.port: 9999
+flinkDefaultConfiguration:
+   create: true
+   append: true
+   flink-conf.yaml: |+
+    metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+    metrics.reporter.prom.port: 9999
+jvmArgs:
+  webhook: "-Xms256m -Xmx256m"
+  operator: "-Xms512m -Xmx512m"
+metrics:
+  port: 9999

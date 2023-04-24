@@ -1,0 +1,104 @@
+- name: Install postgres
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Kustomize build postgres-cluster manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/postgres-cluster/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy postgres-cluster resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/postgres-cluster/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply postgres-cluster manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/postgres-cluster/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    # - name: Wait for the postgres-cluster statefulset
+    #   kubernetes.core.k8s_info:
+    #     # this is wrong but somehow fixes a timing issue
+    #     kind: statefulset
+    #     wait: yes
+    #     name: postgres-cluster
+    #     namespace: postgres
+    #     wait_timeout: 600
+    #   register: myoutput
+
+    - name: Wait for postgres-cluster statefulset .status.replicas
+      ansible.builtin.shell: 
+        cmd: | 
+          while ! \
+            [ $(kubectl get -n postgres statefulset/postgres-cluster -o jsonpath='{.status.replicas}' \
+            --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig') -gt 0 ];
+          do sleep 1;
+          done;
+          kubectl get -n postgres statefulset/postgres-cluster -o jsonpath='{.status.replicas}' \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: postgres_cluster_replicas
+    # - debug: var=postgres_cluster_replicas
+    
+    - name: Wait for postgres-cluster statefulset readiness
+      ansible.builtin.shell: 
+        cmd: | 
+          kubectl wait -n postgres statefulset/postgres-cluster --timeout=300s --for jsonpath='{.status.readyReplicas}'={{ postgres_cluster_replicas.stdout }} \
+          --kubeconfig='{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig';
+      register: myoutput
+
+    - name: Get postgres user password
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: postgres.postgres-cluster.credentials.postgresql.acid.zalan.do
+        namespace: postgres
+      register: postgres_secret_data
+    # - debug: var=postgres_secret_data.resources[0].data.elastic
+
+    - ansible.builtin.set_fact:
+        postgres_superuser: "{{ {} |
+          combine(dict(secret_keys | zip(decoded_secret_values))) 
+          }}"
+      vars:
+        secret_keys: "{{ postgres_secret_data.resources[0].data.keys() | list }}"
+        secret_values: "{{ postgres_secret_data.resources[0].data.values() | list }}"
+        decoded_secret_values: "{{ secret_values | map('b64decode') | list }}"
+    # - debug: var=postgres_superuser
+
+    - name: Include vars of credentials.yaml into the 'credentials' variable
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../credentials.yaml"
+        name: credentials
+
+    - block:
+        - name: Generate password and save credentials
+          ansible.builtin.copy :
+            content: "{{ credentials | combine(updated_credentials, recursive=true) | to_nice_yaml }}"
+            dest: "{{ playbook_dir }}/../../credentials.yaml"
+            mode: "0644"
+          vars:
+            updated_credentials:
+              postgres_cluster:
+                username: "{{ postgres_superuser.username }}"
+                password: "{{ postgres_superuser.password }}"
+
+        - name: Reload credentials
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir }}/../../credentials.yaml"
+            name: credentials
+            # hash_behaviour: merge
+
+      when: "credentials.postgres_cluster.password is not defined or
+        credentials.postgres_cluster.password == None or
+        credentials.postgres_cluster.password | length == 0 or
+        credentials.postgres_cluster.password != postgres_superuser.password"

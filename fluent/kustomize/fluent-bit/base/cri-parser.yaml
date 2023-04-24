@@ -1,0 +1,12 @@
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterParser
+metadata:
+  name: cri
+  labels:
+    fluentbit.fluent.io/enabled: "true"
+    fluentbit.fluent.io/component: logging
+spec:
+  regex:
+    timeKey: time
+    timeFormat: "%Y-%m-%dT%H:%M:%S.%L%z"
+    regex: '^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]*) (?<message>.*)$'

@@ -1,0 +1,68 @@
+- name: Install sidecar cleaner
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add kubitus-pod-cleaner-operator chart repo
+      kubernetes.core.helm_repository:
+        name: kubitus-pod-cleaner-operator
+        repo_url: "https://gitlab.com/api/v4/projects/32151358/packages/helm/stable"
+
+    - name: Separately update the kubitus-pod-cleaner-operator cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: kubitus-pod-cleaner-operator
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Helm template kubitus-pod-cleaner-operator operator chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=v1.1.0
+          --namespace=istio-system
+          --values={{ playbook_dir }}/../helm/values/sidecar-cleaner-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/sidecar-cleaner/base
+          kubitus-pod-cleaner-operator kubitus-pod-cleaner-operator/kubitus-pod-cleaner-operator
+
+    - name: Add sidecar-cleaner yaml resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/kubitus-pod-cleaner-operator/templates/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/sidecar-cleaner/"
+
+    - name: Add sidecar-cleaner yml resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/kubitus-pod-cleaner-operator/templates/*.yml
+        chdir: "{{ playbook_dir }}/../kustomize/sidecar-cleaner/"
+
+    - name: Kustomize build sidecar-cleaner manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/sidecar-cleaner/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy sidecar-cleaner operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/sidecar-cleaner/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply sidecar-cleaner manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/sidecar-cleaner/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the sidecar-cleaner deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: kubitus-pod-cleaner-operator
+        namespace: istio-system
+      register: myoutput

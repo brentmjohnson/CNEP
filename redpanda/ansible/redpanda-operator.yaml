@@ -1,0 +1,79 @@
+- name: Install redpanda-operator
+  hosts: vm_host
+  run_once: true
+  vars_files:
+    - "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/vars/k8s_cluster.yml"
+  tasks:
+    - name: Add redpanda-operator chart repo
+      kubernetes.core.helm_repository:
+        name: redpanda-operator
+        repo_url: "https://charts.vectorized.io/"
+
+    - name: Separately update the redpanda-operator cache
+      kubernetes.core.helm:
+        release_state: absent
+        chart_ref: redpanda-operator
+        update_repo_cache: yes
+        release_name: undefined
+        release_namespace: undefined
+
+    - name: Kustomize build redpanda-operator crd manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build https://github.com/redpanda-data/redpanda/src/go/k8s/config/crd?ref=v22.3.11
+        # chdir: "{{ playbook_dir }}/../kustomize/redpanda-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy redpanda-operator crd resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/redpanda-operator/base/redpanda-operator/crds/resources.yaml"
+        mode: "0644"
+
+    - name: Helm template redpanda-operator chart
+      ansible.builtin.shell:
+        cmd: helm template
+          --version=v23.1.2
+          --namespace=redpanda-system
+          --include-crds=true
+          --values={{ playbook_dir }}/../helm/values/redpanda-operator-values.yaml
+          --output-dir={{ playbook_dir }}/../kustomize/redpanda-operator/base
+          redpanda-operator redpanda-operator/redpanda-operator
+
+    - name: Add redpanda-operator resources to kustomization file
+      ansible.builtin.shell:
+        cmd: kustomize edit add resource ./base/redpanda-operator/**/*.yaml
+        chdir: "{{ playbook_dir }}/../kustomize/redpanda-operator/"
+
+    - name: Kustomize build redpanda-operator manifests.
+      ansible.builtin.shell:
+        cmd: kustomize build
+        chdir: "{{ playbook_dir }}/../kustomize/redpanda-operator/"
+      register: myoutput
+    # - debug: var=myoutput.stdout
+
+    - name: Kustomize copy redpanda-operator resources.
+      ansible.builtin.copy :
+        content: "{{ myoutput.stdout }}"
+        dest: "{{ playbook_dir }}/../kustomize/redpanda-operator/resources/resources.yaml"
+        mode: "0644"
+
+    - name: Apply redpanda-operator manifests to the cluster
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kustomize/redpanda-operator/resources/resources.yaml"
+        kubeconfig: "{{ playbook_dir }}/../../ansible/hyperv-k8s-provisioner/k8s-setup/clusters/{{ k8s.cluster_name }}/admin.kubeconfig"
+        # apply: yes
+        # server_side_apply:
+        #   field_manager: ansible
+        # wait: true
+
+    - name: Wait for the redpanda-operator deployment
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        wait: yes
+        name: redpanda-operator
+        namespace: redpanda-system
+      register: myoutput
+
+    

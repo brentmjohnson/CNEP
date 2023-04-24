@@ -1,0 +1,11 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: httpbin-tls
+  namespace: default
+spec:
+  hosts:
+  - httpbin.example.com
+  secret:
+    name: httpbin-letsencrypt-cert
+    namespace: default

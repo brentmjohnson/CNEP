@@ -1,0 +1,14 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  template:
+    spec:
+      containers:
+        - name: cert-manager
+          ports:
+            - containerPort: 9402
+              name: http
+              protocol: TCP

@@ -1,0 +1,58 @@
+Release "vault-unseal-cronjob" has been upgraded. Happy Helming!
+NAME: vault-unseal-cronjob
+LAST DEPLOYED: Thu Oct 13 14:12:03 2022
+NAMESPACE: vault
+STATUS: pending-upgrade
+REVISION: 3
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+schedule: '"*/5 * * * *"'
+vault:
+  address: http://vault-internal.vault.svc.cluster.local:8200
+  shards:
+  - yel+Zu212JzNG7mymYtxDLjrpfRW0k+uSGCmQtsrUHI=
+
+COMPUTED VALUES:
+image:
+  name: ghcr.io/omegion/vault-unseal
+  pullPolicy: IfNotPresent
+  tag: v0.1.0
+restartPolicy: OnFailure
+schedule: '"*/5 * * * *"'
+successfulJobsHistoryLimit: 3
+vault:
+  address: http://vault-internal.vault.svc.cluster.local:8200
+  shards:
+  - yel+Zu212JzNG7mymYtxDLjrpfRW0k+uSGCmQtsrUHI=
+
+HOOKS:
+MANIFEST:
+---
+# Source: vault-unseal-cronjob/templates/cronjob.yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: vault-unseal-cronjob
+  labels:
+    chart: "vault-unseal-cronjob-0.4.0"
+spec:
+  schedule: "*/5 * * * *"
+  successfulJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: vault-unseal-cronjob
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: vault-unseal-cronjob
+              image: "ghcr.io/omegion/vault-unseal:v0.1.0"
+              imagePullPolicy: IfNotPresent
+              args:
+                - unseal
+                - --address=http://vault-internal.vault.svc.cluster.local:8200
+                
+                - --shard=yel+Zu212JzNG7mymYtxDLjrpfRW0k+uSGCmQtsrUHI=
+

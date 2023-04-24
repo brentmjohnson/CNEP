@@ -1,0 +1,389 @@
+Release "tempo" does not exist. Installing it now.
+NAME: tempo
+LAST DEPLOYED: Fri Aug 19 10:44:29 2022
+NAMESPACE: monitoring
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+tempo:
+  extraArgs:
+    distributor.log-received-traces: true
+
+COMPUTED VALUES:
+affinity: {}
+config: |
+  multitenancy_enabled: {{ .Values.tempo.multitenancyEnabled }}
+  search_enabled: {{ .Values.tempo.searchEnabled }}
+  metrics_generator_enabled: {{ .Values.tempo.metricsGenerator.enabled }}
+  compactor:
+    compaction:
+      compacted_block_retention: {{ .Values.tempo.retention }}
+  distributor:
+    receivers:
+      {{- toYaml .Values.tempo.receivers | nindent 8 }}
+  ingester:
+    {{- toYaml .Values.tempo.ingester | nindent 6 }}
+  server:
+    {{- toYaml .Values.tempo.server | nindent 6 }}
+  storage:
+    {{- toYaml .Values.tempo.storage | nindent 6 }}
+  querier:
+    {{- toYaml .Values.tempo.querier | nindent 6 }}
+  query_frontend:
+    {{- toYaml .Values.tempo.queryFrontend | nindent 6 }}
+  overrides:
+    {{- toYaml .Values.tempo.global_overrides | nindent 6 }}
+    {{- if .Values.tempo.metricsGenerator.enabled }}
+        metrics_generator_processors:
+        - 'service-graphs'
+        - 'span-metrics'
+  metrics_generator:
+        storage:
+          path: "/tmp/tempo"
+          remote_write:
+            - url: {{ .Values.tempo.metricsGenerator.remoteWriteUrl }}
+    {{- end }}
+extraVolumes: []
+fullnameOverride: ""
+nameOverride: ""
+nodeSelector: {}
+persistence:
+  accessModes:
+  - ReadWriteOnce
+  enabled: false
+  size: 10Gi
+podAnnotations: {}
+podLabels: {}
+priorityClassName: null
+replicas: 1
+securityContext: {}
+service:
+  annotations: {}
+  labels: {}
+  type: ClusterIP
+serviceAccount:
+  annotations: {}
+  create: true
+  imagePullSecrets: []
+  name: null
+serviceMonitor:
+  additionalLabels: {}
+  annotations: {}
+  enabled: false
+  interval: ""
+tempo:
+  extraArgs:
+    distributor.log-received-traces: true
+  extraEnv: []
+  extraVolumeMounts: []
+  global_overrides:
+    per_tenant_override_config: /conf/overrides.yaml
+  ingester: {}
+  memBallastSizeMbs: 1024
+  metricsGenerator:
+    enabled: false
+    remoteWriteUrl: http://prometheus.monitoring:9090/api/v1/write
+  multitenancyEnabled: false
+  overrides: {}
+  pullPolicy: IfNotPresent
+  querier: {}
+  queryFrontend: {}
+  receivers:
+    jaeger:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:14250
+        thrift_binary:
+          endpoint: 0.0.0.0:6832
+        thrift_compact:
+          endpoint: 0.0.0.0:6831
+        thrift_http:
+          endpoint: 0.0.0.0:14268
+    opencensus: null
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  repository: grafana/tempo
+  resources: {}
+  retention: 24h
+  searchEnabled: false
+  securityContext: {}
+  server:
+    http_listen_port: 3100
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+  tag: 1.5.0
+  updateStrategy: RollingUpdate
+tempoQuery:
+  enabled: true
+  extraArgs: {}
+  extraEnv: []
+  extraVolumeMounts: []
+  pullPolicy: IfNotPresent
+  repository: grafana/tempo-query
+  securityContext: {}
+  tag: 1.5.0
+tolerations: []
+
+HOOKS:
+MANIFEST:
+---
+# Source: tempo/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tempo
+  namespace: monitoring
+  labels:
+    helm.sh/chart: tempo-0.16.1
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: tempo/templates/configmap-tempo-query.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo-query
+  namespace: monitoring
+  labels:
+    helm.sh/chart: tempo-0.16.1
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  tempo-query.yaml: |
+    backend: tempo:3100
+---
+# Source: tempo/templates/configmap-tempo.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo
+  namespace: monitoring
+  labels:
+    helm.sh/chart: tempo-0.16.1
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  overrides.yaml: |
+    overrides:
+      {}
+  tempo.yaml: |
+    multitenancy_enabled: false
+    search_enabled: false
+    metrics_generator_enabled: false
+    compactor:
+      compaction:
+        compacted_block_retention: 24h
+    distributor:
+      receivers:
+            jaeger:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:14250
+                thrift_binary:
+                  endpoint: 0.0.0.0:6832
+                thrift_compact:
+                  endpoint: 0.0.0.0:6831
+                thrift_http:
+                  endpoint: 0.0.0.0:14268
+            opencensus: null
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+    ingester:
+          {}
+    server:
+          http_listen_port: 3100
+    storage:
+          trace:
+            backend: local
+            local:
+              path: /var/tempo/traces
+            wal:
+              path: /var/tempo/wal
+    querier:
+          {}
+    query_frontend:
+          {}
+    overrides:
+          per_tenant_override_config: /conf/overrides.yaml
+---
+# Source: tempo/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  namespace: monitoring
+  labels:
+    helm.sh/chart: tempo-0.16.1
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - name: tempo-prom-metrics
+    port: 3100
+    targetPort: 3100
+  - name: jaeger-metrics
+    port: 16687
+    targetPort: 16687
+  - name: tempo-query-jaeger-ui
+    port: 16686
+    targetPort: 16686
+  - name: tempo-jaeger-thrift-compact
+    port: 6831
+    protocol: UDP
+    targetPort: 6831
+  - name: tempo-jaeger-thrift-binary
+    port: 6832
+    protocol: UDP
+    targetPort: 6832
+  - name: tempo-jaeger-thrift-http
+    port: 14268
+    protocol: TCP
+    targetPort: 14268
+  - name: grpc-tempo-jaeger
+    port: 14250
+    protocol: TCP
+    targetPort: 14250
+  - name: tempo-zipkin
+    port: 9411
+    protocol: TCP
+    targetPort: 9411
+  - name: tempo-otlp-legacy
+    port: 55680
+    protocol: TCP
+    targetPort: 55680
+  - name: tempo-otlp-http-legacy
+    port: 55681
+    protocol: TCP
+    targetPort: 4318
+  - name: grpc-tempo-otlp
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: tempo-otlp-http
+    port: 4318
+    protocol: TCP
+    targetPort: 4318
+  - name: tempo-opencensus
+    port: 55678
+    protocol: TCP
+    targetPort: 55678
+  selector:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+---
+# Source: tempo/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tempo
+  namespace: monitoring
+  labels:
+    helm.sh/chart: tempo-0.16.1
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+      app.kubernetes.io/instance: tempo
+  serviceName: tempo-headless
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tempo
+        app.kubernetes.io/instance: tempo
+      annotations:
+        checksum/config: e4c10b1897405e0831b572b58e05c9119a200316814ccf26e1cbead3330903f8
+    spec:
+      serviceAccountName: tempo
+      containers:
+      - args:
+        - -config.file=/conf/tempo.yaml
+        - -mem-ballast-size-mbs=1024
+        - "-distributor.log-received-traces=true"
+        image: grafana/tempo:1.5.0
+        imagePullPolicy: IfNotPresent
+        name: tempo
+        ports:
+        - containerPort: 3100
+          name: prom-metrics
+        - containerPort: 6831
+          name: jaeger-thrift-c
+          protocol: UDP
+        - containerPort: 6832
+          name: jaeger-thrift-b
+          protocol: UDP
+        - containerPort: 14268
+          name: jaeger-thrift-h
+        - containerPort: 14250
+          name: jaeger-grpc
+        - containerPort: 9411
+          name: zipkin
+        - containerPort: 55680
+          name: otlp-legacy
+        - containerPort: 4317
+          name: otlp-grpc
+        - containerPort: 55681
+          name: otlp-http
+        - containerPort: 55678
+          name: opencensus
+        resources:
+          {}
+        env:
+        volumeMounts:
+        - mountPath: /conf
+          name: tempo-conf
+      - args:
+        - --query.base-path=/
+        - --grpc-storage-plugin.configuration-file=/conf/tempo-query.yaml
+        image: grafana/tempo-query:1.5.0
+        imagePullPolicy: IfNotPresent
+        name: tempo-query
+        ports:
+        - containerPort: 16686
+          name: jaeger-ui
+        - containerPort: 16687
+          name: jaeger-metrics
+        env:
+        resources:
+          null
+        volumeMounts:
+        - mountPath: /conf
+          name: tempo-query-conf
+      volumes:
+      - configMap:
+          name: tempo-query
+        name: tempo-query-conf
+      - configMap:
+          name: tempo
+        name: tempo-conf
+  updateStrategy:
+    type:
+      RollingUpdate
+

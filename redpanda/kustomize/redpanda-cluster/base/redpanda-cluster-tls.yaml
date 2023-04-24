@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redpanda
+data:
+  redpanda.yaml: |
+    redpanda:
+    rpk:
+      kafka_api:
+      brokers:
+        - redpanda-0.redpanda.default.svc.cluster.local:9092
+        - redpanda-1.redpanda.default.svc.cluster.local:9092
+        - redpanda-2.redpanda.default.svc.cluster.local:9092
+      tls:
+        truststore_file: <truststore_file_path>/ca.crt

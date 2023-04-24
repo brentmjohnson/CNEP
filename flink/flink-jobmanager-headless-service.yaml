@@ -1,0 +1,27 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: flink-jobmanager-service-headless
+  namespace: flink
+spec:
+  ports:
+    - name: jobmanager-rpc
+      protocol: TCP
+      appProtocol: tcp
+      port: 6123
+      targetPort: 6123
+    - name: blobserver
+      protocol: TCP
+      appProtocol: tcp
+      port: 6124
+      targetPort: 6124
+    - name: metrics
+      protocol: TCP
+      appProtocol: tcp
+      port: 9999
+      targetPort: 9999
+  selector:
+    app: flink
+    component: jobmanager
+    type: flink-native-kubernetes
+  clusterIP: None

@@ -1,0 +1,1734 @@
+Release "apisix" has been upgraded. Happy Helming!
+NAME: apisix
+LAST DEPLOYED: Thu Oct 13 14:05:43 2022
+NAMESPACE: ingress-apisix
+STATUS: pending-upgrade
+REVISION: 4
+USER-SUPPLIED VALUES:
+apisix:
+  image:
+    tag: 2.15.0-alpine
+  podAnnotations:
+    proxy.istio.io/config: |
+      proxyMetadata:
+        OUTPUT_CERTS: /etc/istio-output-certs
+    sidecar.istio.io/logLevel: dns:debug
+    sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+    traffic.sidecar.istio.io/excludeInboundPorts: 9080,9443,9042,9092
+  stream_proxy:
+    only: false
+dashboard:
+  config:
+    conf:
+      etcd:
+        endpoints:
+        - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+  enabled: true
+  image:
+    tag: 2.13-alpine
+  serviceMonitor:
+    enabled: true
+etcd:
+  enabled: false
+  host:
+  - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+extraVolumeMounts:
+- mountPath: /etc/prom-certs/
+  name: istio-certs
+extraVolumes:
+- emptyDir:
+    medium: Memory
+  name: istio-certs
+gateway:
+  http:
+    enabled: true
+    nodePort: 30080
+  stream:
+    enabled: true
+    tcp:
+    - 9042
+    - 9092
+  tls:
+    enabled: true
+    nodePort: 30443
+  type: NodePort
+ingress-controller:
+  config:
+    apisix:
+      serviceNamespace: ingress-apisix
+    kubernetes:
+      apisixRouteVersion: apisix.apache.org/v2beta3
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: ingress-apisix
+serviceMonitor:
+  enabled: true
+
+COMPUTED VALUES:
+admin:
+  allow:
+    ipList:
+    - 127.0.0.1/24
+  cors: true
+  credentials:
+    admin: edd1c9f034335f136f87ad84b625c8f1
+    viewer: 4054f7cf07e344346cd3f287985e76a2
+  enabled: true
+  externalIPs: []
+  port: 9180
+  servicePort: 9180
+  type: ClusterIP
+apisix:
+  affinity: {}
+  customLuaSharedDicts: []
+  customizedConfig: {}
+  enableCustomizedConfig: false
+  enableIPv6: true
+  enabled: true
+  extraEnvVars: []
+  image:
+    pullPolicy: IfNotPresent
+    repository: apache/apisix
+    tag: 2.15.0-alpine
+  kind: Deployment
+  luaModuleHook:
+    configMapRef:
+      mounts:
+      - key: ""
+        path: ""
+      name: ""
+    enabled: false
+    hookPoint: ""
+    luaPath: ""
+  nodeSelector: {}
+  podAnnotations:
+    proxy.istio.io/config: |
+      proxyMetadata:
+        OUTPUT_CERTS: /etc/istio-output-certs
+    sidecar.istio.io/logLevel: dns:debug
+    sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+    traffic.sidecar.istio.io/excludeInboundPorts: 9080,9443,9042,9092
+  podAntiAffinity:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+    maxUnavailable: 1
+    minAvailable: 90%
+  podSecurityContext: {}
+  replicaCount: 1
+  resources: {}
+  securityContext: {}
+  setIDFromPodUID: false
+  stream_proxy:
+    only: false
+  timezone: ""
+  tolerations: []
+autoscaling:
+  enabled: false
+  maxReplicas: 100
+  minReplicas: 1
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+configurationSnippet:
+  httpAdmin: ""
+  httpEnd: ""
+  httpSrv: ""
+  httpStart: ""
+  main: ""
+  stream: ""
+customPlugins:
+  enabled: false
+  luaPath: /opts/custom_plugins/?.lua
+  plugins:
+  - attrs: {}
+    configMap:
+      mounts:
+      - key: ""
+        path: ""
+      - key: ""
+        path: ""
+      name: ""
+    name: ""
+dashboard:
+  affinity: {}
+  autoscaling:
+    enabled: false
+    maxReplicas: 100
+    minReplicas: 1
+    targetCPUUtilizationPercentage: 80
+  config:
+    authentication:
+      expireTime: 3600
+      secert: secert
+      users:
+      - password: <password>
+        username: <user>
+    conf:
+      etcd:
+        endpoints:
+        - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+        prefix: /apisix
+      listen:
+        host: 0.0.0.0
+        port: 9000
+      log:
+        accessLog:
+          filePath: /dev/stdout
+        errorLog:
+          filePath: /dev/stderr
+          level: warn
+  enabled: true
+  fullnameOverride: ""
+  global:
+    imagePullSecrets: []
+  image:
+    pullPolicy: IfNotPresent
+    repository: apache/apisix-dashboard
+    tag: 2.13-alpine
+  imagePullSecrets: []
+  ingress:
+    annotations: {}
+    className: ""
+    enabled: false
+    hosts:
+    - host: apisix-dashboard.local
+      paths: []
+    tls: []
+  nameOverride: ""
+  nodeSelector: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  replicaCount: 1
+  resources: {}
+  securityContext: {}
+  service:
+    port: 80
+    type: ClusterIP
+  serviceAccount:
+    annotations: {}
+    create: true
+    name: ""
+  serviceMonitor:
+    enabled: true
+  tolerations: []
+discovery:
+  enabled: false
+  registry: null
+dns:
+  resolvers:
+  - 127.0.0.1
+  - 172.20.0.10
+  - 114.114.114.114
+  - 223.5.5.5
+  - 1.1.1.1
+  - 8.8.8.8
+  timeout: 5
+  validity: 30
+etcd:
+  auth:
+    client:
+      caFilename: ""
+      certFilename: cert.pem
+      certKeyFilename: key.pem
+      enableAuthentication: false
+      existingSecret: ""
+      secureTransport: false
+      useAutoTLS: false
+    peer:
+      caFilename: ""
+      certFilename: cert.pem
+      certKeyFilename: key.pem
+      enableAuthentication: false
+      existingSecret: ""
+      secureTransport: false
+      useAutoTLS: false
+    rbac:
+      allowNoneAuthentication: true
+      create: false
+      existingSecret: ""
+      existingSecretPasswordKey: ""
+      password: ""
+      rootPassword: ""
+      user: ""
+    tls:
+      certFilename: ""
+      certKeyFilename: ""
+      enabled: false
+      existingSecret: ""
+      sni: ""
+      verify: true
+    token:
+      privateKey:
+        existingSecret: ""
+        filename: jwt-token.pem
+      signMethod: RS256
+      ttl: 10m
+      type: jwt
+  enabled: false
+  host:
+  - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+  prefix: /apisix
+  replicaCount: 3
+  service:
+    annotations: {}
+    clientPortNameOverride: ""
+    clusterIP: ""
+    enabled: true
+    externalIPs: []
+    externalTrafficPolicy: Cluster
+    extraPorts: []
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+    nodePorts:
+      client: ""
+      peer: ""
+    peerPortNameOverride: ""
+    port: 2379
+    ports:
+      client: 2379
+      peer: 2380
+    sessionAffinity: None
+    sessionAffinityConfig: {}
+    type: ClusterIP
+  timeout: 30
+extPlugin:
+  cmd:
+  - /path/to/apisix-plugin-runner/runner
+  - run
+  enabled: false
+extraVolumeMounts:
+- mountPath: /etc/prom-certs/
+  name: istio-certs
+extraVolumes:
+- emptyDir:
+    medium: Memory
+  name: istio-certs
+fullnameOverride: ""
+gateway:
+  externalIPs: []
+  externalTrafficPolicy: Cluster
+  http:
+    containerPort: 9080
+    enabled: true
+    nodePort: 30080
+    servicePort: 80
+  ingress:
+    annotations: {}
+    enabled: false
+    hosts:
+    - host: apisix.local
+      paths: []
+    tls: []
+  stream:
+    enabled: true
+    only: false
+    tcp:
+    - 9042
+    - 9092
+    udp: []
+  tls:
+    certCAFilename: ""
+    containerPort: 9443
+    enabled: true
+    existingCASecret: ""
+    http2:
+      enabled: true
+    nodePort: 30443
+    servicePort: 443
+  type: NodePort
+global:
+  imagePullSecrets: []
+ingress-controller:
+  autoscaling:
+    enabled: false
+    maxReplicas: 100
+    minReplicas: 1
+    targetCPUUtilizationPercentage: 80
+  clusterDomain: cluster.local
+  config:
+    apisix:
+      adminKey: edd1c9f034335f136f87ad84b625c8f1
+      clusterName: default
+      serviceName: apisix-admin
+      serviceNamespace: ingress-apisix
+      servicePort: 9180
+    certFile: /etc/webhook/certs/cert.pem
+    enableProfiling: true
+    httpListen: :8080
+    httpsListen: :8443
+    ingressPublishService: ""
+    ingressStatusAddress: []
+    keyFile: /etc/webhook/certs/key.pem
+    kubernetes:
+      apisixRouteVersion: apisix.apache.org/v2beta3
+      appNamespaces:
+      - '*'
+      electionId: ingress-apisix-leader
+      enableGatewayAPI: false
+      ingressClass: apisix
+      ingressVersion: networking/v1
+      kubeconfig: ""
+      namespaceSelector:
+      - ""
+      resyncInterval: 6h
+      watchEndpointSlices: false
+    logLevel: info
+    logOutput: stderr
+  enabled: true
+  fullnameOverride: ""
+  global:
+    imagePullSecrets: []
+  image:
+    pullPolicy: IfNotPresent
+    repository: apache/apisix-ingress-controller
+    tag: 1.4.1
+  imagePullSecrets: []
+  initContainer:
+    image: busybox
+    tag: 1.28
+  nameOverride: ""
+  nodeSelector: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  rbac:
+    create: true
+  replicaCount: 1
+  resources: {}
+  securityContext: {}
+  service:
+    port: 80
+  serviceAccount:
+    automountServiceAccountToken: true
+    create: true
+    name: ""
+  serviceMonitor:
+    annotations: {}
+    enabled: true
+    interval: 15s
+    labels: {}
+    namespace: ingress-apisix
+  tolerations: []
+initContainer:
+  image: busybox
+  tag: 1.28
+logs:
+  accessLog: /dev/stdout
+  accessLogFormat: $remote_addr - $remote_user [$time_local] $http_host \"$request\"
+    $status $body_bytes_sent $request_time \"$http_referer\" \"$http_user_agent\"
+    $upstream_addr $upstream_status $upstream_response_time \"$upstream_scheme://$upstream_host$upstream_uri\"
+  accessLogFormatEscape: default
+  enableAccessLog: true
+  errorLog: /dev/stderr
+  errorLogLevel: warn
+nameOverride: ""
+nginx:
+  enableCPUAffinity: true
+  workerConnections: "10620"
+  workerProcesses: auto
+  workerRlimitNofile: "20480"
+pluginAttrs: {}
+plugins:
+- api-breaker
+- authz-keycloak
+- basic-auth
+- batch-requests
+- consumer-restriction
+- cors
+- echo
+- fault-injection
+- grpc-transcode
+- hmac-auth
+- http-logger
+- ip-restriction
+- ua-restriction
+- jwt-auth
+- kafka-logger
+- key-auth
+- limit-conn
+- limit-count
+- limit-req
+- node-status
+- openid-connect
+- authz-casbin
+- prometheus
+- proxy-cache
+- proxy-mirror
+- proxy-rewrite
+- redirect
+- referer-restriction
+- request-id
+- request-validation
+- response-rewrite
+- serverless-post-function
+- serverless-pre-function
+- sls-logger
+- syslog
+- tcp-logger
+- udp-logger
+- uri-blocker
+- wolf-rbac
+- zipkin
+- traffic-split
+- gzip
+- real-ip
+- ext-plugin-pre-req
+- ext-plugin-post-req
+serviceMonitor:
+  annotations: {}
+  containerPort: 9091
+  enabled: true
+  interval: 15s
+  labels: {}
+  metricPrefix: apisix_
+  name: ""
+  namespace: ""
+  path: /apisix/prometheus/metrics
+stream_plugins:
+- mqtt-proxy
+- ip-restriction
+- limit-conn
+updateStrategy: {}
+
+HOOKS:
+---
+# Source: apisix/charts/dashboard/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "apisix-dashboard-test-connection"
+  labels:
+    helm.sh/chart: dashboard-0.6.0
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['apisix-dashboard:80']
+  restartPolicy: Never
+MANIFEST:
+---
+# Source: apisix/charts/dashboard/templates/serviceaccount.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apisix-dashboard
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: dashboard-0.6.0
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: apisix/charts/ingress-controller/templates/service-account.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+automountServiceAccountToken: true
+---
+# Source: apisix/charts/dashboard/templates/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix-dashboard
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: dashboard-0.6.0
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  conf.yaml: |-
+    conf:
+      listen:
+        host: 0.0.0.0
+        port: 9000
+      etcd:
+        prefix: "/apisix"
+        endpoints:
+          - http://etcd-cluster.ingress-apisix.svc.cluster.local:2379
+      log:
+        error_log:
+          level: warn
+          file_path: /dev/stderr
+        access_log:
+          file_path: /dev/stdout
+    authentication:
+      secert: secert
+      expire_time: 3600
+      users:
+        - username: <user>
+          password: <password>
+---
+# Source: apisix/charts/ingress-controller/templates/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+data:
+  config.yaml: |
+    # log options
+    log_level: "info"
+    log_output: "stderr"
+    cert_file: "/etc/webhook/certs/cert.pem"
+    key_file: "/etc/webhook/certs/key.pem"
+    http_listen: ":8080"
+    https_listen: ":8443"
+    ingress_publish_service: 
+    enable_profiling: true
+    kubernetes:
+      kubeconfig: ""
+      resync_interval: "6h"
+      app_namespaces:
+      - "*"
+      namespace_selector:
+      - ""
+      election_id: "ingress-apisix-leader"
+      ingress_class: "apisix"
+      ingress_version: "networking/v1"
+      watch_endpointslices: false
+      apisix_route_version: "apisix.apache.org/v2beta3"
+      enable_gateway_api: false
+    apisix:
+      default_cluster_base_url: http://apisix-admin.ingress-apisix.svc.cluster.local:9180/apisix/admin
+      default_cluster_admin_key: <secret>
+      default_cluster_name: "default"
+kind: ConfigMap
+metadata:
+  name: apisix-configmap
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: ingress-controller-0.9.3
+    app.kubernetes.io/name: ingress-controller
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "1.4.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: apisix/templates/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apisix
+  namespace: ingress-apisix
+data:
+  config.yaml: |-
+    #
+    # Licensed to the Apache Software Foundation (ASF) under one or more
+    # contributor license agreements.  See the NOTICE file distributed with
+    # this work for additional information regarding copyright ownership.
+    # The ASF licenses this file to You under the Apache License, Version 2.0
+    # (the "License"); you may not use this file except in compliance with
+    # the License.  You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    #
+    apisix:
+      node_listen: 9080             # APISIX listening port
+      enable_heartbeat: true
+      enable_admin: true
+      enable_admin_cors: true
+      enable_debug: false
+
+      enable_dev_mode: false                       # Sets nginx worker_processes to 1 if set to true
+      enable_reuseport: true                       # Enable nginx SO_REUSEPORT switch if set to true.
+      enable_ipv6: true # Enable nginx IPv6 resolver
+      config_center: etcd                          # etcd: use etcd to store the config value
+                                                   # yaml: fetch the config value from local yaml file `/your_path/conf/apisix.yaml`
+
+      #proxy_protocol:                 # Proxy Protocol configuration
+      #  listen_http_port: 9181        # The port with proxy protocol for http, it differs from node_listen and port_admin.
+                                      # This port can only receive http request with proxy protocol, but node_listen & port_admin
+                                      # can only receive http request. If you enable proxy protocol, you must use this port to
+                                      # receive http request with proxy protocol
+      #  listen_https_port: 9182       # The port with proxy protocol for https
+      #  enable_tcp_pp: true           # Enable the proxy protocol for tcp proxy, it works for stream_proxy.tcp option
+      #  enable_tcp_pp_to_upstream: true # Enables the proxy protocol to the upstream server
+
+      proxy_cache:                     # Proxy Caching configuration
+        cache_ttl: 10s                 # The default caching time if the upstream does not specify the cache time
+        zones:                         # The parameters of a cache
+        - name: disk_cache_one         # The name of the cache, administrator can be specify
+                                      # which cache to use by name in the admin api
+          memory_size: 50m             # The size of shared memory, it's used to store the cache index
+          disk_size: 1G                # The size of disk, it's used to store the cache data
+          disk_path: "/tmp/disk_cache_one" # The path to store the cache data
+          cache_levels: "1:2"           # The hierarchy levels of a cache
+      #  - name: disk_cache_two
+      #    memory_size: 50m
+      #    disk_size: 1G
+      #    disk_path: "/tmp/disk_cache_two"
+      #    cache_levels: "1:2"
+
+      allow_admin:                  # http://nginx.org/en/docs/http/ngx_http_access_module.html#allow
+        - 127.0.0.1/24
+        - 0.0.0.0/0
+      #   - "::/64"
+      port_admin: 9180
+
+      # Default token when use API to call for Admin API.
+      # *NOTE*: Highly recommended to modify this value to protect APISIX's Admin API.
+      # Disabling this configuration item means that the Admin API does not
+      # require any authentication.
+      admin_key:
+        # admin: can everything for configuration data
+        - name: "admin"
+          key: edd1c9f034335f136f87ad84b625c8f1
+          role: admin
+        # viewer: only can view configuration data
+        - name: "viewer"
+          key: 4054f7cf07e344346cd3f287985e76a2
+          role: viewer
+      router:
+        http: 'radixtree_uri'         # radixtree_uri: match route by uri(base on radixtree)
+                                      # radixtree_host_uri: match route by host + uri(base on radixtree)
+        ssl: 'radixtree_sni'          # radixtree_sni: match route by SNI(base on radixtree)
+      stream_proxy:                 # TCP/UDP proxy
+        only: false
+        tcp:                        # TCP proxy port list
+          - 9042
+          - 9092
+        udp:                        # UDP proxy port list
+          - 9200
+      # dns_resolver:
+      #
+      #   - 127.0.0.1
+      #
+      #   - 172.20.0.10
+      #
+      #   - 114.114.114.114
+      #
+      #   - 223.5.5.5
+      #
+      #   - 1.1.1.1
+      #
+      #   - 8.8.8.8
+      #
+      dns_resolver_valid: 30
+      resolver_timeout: 5
+      ssl:
+        enable: true
+        enable_http2: true
+        listen_port: 9443
+        ssl_protocols: "TLSv1 TLSv1.1 TLSv1.2 TLSv1.3"
+        ssl_ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA"
+
+    nginx_config:                     # config for render the template to genarate nginx.conf
+      error_log: "/dev/stderr"
+      error_log_level: "warn"         # warn,error
+      worker_processes: "auto"
+      enable_cpu_affinity: true
+      worker_rlimit_nofile: 20480     # the number of files a worker process can open, should be larger than worker_connections
+      event:
+        worker_connections: 10620
+      http:
+        enable_access_log: true
+        access_log: "/dev/stdout"
+        access_log_format: "$remote_addr - $remote_user [$time_local] $http_host \"$request\" $status $body_bytes_sent $request_time \"$http_referer\" \"$http_user_agent\" $upstream_addr $upstream_status $upstream_response_time \"$upstream_scheme://$upstream_host$upstream_uri\""
+        access_log_format_escape: default
+        keepalive_timeout: 60s         # timeout during which a keep-alive client connection will stay open on the server side.
+        client_header_timeout: 60s     # timeout for reading client request header, then 408 (Request Time-out) error is returned to the client
+        client_body_timeout: 60s       # timeout for reading client request body, then 408 (Request Time-out) error is returned to the client
+        send_timeout: 10s              # timeout for transmitting a response to the client.then the connection is closed
+        underscores_in_headers: "on"   # default enables the use of underscores in client request header fields
+        real_ip_header: "X-Real-IP"    # http://nginx.org/en/docs/http/ngx_http_realip_module.html#real_ip_header
+        real_ip_from:                  # http://nginx.org/en/docs/http/ngx_http_realip_module.html#set_real_ip_from
+          - 127.0.0.1
+          - 'unix:'
+
+    etcd:
+      host:                                 # it's possible to define multiple etcd hosts addresses of the same etcd cluster.
+        - "http://etcd-cluster.ingress-apisix.svc.cluster.local:2379"             # multiple etcd address
+      prefix: "/apisix"     # apisix configurations prefix
+      timeout: 30   # 30 seconds
+    plugins:                          # plugin list
+      - api-breaker
+      - authz-keycloak
+      - basic-auth
+      - batch-requests
+      - consumer-restriction
+      - cors
+      - echo
+      - fault-injection
+      - grpc-transcode
+      - hmac-auth
+      - http-logger
+      - ip-restriction
+      - ua-restriction
+      - jwt-auth
+      - kafka-logger
+      - key-auth
+      - limit-conn
+      - limit-count
+      - limit-req
+      - node-status
+      - openid-connect
+      - authz-casbin
+      - prometheus
+      - proxy-cache
+      - proxy-mirror
+      - proxy-rewrite
+      - redirect
+      - referer-restriction
+      - request-id
+      - request-validation
+      - response-rewrite
+      - serverless-post-function
+      - serverless-pre-function
+      - sls-logger
+      - syslog
+      - tcp-logger
+      - udp-logger
+      - uri-blocker
+      - wolf-rbac
+      - zipkin
+      - traffic-split
+      - gzip
+      - real-ip
+      - ext-plugin-pre-req
+      - ext-plugin-post-req
+    stream_plugins:
+      - mqtt-proxy
+      - ip-restriction
+      - limit-conn
+    plugin_attr:
+      prometheus:
+        export_addr:
+          ip: 0.0.0.0
+          port: 9091
+        export_uri: /apisix/prometheus/metrics
+        metric_prefix: apisix_
+---
+# Source: apisix/charts/ingress-controller/templates/rbac.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apisix-clusterrole
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - '*'
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - persistentvolumeclaims
+      - pods
+      - replicationcontrollers
+      - replicationcontrollers/scale
+      - serviceaccounts
+      - services
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - bindings
+      - limitranges
+      - namespaces/status
+      - pods/log
+      - pods/status
+      - replicationcontrollers/status
+      - resourcequotas
+      - resourcequotas/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - controllerrevisions
+      - daemonsets
+      - deployments
+      - deployments/scale
+      - replicasets
+      - replicasets/scale
+      - statefulsets
+      - statefulsets/scale
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - daemonsets
+      - deployments
+      - deployments/scale
+      - ingresses
+      - networkpolicies
+      - replicasets
+      - replicasets/scale
+      - replicationcontrollers/scale
+    verbs:
+      - '*'
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - ingresses/status
+      - networkpolicies
+    verbs:
+      - '*'
+  - apiGroups:
+      - metrics.k8s.io
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apisix.apache.org
+    resources:
+      - apisixroutes
+      - apisixroutes/status
+      - apisixupstreams
+      - apisixupstreams/status
+      - apisixtlses
+      - apisixtlses/status
+      - apisixclusterconfigs
+      - apisixclusterconfigs/status
+      - apisixconsumers
+      - apisixconsumers/status
+      - apisixpluginconfigs
+      - apisixpluginconfigs/status
+    verbs:
+      - '*'
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - '*'
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: apisix/charts/ingress-controller/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: apisix-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: apisix-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: apisix-ingress-controller
+    namespace: ingress-apisix
+---
+# Source: apisix/charts/dashboard/templates/service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix-dashboard
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: dashboard-0.6.0
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: apisix
+---
+# Source: apisix/charts/ingress-controller/templates/service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: ingress-controller-0.9.3
+    app.kubernetes.io/name: ingress-controller
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "1.4.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: ingress-controller
+    app.kubernetes.io/instance: apisix
+---
+# Source: apisix/templates/service-admin.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix-admin
+  namespace: ingress-apisix
+  annotations:
+  labels:
+    helm.sh/chart: apisix-0.11.0
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.15.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/service: apisix-admin
+spec:
+  type: ClusterIP
+  ports:
+  - name: apisix-admin
+    port: 9180
+    targetPort: 9180
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: apisix
+---
+# Source: apisix/templates/service-gateway.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix-gateway
+  namespace: ingress-apisix
+  annotations:
+  labels:
+    helm.sh/chart: apisix-0.11.0
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.15.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/service: apisix-gateway
+spec:
+  type: NodePort
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: apisix-gateway
+    port: 80
+    targetPort: 9080
+    nodePort: 30080
+    protocol: TCP
+  - name: apisix-gateway-tls
+    port: 443
+    targetPort: 9443
+    nodePort: 30443
+    protocol: TCP
+  - name: proxy-tcp-0
+    port: 9042
+    targetPort: 9042
+    protocol: TCP
+  - name: proxy-tcp-1
+    port: 9092
+    targetPort: 9092
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: apisix
+---
+# Source: apisix/charts/dashboard/templates/deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix-dashboard
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: dashboard-0.6.0
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dashboard
+      app.kubernetes.io/instance: apisix
+  template:
+    metadata:
+      annotations:
+        checksum/config: 2e384edfcd6b0ced6bb1040c70b70561f83ef00979f3384cd1714ce699ed0eb5
+      labels:
+        app.kubernetes.io/name: dashboard
+        app.kubernetes.io/instance: apisix
+    spec:
+      serviceAccountName: apisix-dashboard
+      securityContext:
+        {}
+      containers:
+        - name: dashboard
+          securityContext:
+            {}
+          image: "apache/apisix-dashboard:2.13-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /usr/local/apisix-dashboard/conf/conf.yaml
+              name: apisix-dashboard-config
+              subPath: conf.yaml
+      volumes:
+        - configMap:
+            name: apisix-dashboard
+          name: apisix-dashboard-config
+---
+# Source: apisix/charts/ingress-controller/templates/deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: ingress-controller-0.9.3
+    app.kubernetes.io/name: ingress-controller
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "1.4.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-controller
+      app.kubernetes.io/instance: apisix
+  template:
+    metadata:
+      annotations:
+        checksum/config: f59204deb7c133aec6da981d6e53279d48c8655b0506d975472c3e6b50b62271
+      labels:
+        app.kubernetes.io/name: ingress-controller
+        app.kubernetes.io/instance: apisix
+    spec:
+      serviceAccountName: apisix-ingress-controller
+      securityContext:
+        {}
+      volumes:
+        - name: configuration
+          configMap:
+            name: apisix-configmap
+            items:
+              - key: config.yaml
+                path: config.yaml
+      initContainers:
+        - name: wait-apisix-admin
+          image: busybox:1.28
+          command: ['sh', '-c', "until nc -z apisix-admin.ingress-apisix.svc.cluster.local 9180 ; do echo waiting for apisix-admin; sleep 2; done;"]
+          securityContext:
+            {}
+      containers:
+        - name: ingress-controller
+          command:
+            - /ingress-apisix/apisix-ingress-controller
+            - ingress
+            - --config-path
+            - /ingress-apisix/conf/config.yaml
+          image: "apache/apisix-ingress-controller:1.4.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /ingress-apisix/conf
+              name: configuration
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+---
+# Source: apisix/templates/deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: apisix-0.11.0
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.15.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apisix
+      app.kubernetes.io/instance: apisix
+  template:
+    metadata:
+      annotations:
+        checksum/config: 5f1a44f297d920f0324d4c6ad381d9fde807d88da6c794d24272305364b2a03e
+        proxy.istio.io/config: |
+          proxyMetadata:
+            OUTPUT_CERTS: /etc/istio-output-certs
+        sidecar.istio.io/logLevel: dns:debug
+        sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+        traffic.sidecar.istio.io/excludeInboundPorts: 9080,9443,9042,9092
+      labels:
+        app.kubernetes.io/name: apisix
+        app.kubernetes.io/instance: apisix
+    spec:
+      securityContext:
+        null
+      containers:
+        - name: apisix
+          securityContext:
+            null
+          image: "apache/apisix:2.15.0-alpine"
+          imagePullPolicy: IfNotPresent
+          env:
+          ports:
+            - name: http
+              containerPort: 9080
+              protocol: TCP
+            - name: tls
+              containerPort: 9443
+              protocol: TCP
+            - name: admin
+              containerPort: 9180
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9091
+              protocol: TCP
+            - name: proxy-tcp-0
+              containerPort: 9042
+              protocol: TCP
+            - name: proxy-tcp-1
+              containerPort: 9092
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 9080
+            timeoutSeconds: 1
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - "sleep 30"
+          volumeMounts:
+            - mountPath: /usr/local/apisix/conf/config.yaml
+              name: apisix-config
+              subPath: config.yaml
+            - mountPath: /etc/prom-certs/
+              name: istio-certs
+          resources:
+            {}
+      volumes:
+        - configMap:
+            name: apisix
+          name: apisix-config
+        - emptyDir:
+            medium: Memory
+          name: istio-certs
+      affinity:
+---
+# Source: apisix/charts/dashboard/templates/hpa.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: apisix/charts/dashboard/templates/ingress.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: apisix/charts/ingress-controller/templates/hpa.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: apisix/templates/daemonset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/hpa.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/ingress.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/pdb.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/charts/ingress-controller/templates/servicemonitor.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: apisix-ingress-controller
+  namespace: ingress-apisix
+spec:
+  endpoints:
+  - targetPort: http
+    scheme: http
+    interval: 15s
+  namespaceSelector:
+    matchNames:
+    - ingress-apisix
+
+  selector:
+    matchLabels:
+      helm.sh/chart: ingress-controller-0.9.3
+      app.kubernetes.io/name: ingress-controller
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/version: "1.4.1"
+      app.kubernetes.io/managed-by: Helm
+---
+# Source: apisix/templates/service-monitor.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: apisix
+  namespace: ingress-apisix
+  labels:
+    helm.sh/chart: apisix-0.11.0
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: apisix
+    app.kubernetes.io/version: "2.15.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  namespaceSelector:
+    matchNames:
+    - ingress-apisix
+  selector:
+    matchLabels:
+      helm.sh/chart: apisix-0.11.0
+      app.kubernetes.io/name: apisix
+      app.kubernetes.io/instance: apisix
+      app.kubernetes.io/version: "2.15.0"
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/service: apisix-gateway
+  endpoints:
+  - scheme: http
+    targetPort: prometheus
+    path: /apisix/prometheus/metrics
+    interval: 15s
+
+NOTES:
+1. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace ingress-apisix -o jsonpath="{.spec.ports[0].nodePort}" services apisix-gateway)
+  export NODE_IP=$(kubectl get nodes --namespace ingress-apisix -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT

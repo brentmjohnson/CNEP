@@ -1,0 +1,117 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: kafka
+spec:
+  kafka:
+    template:
+      pod:
+        metadata:
+          annotations:
+            traffic.sidecar.istio.io/excludeInboundPorts: "9404"
+          labels:
+            app: kafka
+            version: "3.2.0"
+      podDisruptionBudget:
+        maxUnavailable: 0
+
+    version: 3.2.0
+    replicas: 1
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+    readinessProbe:
+      initialDelaySeconds: 15
+      timeoutSeconds: 5
+    livenessProbe:
+      initialDelaySeconds: 15
+      timeoutSeconds: 5
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      inter.broker.protocol.version: "3.2"
+    jvmOptions:
+      -Xms: 512m
+      -Xmx: 512m
+    storage:
+      type: jbod
+      volumes:
+      - id: 0
+        type: persistent-claim
+        size: 1Gi
+        deleteClaim: false
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-metrics
+          key: kafka-metrics-config.yml
+  zookeeper:
+    template:
+      pod:
+        metadata:
+          annotations:
+            traffic.sidecar.istio.io/excludeInboundPorts: "9404"
+          labels:
+            app: zookeeper
+            version: "3.2.0"
+            # sidecar.istio.io/inject: "false"
+      podDisruptionBudget:
+        maxUnavailable: 0
+    replicas: 1
+    readinessProbe:
+      initialDelaySeconds: 15
+      timeoutSeconds: 5
+    livenessProbe:
+      initialDelaySeconds: 15
+      timeoutSeconds: 5
+    jvmOptions:
+      -Xms: 512m
+      -Xmx: 512m
+    storage:
+      type: persistent-claim
+      size: 1Gi
+      deleteClaim: false
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-metrics
+          key: zookeeper-metrics-config.yml
+  entityOperator:
+    template:
+      pod:
+        metadata:
+          annotations:
+            traffic.sidecar.istio.io/excludeInboundPorts: "8080,8081"
+          labels:
+            app: kafka-entity-operator
+            version: "0.29.0"
+    topicOperator:
+      jvmOptions:
+        -Xms: 128m
+        -Xmx: 128m
+    userOperator:
+      jvmOptions:
+        -Xms: 128m
+        -Xmx: 128m
+  kafkaExporter:
+    template:
+      pod:
+        metadata:
+          annotations:
+            traffic.sidecar.istio.io/excludeInboundPorts: "9404"
+          labels:
+            app: kafka-exporter
+            version: "0.29.0"
+    topicRegex: ".*"
+    groupRegex: ".*"

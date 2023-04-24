@@ -1,0 +1,27 @@
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: scylla
+    app.kubernetes.io/managed-by: scylla-operator
+    app.kubernetes.io/name: scylla
+    scylla-operator.scylladb.com/scylla-service-type: identity
+    scylla/cluster: scylla-manager
+  name: scylla-manager-metrics
+  namespace: scylla-manager
+spec:
+  ports:
+    - name: prometheus
+      appProtocol: http
+      port: 9180
+      targetPort: 9180
+    - name: agent-prometheus
+      appProtocol: http
+      port: 5090
+      targetPort: 5090
+  selector:
+    app: scylla
+    app.kubernetes.io/managed-by: scylla-operator
+    app.kubernetes.io/name: scylla
+    scylla/cluster: scylla-manager
+  # clusterIP: None

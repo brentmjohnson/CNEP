@@ -1,0 +1,6 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-unseal-cronjob
+spec:
+  schedule: "*/1 * * * *"

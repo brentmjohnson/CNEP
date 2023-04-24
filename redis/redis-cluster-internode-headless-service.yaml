@@ -1,0 +1,20 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: redis-cluster-internode-headless
+  namespace: redis
+spec:
+  ports:
+    - port: 16379
+      protocol: TCP
+      appProtocol: tcp
+      targetPort: 16379
+  selector:
+    app.kubernetes.io/component: middleware
+    app.kubernetes.io/instance: redis-cluster
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis-cluster
+    app.kubernetes.io/version: 0.11.0
+    helm.sh/chart: redis-cluster-0.11.3
+    redis_setup_type: cluster
+  clusterIP: None

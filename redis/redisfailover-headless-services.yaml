@@ -1,0 +1,35 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: redisfailover-redis-headless
+  namespace: redis
+spec:
+  ports:
+    - name: redis
+      protocol: TCP
+      appProtocol: tcp
+      port: 6379
+      targetPort: 6379
+  selector:
+    app.kubernetes.io/component: redis
+    redisfailovers.databases.spotahome.com/name: redisfailover
+  clusterIP: None
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: redisfailover-sentinel-headless
+  namespace: redis
+spec:
+  ports:
+    - name: sentinel
+      protocol: TCP
+      appProtocol: tcp
+      port: 26379
+      targetPort: 26379
+  selector:
+    app.kubernetes.io/component: sentinel
+    redisfailovers.databases.spotahome.com/name: redisfailover
+  clusterIP: None
